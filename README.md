@@ -1,4 +1,4 @@
-# HoymilesZeroExport
+# Hoymiles Zero Export Control / Hoymiles Nulleinspeisung
 Zero Export Script for Hoymiles Inverters by using AhoyDTU and Tasmota Smart Meter inferface
 
 ## Thanks to:
