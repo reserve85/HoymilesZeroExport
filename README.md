@@ -1,21 +1,21 @@
 # Hoymiles Zero Export Control / Hoymiles Nulleinspeisung
 Zero Export Script for Hoymiles Inverters by using AhoyDTU and Tasmota Smart Meter inferface.
 It is tested with a Holley DTZ541 powermeter and a Hoymiles HM-1500 solar inverter.
+This script needs a powermeter which outputs negative power values via the interfaces when returning to the grid.
+For example: the Holley DTZ541 shows -150W (But it does not count the consumption counter backwards).
 
-## Thanks to:
-- https://github.com/lumapu/ahoy
-- https://tasmota.github.io/docs/Smart-Meter-Interface/
-- https://ottelo.jimdofree.com/stromz%C3%A4hler-auslesen/
 
-You need to modify the following variables with your own values:
+### You need to modify the following variables with your own values:
+```sh
 - ahoyIP = '192.168.10.57'
 - tasmotaIP = '192.168.10.90'
 - hoymilesInverterID = 0
-- hoymilesMaxWatt = 1500 # maximum limit in watts (100%)
-- hoymilesMinWatt = int(hoymilesMaxWatt / 10) # minimum limit in watts (should be around 10% of maximum inverter power)
-- hoymilesPosOffsetInWatt = 50 # positive poweroffset in Watt, used to allow some watts more to produce. It's like a reserve
+- hoymilesMaxWatt = 1500 // maximum inverter limit in watts (100%)
+- hoymilesMinWatt = int(hoymilesMaxWatt / 10) // minimum limit in watts (should be around 10% of maximum inverter power)
+- hoymilesPosOffsetInWatt = 50 // positive poweroffset in Watt, used to allow some watts more to produce. It's like a reserve
+```
 
-This script does not use MQTT, its based on webapi.
+This script does not use MQTT, its based on simple webapi.
 
 you´ll only need to install Python (version 3 in my case, download is available at https://www.python.org/) and then install the module "requests"
 ```sh
@@ -55,3 +55,7 @@ sudo systemctl start HoymilesZeroExport.service
 ```sh
 sudo systemctl status HoymilesZeroExport.service
 ```
+## Thanks to:
+- https://github.com/lumapu/ahoy
+- https://tasmota.github.io/docs/Smart-Meter-Interface/
+- https://ottelo.jimdofree.com/stromz%C3%A4hler-auslesen/
