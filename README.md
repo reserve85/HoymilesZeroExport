@@ -1,4 +1,4 @@
-# Hoymiles Zero Export Control / Hoymiles Nulleinspeisung
+# Hoymiles Zero Export Control with Tasmota Smart Meter Interface / Hoymiles Nulleinspeisung mit Tasmota Smart Meter Interface
 Zero Export Script for Hoymiles Inverters by using AhoyDTU and Tasmota Smart Meter inferface.
 It is tested with a Holley DTZ541 powermeter and a Hoymiles HM-1500 solar inverter.
 This script needs a powermeter which outputs negative power values via the interfaces when returning to the grid.
