@@ -1,5 +1,6 @@
 # Hoymiles Zero Export Control / Hoymiles Nulleinspeisung
-Zero Export Script for Hoymiles Inverters by using AhoyDTU and Tasmota Smart Meter inferface
+Zero Export Script for Hoymiles Inverters by using AhoyDTU and Tasmota Smart Meter inferface.
+It is tested with a Holley DTZ541 powermeter and a Hoymiles HM-1500 solar inverter.
 
 ## Thanks to:
 - https://github.com/lumapu/ahoy
@@ -16,7 +17,16 @@ You need to modify the following variables with your own values:
 
 This script does not use MQTT, its based on webapi.
 
-### install as service:
+you´ll only need to install Python (version 3 in my case, download is available at https://www.python.org/) and then install the module "requests"
+```sh
+sudo apt-get install python3-requests
+```
+or windows:
+```sh
+pip3 install requests
+```
+
+### To install this script as a service:
 ```sh
 sudo nano /etc/systemd/system/HoymilesZeroExport.service
 ```
@@ -34,7 +44,7 @@ ExecStart=/usr/bin/python3 /path/to/your/HoymilesZeroExport.py
 WantedBy=multi-user.target
 ```
 
-### to start service:
+### to start the service:
 ```sh
 sudo systemctl daemon-reload
 sudo systemctl enable HoymilesZeroExport.service 
