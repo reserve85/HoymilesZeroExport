@@ -2,36 +2,12 @@ import requests, time
 from requests.auth import HTTPBasicAuth
 import os
 
-# install as service:
-# "sudo nano /etc/systemd/system/HoymilesZeroExport.service".
-
-# insert the following text:
-# [Unit]
-# Description=HoymilesZeroExport Service
-# After=multi-user.target
-# [Service]
-# Type=simple
-# Restart=always
-# ExecStart=/usr/bin/python3 /path/to/your/HoymilesZeroExport.py
-# [Install]
-# WantedBy=multi-user.target
-
-# to start service:
-# "sudo systemctl daemon-reload" 
-# "sudo systemctl enable HoymilesZeroExport.service" 
-# "sudo systemctl start HoymilesZeroExport.service"
-
-# check the service if it is running correctly:
-# "sudo systemctl status HoymilesZeroExport.service" 
-
 ahoyIP = '192.168.10.57'
 tasmotaIP = '192.168.10.90'
-
 hoymilesInverterID = 0
 hoymilesMaxWatt = 1500 # maximum limit in watts (100%)
 hoymilesMinWatt = int(hoymilesMaxWatt / 10) # minimum limit in watts (should be around 10% of maximum inverter power)
 hoymilesPosOffsetInWatt = 50 # positive poweroffset in Watt, used to allow some watts more to produce. It's like a reserve
-
 
 def setLimit(hoymilesInverterID, Limit):
     url = f"http://{ahoyIP}/api/ctrl"
