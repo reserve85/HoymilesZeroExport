@@ -6,10 +6,10 @@ import logging
 ahoyIP = '192.168.10.57'
 tasmotaIP = '192.168.10.90'
 
-hoymilesInverterID = 0
-hoymilesMaxWatt = 1500 # maximum limit in watts (100%)
+hoymilesInverterID = int(0)
+hoymilesMaxWatt = int(1500) # maximum limit in watts (100%)
 hoymilesMinWatt = int(hoymilesMaxWatt / 10) # minimum limit in watts (should be around 10% of maximum inverter power)
-hoymilesPosOffsetInWatt = 50 # positive poweroffset in Watt, used to allow some watts more to produce. It's like a reserve
+hoymilesPosOffsetInWatt = int(50) # positive poweroffset in Watt, used to allow some watts more to produce. It's like a reserve
 
 logging.basicConfig(
     format='%(asctime)s %(levelname)-8s %(message)s',
@@ -26,10 +26,10 @@ def setLimit(hoymilesInverterID, Limit):
 while True:
     try:
         ParsedData = requests.get(url = f'http://{ahoyIP}/api/index').json()
-        hoymilesIsReachable = ParsedData["inverter"][0]["is_avail"]
+        hoymilesIsReachable = bool(ParsedData["inverter"][0]["is_avail"])
 
         ParsedData = requests.get(url = f'http://{ahoyIP}/api/record/live').json()
-        hoymilesActualPower = next(item for item in ParsedData['inverter'][0] if item['fld'] == 'P_AC')['val']
+        hoymilesActualPower = int(float(next(item for item in ParsedData['inverter'][0] if item['fld'] == 'P_AC')['val']))
 
         ParsedData = requests.get(url = f'http://{ahoyIP}/api/record/config').json()
         hoymilesActualLimit =int(float(ParsedData['inverter'][0][0]['val']) * 0.01 * hoymilesMaxWatt)
@@ -37,7 +37,7 @@ while True:
         ParsedData = requests.get(url = f'http://{tasmotaIP}/cm?cmnd=status%2010').json()
         powermeterWatts = int(ParsedData["StatusSNS"]["SML"]["curr_w"])
 
-        newLimitSetpoint = hoymilesActualLimit
+        newLimitSetpoint = int(hoymilesActualLimit)
 
         logging.info("HM reachable: %s",hoymilesIsReachable)
         logging.info("HM power: %s %s",hoymilesActualPower, "Watt")
