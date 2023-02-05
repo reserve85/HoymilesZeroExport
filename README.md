@@ -4,17 +4,6 @@ It is tested with a Holley DTZ541 powermeter and a Hoymiles HM-1500 solar invert
 This script needs a powermeter which outputs negative power values via the interfaces when returning to the grid.
 For example: the Holley DTZ541 shows -150W (But it does not count the consumption counter backwards).
 
-
-### You need to modify the following variables with your own values:
-```sh
-- ahoyIP = '192.168.10.57'
-- tasmotaIP = '192.168.10.90'
-- hoymilesInverterID = 0
-- hoymilesMaxWatt = 1500 // maximum inverter limit in watts (100%)
-- hoymilesMinWatt = int(hoymilesMaxWatt / 10) // minimum limit in watts (should be around 10% of maximum inverter power)
-- hoymilesPosOffsetInWatt = 50 // positive poweroffset in Watt, used to allow some watts more to produce. It's like a reserve
-```
-
 This script does not use MQTT, its based on simple webapi.
 
 you´ll only need to install Python (version 3 in my case, download is available at https://www.python.org/) and then install the module "requests"
