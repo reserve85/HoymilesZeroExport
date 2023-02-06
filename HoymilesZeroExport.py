@@ -33,33 +33,32 @@ time.sleep(10)
 
 while True:
     try:
-        ParsedData = requests.get(url = f'http://{ahoyIP}/api/index').json()
-        hoymilesIsReachable = bool(ParsedData["inverter"][0]["is_avail"])
+        try:
+            ParsedData = requests.get(url = f'http://{ahoyIP}/api/index').json()
+            hoymilesIsReachable = bool(ParsedData["inverter"][0]["is_avail"])
 
-        ParsedData = requests.get(url = f'http://{tasmotaIP}/cm?cmnd=status%2010').json()
-        powermeterWatts = int(ParsedData["StatusSNS"]["SML"]["curr_w"])
+            ParsedData = requests.get(url = f'http://{tasmotaIP}/cm?cmnd=status%2010').json()
+            powermeterWatts = int(ParsedData["StatusSNS"]["SML"]["curr_w"])
 
-        logging.info("HM reachable: %s",hoymilesIsReachable)
-        logging.info("powermeter: %s %s",powermeterWatts, " Watt")
+            logging.info("HM reachable: %s",hoymilesIsReachable)
+            logging.info("powermeter: %s %s",powermeterWatts, " Watt")
 
-        if hoymilesIsReachable:
-            
-            if powermeterWatts > 0:
-                newLimitSetpoint = hoymilesMaxWatt # not enough power: increase limit to maximum
-            else:
-                newLimitSetpoint = newLimitSetpoint + powermeterWatts + abs(hoymilesSetPointInWatt) # adjusting Limit to match setpoint
+            if hoymilesIsReachable:
+                if powermeterWatts > 0:
+                    newLimitSetpoint = hoymilesMaxWatt # not enough power: increase limit to maximum
+                else:
+                    newLimitSetpoint = newLimitSetpoint + powermeterWatts + abs(hoymilesSetPointInWatt) # adjusting Limit to match setpoint
 
-            # check for upper and lower limits
-            if newLimitSetpoint > hoymilesMaxWatt:
-                newLimitSetpoint = hoymilesMaxWatt
-            if newLimitSetpoint < hoymilesMinWatt:
-                newLimitSetpoint = hoymilesMinWatt
+                # check for upper and lower limits
+                if newLimitSetpoint > hoymilesMaxWatt:
+                    newLimitSetpoint = hoymilesMaxWatt
+                if newLimitSetpoint < hoymilesMinWatt:
+                    newLimitSetpoint = hoymilesMinWatt
 
-            # set new limit to inverter
-            setLimit(hoymilesInverterID, newLimitSetpoint)
-
-        time.sleep(10)
-
-    except TypeError as e:
-        logging.error(e)
+                # set new limit to inverter
+                setLimit(hoymilesInverterID, newLimitSetpoint)
+        except TypeError as e:
+            logging.error(e)
+            newLimitSetpoint = hoymilesMaxWatt
+    finally:
         time.sleep(10)
