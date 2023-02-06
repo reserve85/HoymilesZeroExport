@@ -24,7 +24,7 @@ def setLimit(hoymilesInverterID, Limit):
     data = f'''{{"id": {hoymilesInverterID}, "cmd": "limit_nonpersistent_absolute", "val": {Limit}}}'''
     headers = {'Content-type': 'application/json', 'Accept': 'text/plain'}
     logging.info("setting new limit to %s %s",Limit," Watt")
-    #requests.post(url, data=data, headers=headers)
+    requests.post(url, data=data, headers=headers)
 
 # Init
 newLimitSetpoint = hoymilesMaxWatt
@@ -43,22 +43,11 @@ while True:
         logging.info("powermeter: %s %s",powermeterWatts, " Watt")
 
         if hoymilesIsReachable:
-            # producing too little power: increase limit to maximum
+            
             if powermeterWatts > 0:
-                newLimitSetpoint = hoymilesMaxWatt
-
-            # producing too much power: reduce limit
-            elif powermeterWatts < hoymilesMinOffsetInWatt:
-                newLimitSetpoint = newLimitSetpoint - abs(powermeterWatts) + abs(hoymilesSetPointInWatt) # jump to setpoint
-                logging.info("Too much energy producing: reducing limit")
-
-            # producing too little power: increase limit
-            elif powermeterWatts > hoymilesMaxOffsetInWatt:
-                if newLimitSetpoint < hoymilesMaxWatt:
-                    newLimitSetpoint = newLimitSetpoint + abs(powermeterWatts) + abs(hoymilesSetPointInWatt)
-                    logging.info("Not enough energy producing: increasing limit")
-                else:
-                    logging.info("Not enough energy producing: limit already at maximum")
+                newLimitSetpoint = hoymilesMaxWatt # not enough power: increase limit to maximum
+            else:
+                newLimitSetpoint = newLimitSetpoint + powermeterWatts + abs(hoymilesSetPointInWatt) # adjusting Limit to match setpoint
 
             # check for upper and lower limits
             if newLimitSetpoint > hoymilesMaxWatt:
