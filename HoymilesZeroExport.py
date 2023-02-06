@@ -24,46 +24,38 @@ def setLimit(hoymilesInverterID, Limit):
     data = f'''{{"id": {hoymilesInverterID}, "cmd": "limit_nonpersistent_absolute", "val": {Limit}}}'''
     headers = {'Content-type': 'application/json', 'Accept': 'text/plain'}
     logging.info("setting new limit to %s %s",Limit," Watt")
-    requests.post(url, data=data, headers=headers)
+    #requests.post(url, data=data, headers=headers)
+
+# Init
+newLimitSetpoint = hoymilesMaxWatt
+setLimit(hoymilesInverterID, newLimitSetpoint)
+time.sleep(10)
 
 while True:
     try:
         ParsedData = requests.get(url = f'http://{ahoyIP}/api/index').json()
         hoymilesIsReachable = bool(ParsedData["inverter"][0]["is_avail"])
 
-        ParsedData = requests.get(url = f'http://{ahoyIP}/api/record/live').json()
-        hoymilesActualPower = int(float(next(item for item in ParsedData['inverter'][0] if item['fld'] == 'P_AC')['val']))
-
-        ParsedData = requests.get(url = f'http://{ahoyIP}/api/record/config').json()
-        hoymilesActualLimit =int(float(ParsedData['inverter'][0][0]['val']) * 0.01 * hoymilesMaxWatt)
-
         ParsedData = requests.get(url = f'http://{tasmotaIP}/cm?cmnd=status%2010').json()
         powermeterWatts = int(ParsedData["StatusSNS"]["SML"]["curr_w"])
 
-        newLimitSetpoint = int(hoymilesActualLimit)
-
         logging.info("HM reachable: %s",hoymilesIsReachable)
-        logging.info("HM power: %s %s",hoymilesActualPower, " Watt")
         logging.info("powermeter: %s %s",powermeterWatts, " Watt")
-        logging.info("HM Limit: %s",hoymilesActualLimit)
 
         if hoymilesIsReachable:
-            # producing too much power: reduce limit
-            if powermeterWatts < hoymilesMinOffsetInWatt:
-                if abs(hoymilesActualLimit - hoymilesActualPower) > hoymilesMaxPowerDiff:
-                    newLimitSetpoint = hoymilesActualPower - abs(powermeterWatts) + abs(hoymilesSetPointInWatt) # big jump to setpoint
-                else:
-                    newLimitSetpoint = hoymilesActualLimit - abs(powermeterWatts) + abs(hoymilesSetPointInWatt) # smaller jump to setpoint
-                logging.info("Too much energy producing: reducing limit")
-
             # producing too little power: increase limit to maximum
-            elif powermeterWatts > 0:
+            if powermeterWatts > 0:
                 newLimitSetpoint = hoymilesMaxWatt
 
-            # producing too little power: increase limit slowly
+            # producing too much power: reduce limit
+            elif powermeterWatts < hoymilesMinOffsetInWatt:
+                newLimitSetpoint = newLimitSetpoint - abs(powermeterWatts) + abs(hoymilesSetPointInWatt) # jump to setpoint
+                logging.info("Too much energy producing: reducing limit")
+
+            # producing too little power: increase limit
             elif powermeterWatts > hoymilesMaxOffsetInWatt:
-                if hoymilesActualLimit < hoymilesMaxWatt:
-                    newLimitSetpoint = hoymilesActualLimit + abs(powermeterWatts) + abs(hoymilesSetPointInWatt)
+                if newLimitSetpoint < hoymilesMaxWatt:
+                    newLimitSetpoint = newLimitSetpoint + abs(powermeterWatts) + abs(hoymilesSetPointInWatt)
                     logging.info("Not enough energy producing: increasing limit")
                 else:
                     logging.info("Not enough energy producing: limit already at maximum")
@@ -75,8 +67,7 @@ while True:
                 newLimitSetpoint = hoymilesMinWatt
 
             # set new limit to inverter
-            if hoymilesActualLimit != newLimitSetpoint:
-                setLimit(hoymilesInverterID, newLimitSetpoint)
+            setLimit(hoymilesInverterID, newLimitSetpoint)
 
         time.sleep(10)
 
