@@ -70,11 +70,10 @@ while True:
                     newLimitSetpoint = newLimitSetpoint - abs(powermeterWatts) + abs(powermeterTargetPoint) # jump to setpoint
                 logging.info("Too much energy producing: reducing limit")
 
-
             # producing too little power: increase limit
             elif powermeterWatts > (powermeterTargetPoint + powermeterTolerance):
                 if newLimitSetpoint < hoymilesMaxWatt:
-                    newLimitSetpoint = newLimitSetpoint + abs(powermeterWatts) + abs(powermeterTargetPoint)
+                    newLimitSetpoint = newLimitSetpoint - abs(powermeterWatts) + abs(powermeterTargetPoint)
                     logging.info("Not enough energy producing: increasing limit")
                 else:
                     logging.info("Not enough energy producing: limit already at maximum")
