@@ -87,7 +87,9 @@ while True:
             # set new limit to inverter
             if oldLimitSetpoint != newLimitSetpoint:
                 setLimit(hoymilesInverterID, newLimitSetpoint)
+        else:
+            time.sleep(LoopIntervalInSeconds)
 
     except TypeError as e:
         logging.error(e)
-        time.sleep(LoopIntervalInSeconds - SetLimitDelay)
+        time.sleep(LoopIntervalInSeconds)
