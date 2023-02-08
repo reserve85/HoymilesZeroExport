@@ -6,6 +6,10 @@ For example: the Holley DTZ541 shows -150W (But it does not count the consumptio
 
 This script does not use MQTT, its based on simple webapi.
 
+Example in Home-Assistant:
+![IMG_E0135](https://user-images.githubusercontent.com/111107925/217550990-5fdb4e99-9032-4df8-9441-430a07d1e1f9.JPG)
+
+
 you´ll only need to install Python (version 3 in my case, download is available at https://www.python.org/) and then install the module "requests"
 ```sh
 sudo apt-get install python3-requests
