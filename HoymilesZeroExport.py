@@ -11,7 +11,8 @@ powermeterTolerance = int(30) # this is the tolerance (pos and neg) around the t
 hoymilesInverterID = int(0) # number of inverter in Ahoy-Setup
 hoymilesMaxWatt = int(1500) # maximum limit in watts (100%)
 hoymilesMinWatt = int(hoymilesMaxWatt * 0.05) # minimum limit in watts, e.g. 5%
-hoymilesBigJumpPowerOffset = int(2.5 * powermeterTargetPoint) # Additional offset used for calculation to jump from max Limit to calculated limit
+hoymilesBigJumpPercent = int(20) # indicates a "big jump" in percent of hoymilesMaxWatt
+hoymilesBigJumpOffsetInPercent = int(20) # Additional offset in percent of the "Jump-Watts", used for calculation to jump from max Limit to calculated limit
 LoopIntervalInSeconds = int(20) # time for loop interval
 SetLimitDelay = int(5) # min delay time after sending limit
 
@@ -37,16 +38,17 @@ while True:
     try:
         oldLimitSetpoint = newLimitSetpoint
         ParsedData = requests.get(url = f'http://{ahoyIP}/api/index').json()
-        hoymilesIsReachable = bool(ParsedData["inverter"][0]["is_avail"])
-        logging.info("HM reachable: %s",hoymilesIsReachable)
+        hoymilesIsReachable = bool(ParsedData["inverter"][hoymilesInverterID]["is_avail"])
+        if not hoymilesIsReachable:
+            logging.info("HM reachable: %s",hoymilesIsReachable)
 
         if hoymilesIsReachable:
             # check all the time if powermeterWatts > 0...
             for x in range(LoopIntervalInSeconds):
                 ParsedData = requests.get(url = f'http://{tasmotaIP}/cm?cmnd=status%2010').json()
                 powermeterWatts = int(ParsedData["StatusSNS"]["SML"]["curr_w"])
-                logging.info("powermeter: %s %s",powermeterWatts, " Watt")
-                if powermeterWatts > 0:
+                # if powermeter > 0 -> immediatelly increase limit to 100%
+                if powermeterWatts > 0: 
                     newLimitSetpoint = hoymilesMaxWatt
                     setLimit(hoymilesInverterID, newLimitSetpoint)
                     lclsleeptime = LoopIntervalInSeconds - SetLimitDelay - x
@@ -56,21 +58,23 @@ while True:
                         time.sleep(lclsleeptime)
                     break
                 time.sleep(1)
+            logging.info("powermeter: %s %s",powermeterWatts, " Watt")
             if powermeterWatts > 0:
                 continue
 
             # producing too much power: reduce limit
             if powermeterWatts < (powermeterTargetPoint - powermeterTolerance):
-                if newLimitSetpoint >= hoymilesMaxWatt:
+                # check if the new limit step exceed hoymilesBigJumpPercent
+                if abs((powermeterWatts - powermeterTargetPoint) / hoymilesMaxWatt) * 100 >= hoymilesBigJumpPercent:
                     ParsedData = requests.get(url = f'http://{ahoyIP}/api/record/live').json()
-                    hoymilesActualPower = int(float(next(item for item in ParsedData['inverter'][0] if item['fld'] == 'P_AC')['val']))
+                    hoymilesActualPower = int(float(next(item for item in ParsedData['inverter'][hoymilesInverterID] if item['fld'] == 'P_AC')['val']))
                     logging.info("HM power: %s %s",hoymilesActualPower, " Watt")
-                    newLimitSetpoint = hoymilesActualPower - abs(powermeterWatts) + abs(hoymilesBigJumpPowerOffset) # big jump to setpoint
+                    newLimitSetpoint = hoymilesActualPower - abs(powermeterWatts) + abs(powermeterTargetPoint) + abs(int(hoymilesMaxWatt * hoymilesBigJumpOffsetInPercent / 100)) # big jump to setpoint
                 else:
                     newLimitSetpoint = newLimitSetpoint - abs(powermeterWatts) + abs(powermeterTargetPoint) # jump to setpoint
                 logging.info("Too much energy producing: reducing limit")
 
-            # producing too little power: increase limit
+            # producing not enough power: increase limit
             elif powermeterWatts > (powermeterTargetPoint + powermeterTolerance):
                 if newLimitSetpoint < hoymilesMaxWatt:
                     newLimitSetpoint = newLimitSetpoint - abs(powermeterWatts) + abs(powermeterTargetPoint)
