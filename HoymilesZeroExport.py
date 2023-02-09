@@ -69,7 +69,8 @@ while True:
                     ParsedData = requests.get(url = f'http://{ahoyIP}/api/record/live').json()
                     hoymilesActualPower = int(float(next(item for item in ParsedData['inverter'][hoymilesInverterID] if item['fld'] == 'P_AC')['val']))
                     logging.info("HM power: %s %s",hoymilesActualPower, " Watt")
-                    newLimitSetpoint = hoymilesActualPower - abs(powermeterWatts) + abs(powermeterTargetPoint) + abs(int(hoymilesMaxWatt * hoymilesBigJumpOffsetInPercent / 100)) # big jump to setpoint
+                    newLimitSetpoint = hoymilesActualPower - abs(powermeterWatts) + abs(powermeterTargetPoint)
+                    newLimitSetpoint = newLimitSetpoint + abs(int((hoymilesMaxWatt - newLimitSetpoint) * hoymilesBigJumpOffsetInPercent / 100))
                 else:
                     newLimitSetpoint = newLimitSetpoint - abs(powermeterWatts) + abs(powermeterTargetPoint) # jump to setpoint
                 logging.info("Too much energy producing: reducing limit")
