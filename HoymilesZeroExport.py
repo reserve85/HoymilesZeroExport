@@ -3,7 +3,7 @@ from requests.auth import HTTPBasicAuth
 import os
 import logging
 
-ahoyIP = '192.168.10.57'
+ahoyIP = '192.168.10.57' # in settings/inverter set interval to 6 seconds!
 tasmotaIP = '192.168.10.90'
 powermeterTargetPoint = int(-75) # this is the target power for powermeter in watts
 powermeterTolerance = int(25) # this is the tolerance (pos and neg) around the target point. in this range no adjustment will be set
