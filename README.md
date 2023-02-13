@@ -52,4 +52,5 @@ sudo systemctl status HoymilesZeroExport.service
 ## Thanks to:
 - https://github.com/lumapu/ahoy
 - https://tasmota.github.io/docs/Smart-Meter-Interface/
-- https://ottelo.jimdofree.com/stromz%C3%A4hler-auslesen/
+- https://ottelo.jimdofree.com/stromz%C3%A4hler-auslesen-tasmota/
+- https://hessburg.de/tasmota-wifi-smartmeter-konfigurieren/
