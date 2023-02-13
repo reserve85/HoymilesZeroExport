@@ -10,9 +10,10 @@ powermeterTolerance = int(25) # this is the tolerance (pos and neg) around the t
 hoymilesInverterID = int(0) # number of inverter in Ahoy-Setup
 hoymilesMaxWatt = int(1500) # maximum limit in watts (100%)
 hoymilesMinWatt = int(hoymilesMaxWatt * 0.05) # minimum limit in watts, e.g. 5%
-LoopIntervalInSeconds = int(20) # time for loop interval
 slowApproximationLimit = int(hoymilesMaxWatt * 0.2) # max difference between SetpointLimit change to Approximate the power to new setpoint
-SetLimitDelay = int(5) # min delay time after sending limit
+LoopIntervalInSeconds = int(20) # interval time for setting limit to hoymiles
+SetLimitDelay = int(5) # delay time after sending limit to Hoymiles
+PollInterval = int(1) # polling interval for powermeter (must be < LoopIntervalInSeconds)
 
 logging.basicConfig(
     format='%(asctime)s %(levelname)-8s %(message)s',
@@ -29,18 +30,27 @@ def setLimit(pHoymilesInverterID, pLimit):
 
 def GetHoymilesAvailable():
     ParsedData = requests.get(url = f'http://{ahoyIP}/api/index').json()
+    if ParsedData == None:
+      logging.info("Error: ParsedData is empty (in function GetHoymilesAvailable)")
+      return False
     Reachable = bool(ParsedData["inverter"][0]["is_avail"])
     logging.info("HM reachable: %s",Reachable)
     return Reachable
 
 def GetHoymilesActualPower():
     ParsedData = requests.get(url = f'http://{ahoyIP}/api/record/live').json()
+    if ParsedData == None:
+      logging.info("Error: ParsedData is empty (in function GetHoymilesActualPower)")
+      return int(hoymilesMaxWatt)
     ActualPower = int(float(next(item for item in ParsedData['inverter'][0] if item['fld'] == 'P_AC')['val']))
     logging.info("HM power: %s %s",ActualPower, " Watt")
     return int(ActualPower)
 
 def GetPowermeterWatts():
     ParsedData = requests.get(url = f'http://{tasmotaIP}/cm?cmnd=status%2010').json()
+    if ParsedData == None:
+      logging.info("Error: ParsedData is empty (in function GetPowermeterWatts)")
+      return int(hoymilesMaxWatt)    
     Watts = int(ParsedData["StatusSNS"]["SML"]["curr_w"])
     logging.info("powermeter: %s %s",Watts, " Watt")
     return int(Watts)
@@ -60,18 +70,18 @@ while True:
     try:
         PreviousLimitSetpoint = newLimitSetpoint
         if GetHoymilesAvailable():
-            for x in range(LoopIntervalInSeconds):
+            for x in range(int(LoopIntervalInSeconds / PollInterval)):
                 powermeterWatts = GetPowermeterWatts()
                 if powermeterWatts > 0:
                     newLimitSetpoint = hoymilesMaxWatt
                     setLimit(hoymilesInverterID, newLimitSetpoint)
-                    if LoopIntervalInSeconds - SetLimitDelay - x <= 0:
+                    if int(LoopIntervalInSeconds) - SetLimitDelay - x * PollInterval <= 0:
                         break
                     else:
-                        time.sleep(LoopIntervalInSeconds - SetLimitDelay - x)
+                        time.sleep(int(LoopIntervalInSeconds) - SetLimitDelay - x * PollInterval)
                     break
                 else:
-                    time.sleep(1)
+                    time.sleep(PollInterval)
             if powermeterWatts > 0:
                 continue
 
