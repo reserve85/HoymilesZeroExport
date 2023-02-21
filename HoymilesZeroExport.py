@@ -25,32 +25,50 @@ def setLimit(pHoymilesInverterID, pLimit):
     data = f'''{{"id": {pHoymilesInverterID}, "cmd": "limit_nonpersistent_absolute", "val": {pLimit}}}'''
     headers = {'Content-type': 'application/json', 'Accept': 'text/plain'}
     logging.info("setting new limit to %s %s",int(pLimit)," Watt")
-    requests.post(url, data=data, headers=headers)
+    try:
+        requests.post(url, data=data, headers=headers)
+    except:
+        logging.info("error: %s is not reachable!", url)
     time.sleep(SetLimitDelay)
 
 def GetHoymilesAvailable():
-    ParsedData = requests.get(url = f'http://{ahoyIP}/api/index').json()
+    url = f'http://{ahoyIP}/api/index'
+    try:
+        ParsedData = requests.get(url).json()
+    except:
+        logging.info("error: %s is not reachable!", url)
+        return False
     if ParsedData == None:
-      logging.info("Error: ParsedData is empty (in function GetHoymilesAvailable)")
-      return False
+        logging.info("Error: ParsedData is empty (in function GetHoymilesAvailable)")
+        return False
     Reachable = bool(ParsedData["inverter"][0]["is_avail"])
     logging.info("HM reachable: %s",Reachable)
     return Reachable
 
 def GetHoymilesActualPower():
-    ParsedData = requests.get(url = f'http://{ahoyIP}/api/record/live').json()
+    url = f'http://{ahoyIP}/api/record/live'
+    try:
+        ParsedData = requests.get(url).json()
+    except:
+        logging.info("error: %s is not reachable!", url)
+        return int(0)
     if ParsedData == None:
-      logging.info("Error: ParsedData is empty (in function GetHoymilesActualPower)")
-      return int(hoymilesMaxWatt)
+        logging.info("Error: ParsedData is empty (in function GetHoymilesActualPower)")
+        return int(0)
     ActualPower = int(float(next(item for item in ParsedData['inverter'][0] if item['fld'] == 'P_AC')['val']))
     logging.info("HM power: %s %s",ActualPower, " Watt")
     return int(ActualPower)
 
 def GetPowermeterWatts():
-    ParsedData = requests.get(url = f'http://{tasmotaIP}/cm?cmnd=status%2010').json()
+    url = f'http://{tasmotaIP}/cm?cmnd=status%2010'
+    try:
+        ParsedData = requests.get(url).json()
+    except:
+        logging.info("error: %s is not reachable!", url)
+        return int(0)
     if ParsedData == None:
-      logging.info("Error: ParsedData is empty (in function GetPowermeterWatts)")
-      return int(hoymilesMaxWatt)    
+        logging.info("Error: ParsedData is empty (in function GetPowermeterWatts)")
+        return int(0)
     Watts = int(ParsedData["StatusSNS"]["SML"]["curr_w"])
     logging.info("powermeter: %s %s",Watts, " Watt")
     return int(Watts)
@@ -120,6 +138,9 @@ while True:
         else:
             time.sleep(LoopIntervalInSeconds)
 
-    except TypeError as e:
-        logging.error(e)
+    except Exception as e:
+        if hasattr(e, 'message'):
+            print(e.message)
+        else:
+            print(e)
         time.sleep(LoopIntervalInSeconds)
