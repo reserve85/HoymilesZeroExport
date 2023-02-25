@@ -11,10 +11,10 @@ hoymilesInverterID = int(0) # number of inverter in Ahoy-Setup
 hoymilesMaxWatt = int(1500) # maximum limit in watts (100%)
 hoymilesMinWatt = int(hoymilesMaxWatt * 0.05) # minimum limit in watts, e.g. 5%
 slowApproximationLimit = int(hoymilesMaxWatt * 0.2) # max difference between SetpointLimit change to Approximate the power to new setpoint
-LoopIntervalInSeconds = int(20) # interval time for setting limit to hoymiles
-SetLimitDelay = int(5) # delay time after sending limit to Hoymiles
-PollInterval = int(1) # polling interval for powermeter (must be < LoopIntervalInSeconds)
-JumpToMaxlimit = bool(True)
+loopIntervalInSeconds = int(20) # interval time for setting limit to hoymiles
+setLimitDelay = int(5) # delay time after sending limit to Hoymiles
+pollInterval = int(1) # polling interval for powermeter (must be < loopIntervalInSeconds)
+jumpToMaxlimitOnGridUsage = bool(True) # when powermeter > 0: (true): always jump to maxLimit of inverter; (false): increase limit based on previous limit
 
 logging.basicConfig(
     format='%(asctime)s %(levelname)-8s %(message)s',
@@ -30,7 +30,7 @@ def SetLimit(pHoymilesInverterID, pLimit):
         requests.post(url, data=data, headers=headers)
     except:
         logging.info("error: %s is not reachable!", url)
-    time.sleep(SetLimitDelay)
+    time.sleep(setLimitDelay)
 
 def GetHoymilesAvailable():
     url = f'http://{ahoyIP}/api/index'
@@ -83,28 +83,28 @@ def ApplyLimitsToSetpoint(pSetpoint):
 
 newLimitSetpoint = hoymilesMaxWatt
 SetLimit(hoymilesInverterID, newLimitSetpoint)
-time.sleep(LoopIntervalInSeconds - SetLimitDelay)
+time.sleep(loopIntervalInSeconds - setLimitDelay)
 
 while True:
     try:
         PreviousLimitSetpoint = newLimitSetpoint
         if GetHoymilesAvailable():
-            for x in range(int(LoopIntervalInSeconds / PollInterval)):
+            for x in range(int(loopIntervalInSeconds / pollInterval)):
                 powermeterWatts = GetPowermeterWatts()
                 if powermeterWatts > 0:
-                    if JumpToMaxlimit:
+                    if jumpToMaxlimitOnGridUsage:
                         newLimitSetpoint = hoymilesMaxWatt
                     else:
                         newLimitSetpoint = PreviousLimitSetpoint + powermeterWatts + abs(powermeterTargetPoint)
                     newLimitSetpoint = ApplyLimitsToSetpoint(newLimitSetpoint)
                     SetLimit(hoymilesInverterID, newLimitSetpoint)
-                    if int(LoopIntervalInSeconds) - SetLimitDelay - x * PollInterval <= 0:
+                    if int(loopIntervalInSeconds) - setLimitDelay - x * pollInterval <= 0:
                         break
                     else:
-                        time.sleep(int(LoopIntervalInSeconds) - SetLimitDelay - x * PollInterval)
+                        time.sleep(int(loopIntervalInSeconds) - setLimitDelay - x * pollInterval)
                     break
                 else:
-                    time.sleep(PollInterval)
+                    time.sleep(pollInterval)
             if powermeterWatts > 0:
                 continue
 
@@ -141,11 +141,11 @@ while True:
             if newLimitSetpoint != PreviousLimitSetpoint:
                 SetLimit(hoymilesInverterID, newLimitSetpoint)
         else:
-            time.sleep(LoopIntervalInSeconds)
+            time.sleep(loopIntervalInSeconds)
 
     except Exception as e:
         if hasattr(e, 'message'):
             print(e.message)
         else:
             print(e)
-        time.sleep(LoopIntervalInSeconds)
+        time.sleep(loopIntervalInSeconds)
