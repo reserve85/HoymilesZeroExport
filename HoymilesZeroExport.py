@@ -14,14 +14,14 @@ slowApproximationLimit = int(hoymilesMaxWatt * 0.2) # max difference between Set
 LoopIntervalInSeconds = int(20) # interval time for setting limit to hoymiles
 SetLimitDelay = int(5) # delay time after sending limit to Hoymiles
 PollInterval = int(1) # polling interval for powermeter (must be < LoopIntervalInSeconds)
-JumpToMaxlimitOnGridUsage = bool(True) # when powermeter > 0: (true): always jump to maxLimit of inverter; (false): increase limit based on previous limit
+JumpToMaxlimit = bool(True)
 
 logging.basicConfig(
     format='%(asctime)s %(levelname)-8s %(message)s',
     level=logging.INFO,
     datefmt='%Y-%m-%d %H:%M:%S')
 
-def setLimit(pHoymilesInverterID, pLimit):
+def SetLimit(pHoymilesInverterID, pLimit):
     url = f"http://{ahoyIP}/api/ctrl"
     data = f'''{{"id": {pHoymilesInverterID}, "cmd": "limit_nonpersistent_absolute", "val": {pLimit}}}'''
     headers = {'Content-type': 'application/json', 'Accept': 'text/plain'}
@@ -82,7 +82,7 @@ def ApplyLimitsToSetpoint(pSetpoint):
     return pSetpoint
 
 newLimitSetpoint = hoymilesMaxWatt
-setLimit(hoymilesInverterID, newLimitSetpoint)
+SetLimit(hoymilesInverterID, newLimitSetpoint)
 time.sleep(LoopIntervalInSeconds - SetLimitDelay)
 
 while True:
@@ -92,12 +92,12 @@ while True:
             for x in range(int(LoopIntervalInSeconds / PollInterval)):
                 powermeterWatts = GetPowermeterWatts()
                 if powermeterWatts > 0:
-                    if JumpToMaxlimitOnGridUsage:
+                    if JumpToMaxlimit:
                         newLimitSetpoint = hoymilesMaxWatt
                     else:
                         newLimitSetpoint = PreviousLimitSetpoint + powermeterWatts + abs(powermeterTargetPoint)
                     newLimitSetpoint = ApplyLimitsToSetpoint(newLimitSetpoint)
-                    setLimit(hoymilesInverterID, newLimitSetpoint)
+                    SetLimit(hoymilesInverterID, newLimitSetpoint)
                     if int(LoopIntervalInSeconds) - SetLimitDelay - x * PollInterval <= 0:
                         break
                     else:
@@ -139,7 +139,7 @@ while True:
             newLimitSetpoint = ApplyLimitsToSetpoint(newLimitSetpoint)
             # set new limit to inverter
             if newLimitSetpoint != PreviousLimitSetpoint:
-                setLimit(hoymilesInverterID, newLimitSetpoint)
+                SetLimit(hoymilesInverterID, newLimitSetpoint)
         else:
             time.sleep(LoopIntervalInSeconds)
 
