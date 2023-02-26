@@ -14,7 +14,7 @@ slowApproximationLimit = int(hoymilesMaxWatt * 0.2) # max difference between Set
 loopIntervalInSeconds = int(20) # interval time for setting limit to hoymiles
 setLimitDelay = int(5) # delay time after sending limit to Hoymiles
 pollInterval = int(1) # polling interval for powermeter (must be < loopIntervalInSeconds)
-jumpToMaxlimitOnGridUsage = bool(True) # when powermeter > 0: (true): always jump to maxLimit of inverter; (false): increase limit based on previous limit
+jumpToMaxlimitOnGridUsage = bool(True) # when powermeter > 0: (True): always jump to maxLimit of inverter; (False): increase limit based on previous limit
 
 logging.basicConfig(
     format='%(asctime)s %(levelname)-8s %(message)s',
