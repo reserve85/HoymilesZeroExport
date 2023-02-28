@@ -3,37 +3,42 @@ from requests.auth import HTTPBasicAuth
 import os
 import logging
 
-ahoyIP = '192.168.10.57' # in settings/inverter set interval to 6 seconds!
-tasmotaIP = '192.168.10.90'
-powermeterTargetPoint = int(-75) # this is the target power for powermeter in watts
-powermeterTolerance = int(25) # this is the tolerance (pos and neg) around the target point. in this range no adjustment will be set
-hoymilesInverterID = int(0) # number of inverter in Ahoy-Setup
-hoymilesMaxWatt = int(1500) # maximum limit in watts (100%)
-hoymilesMinWatt = int(hoymilesMaxWatt * 0.05) # minimum limit in watts, e.g. 5%
-slowApproximationLimit = int(hoymilesMaxWatt * 0.2) # max difference between SetpointLimit change to Approximate the power to new setpoint
-loopIntervalInSeconds = int(20) # interval time for setting limit to hoymiles
-setLimitDelay = int(5) # delay time after sending limit to Hoymiles
-pollInterval = int(1) # polling interval for powermeter (must be < loopIntervalInSeconds)
-jumpToMaxlimitOnGridUsage = bool(True) # when powermeter > 0: (True): always jump to maxLimit of inverter; (False): increase limit based on previous limit
+AHOY_IP = '192.168.10.57' # in settings/inverter set interval to 6 seconds!
+TASMOTA_IP = '192.168.10.90'
+POWERMETER_TARGET_POINT = int(-75) # this is the target power for powermeter in watts
+POWERMETER_TOLERANCE = int(25) # this is the tolerance (pos and neg) around the target point. in this range no adjustment will be set
+HOY_INVERTER_ID = int(0) # number of inverter in Ahoy-Setup
+HOY_MAX_WATT = int(1500) # maximum limit in watts (100%)
+HOY_MIN_WATT = int(HOY_MAX_WATT * 0.05) # minimum limit in watts, e.g. 5%
+SLOW_APPROX_LIMIT = int(HOY_MAX_WATT * 0.2) # max difference between SetpointLimit change to Approximate the power to new setpoint
+LOOP_INTERVAL_IN_SECONDS = int(20) # interval time for setting limit to Hoymiles
+SET_LIMIT_DELAY_IN_SECONDS = int(5) # delay time after sending limit to Hoymiles
+POLL_INTERVAL_IN_SECONDS = int(1) # polling interval for powermeter (must be < LOOP_INTERVAL_IN_SECONDS)
+JUMP_TO_MAX_LIMIT_ON_GRID_USAGE = bool(True) # when powermeter > 0: (True): always jump to maxLimit of inverter; (False): increase limit based on previous limit
+# the following three constants describes how to navigate through the Tasmota-JSON
+# e.g. JSON_Result = {"StatusSNS":{"Time":"2023-02-28T12:49:49","SML":{"total_kwh":15011.575,"curr_w":-71}}}
+TAS_JSON_STATUS = 'StatusSNS'
+TAS_JSON_PAYLOAD_MQTT_PREFIX = 'SML' # Prefix for Web UI and MQTT JSON payload
+TAS_JSON_POWER_MQTT_LABEL = 'curr_w' # Power-MQTT label
 
 logging.basicConfig(
     format='%(asctime)s %(levelname)-8s %(message)s',
     level=logging.INFO,
     datefmt='%Y-%m-%d %H:%M:%S')
 
-def SetLimit(pHoymilesInverterID, pLimit):
-    url = f"http://{ahoyIP}/api/ctrl"
-    data = f'''{{"id": {pHoymilesInverterID}, "cmd": "limit_nonpersistent_absolute", "val": {pLimit}}}'''
+def SetLimit(pHOY_INVERTER_ID, pLimit):
+    url = f"http://{AHOY_IP}/api/ctrl"
+    data = f'''{{"id": {pHOY_INVERTER_ID}, "cmd": "limit_nonpersistent_absolute", "val": {pLimit}}}'''
     headers = {'Content-type': 'application/json', 'Accept': 'text/plain'}
     logging.info("setting new limit to %s %s",int(pLimit)," Watt")
     try:
         requests.post(url, data=data, headers=headers)
     except:
         logging.info("error: %s is not reachable!", url)
-    time.sleep(setLimitDelay)
+    time.sleep(SET_LIMIT_DELAY_IN_SECONDS)
 
 def GetHoymilesAvailable():
-    url = f'http://{ahoyIP}/api/index'
+    url = f'http://{AHOY_IP}/api/index'
     try:
         ParsedData = requests.get(url).json()
     except:
@@ -47,7 +52,7 @@ def GetHoymilesAvailable():
     return Reachable
 
 def GetHoymilesActualPower():
-    url = f'http://{ahoyIP}/api/record/live'
+    url = f'http://{AHOY_IP}/api/record/live'
     try:
         ParsedData = requests.get(url).json()
     except:
@@ -61,7 +66,7 @@ def GetHoymilesActualPower():
     return int(ActualPower)
 
 def GetPowermeterWatts():
-    url = f'http://{tasmotaIP}/cm?cmnd=status%2010'
+    url = f'http://{TASMOTA_IP}/cm?cmnd=status%2010'
     try:
         ParsedData = requests.get(url).json()
     except:
@@ -70,67 +75,67 @@ def GetPowermeterWatts():
     if ParsedData == None:
         logging.info("Error: ParsedData is empty (in function GetPowermeterWatts)")
         return int(0)
-    Watts = int(ParsedData["StatusSNS"]["SML"]["curr_w"])
+    Watts = int(ParsedData[TAS_JSON_STATUS][TAS_JSON_PAYLOAD_MQTT_PREFIX][TAS_JSON_POWER_MQTT_LABEL])
     logging.info("powermeter: %s %s",Watts, " Watt")
     return int(Watts)
 
 def ApplyLimitsToSetpoint(pSetpoint):
-    if pSetpoint > hoymilesMaxWatt:
-        pSetpoint = hoymilesMaxWatt
-    if pSetpoint < hoymilesMinWatt:
-        pSetpoint = hoymilesMinWatt
+    if pSetpoint > HOY_MAX_WATT:
+        pSetpoint = HOY_MAX_WATT
+    if pSetpoint < HOY_MIN_WATT:
+        pSetpoint = HOY_MIN_WATT
     return pSetpoint
 
-newLimitSetpoint = hoymilesMaxWatt
-SetLimit(hoymilesInverterID, newLimitSetpoint)
-time.sleep(loopIntervalInSeconds - setLimitDelay)
+newLimitSetpoint = HOY_MAX_WATT
+SetLimit(HOY_INVERTER_ID, newLimitSetpoint)
+time.sleep(LOOP_INTERVAL_IN_SECONDS - SET_LIMIT_DELAY_IN_SECONDS)
 
 while True:
     try:
         PreviousLimitSetpoint = newLimitSetpoint
         if GetHoymilesAvailable():
-            for x in range(int(loopIntervalInSeconds / pollInterval)):
+            for x in range(int(LOOP_INTERVAL_IN_SECONDS / POLL_INTERVAL_IN_SECONDS)):
                 powermeterWatts = GetPowermeterWatts()
                 if powermeterWatts > 0:
-                    if jumpToMaxlimitOnGridUsage:
-                        newLimitSetpoint = hoymilesMaxWatt
+                    if JUMP_TO_MAX_LIMIT_ON_GRID_USAGE:
+                        newLimitSetpoint = HOY_MAX_WATT
                     else:
-                        newLimitSetpoint = PreviousLimitSetpoint + powermeterWatts + abs(powermeterTargetPoint)
+                        newLimitSetpoint = PreviousLimitSetpoint + powermeterWatts + abs(POWERMETER_TARGET_POINT)
                     newLimitSetpoint = ApplyLimitsToSetpoint(newLimitSetpoint)
-                    SetLimit(hoymilesInverterID, newLimitSetpoint)
-                    if int(loopIntervalInSeconds) - setLimitDelay - x * pollInterval <= 0:
+                    SetLimit(HOY_INVERTER_ID, newLimitSetpoint)
+                    if int(LOOP_INTERVAL_IN_SECONDS) - SET_LIMIT_DELAY_IN_SECONDS - x * POLL_INTERVAL_IN_SECONDS <= 0:
                         break
                     else:
-                        time.sleep(int(loopIntervalInSeconds) - setLimitDelay - x * pollInterval)
+                        time.sleep(int(LOOP_INTERVAL_IN_SECONDS) - SET_LIMIT_DELAY_IN_SECONDS - x * POLL_INTERVAL_IN_SECONDS)
                     break
                 else:
-                    time.sleep(pollInterval)
+                    time.sleep(POLL_INTERVAL_IN_SECONDS)
             if powermeterWatts > 0:
                 continue
 
             # producing too much power: reduce limit
-            if powermeterWatts < (powermeterTargetPoint - powermeterTolerance):
-                if PreviousLimitSetpoint >= hoymilesMaxWatt:
+            if powermeterWatts < (POWERMETER_TARGET_POINT - POWERMETER_TOLERANCE):
+                if PreviousLimitSetpoint >= HOY_MAX_WATT:
                     hoymilesActualPower = GetHoymilesActualPower()
-                    CalculatedLimit = hoymilesActualPower - abs(powermeterWatts) + abs(powermeterTargetPoint)
+                    CalculatedLimit = hoymilesActualPower - abs(powermeterWatts) + abs(POWERMETER_TARGET_POINT)
                     newLimitSetpoint = CalculatedLimit + abs((PreviousLimitSetpoint - CalculatedLimit) / 4)
                     if newLimitSetpoint > hoymilesActualPower:
                         newLimitSetpoint = hoymilesActualPower
                     logging.info("overproducing: reduce limit based on actual power")
                 else:
-                    newLimitSetpoint = PreviousLimitSetpoint - abs(powermeterWatts) + abs(powermeterTargetPoint)
+                    newLimitSetpoint = PreviousLimitSetpoint - abs(powermeterWatts) + abs(POWERMETER_TARGET_POINT)
                     # check if it is necessary to approximate to the setpoint with some more passes. this reduce overshoot
                     LimitDifference = abs(PreviousLimitSetpoint - newLimitSetpoint)
-                    if LimitDifference > slowApproximationLimit:
+                    if LimitDifference > SLOW_APPROX_LIMIT:
                         logging.info("overproducing: reduce limit based on previous limit setpoint by approximation")
                         newLimitSetpoint = newLimitSetpoint + (LimitDifference / 4)
                     else:
                         logging.info("overproducing: reduce limit based on previous limit setpoint")
 
             # producing too little power: increase limit
-            elif powermeterWatts > (powermeterTargetPoint + powermeterTolerance):
-                if PreviousLimitSetpoint < hoymilesMaxWatt:
-                    newLimitSetpoint = PreviousLimitSetpoint - abs(powermeterWatts) + abs(powermeterTargetPoint)
+            elif powermeterWatts > (POWERMETER_TARGET_POINT + POWERMETER_TOLERANCE):
+                if PreviousLimitSetpoint < HOY_MAX_WATT:
+                    newLimitSetpoint = PreviousLimitSetpoint - abs(powermeterWatts) + abs(POWERMETER_TARGET_POINT)
                     logging.info("Not enough energy producing: increasing limit")
                 else:
                     logging.info("Not enough energy producing: limit already at maximum")
@@ -139,13 +144,13 @@ while True:
             newLimitSetpoint = ApplyLimitsToSetpoint(newLimitSetpoint)
             # set new limit to inverter
             if newLimitSetpoint != PreviousLimitSetpoint:
-                SetLimit(hoymilesInverterID, newLimitSetpoint)
+                SetLimit(HOY_INVERTER_ID, newLimitSetpoint)
         else:
-            time.sleep(loopIntervalInSeconds)
+            time.sleep(LOOP_INTERVAL_IN_SECONDS)
 
     except Exception as e:
         if hasattr(e, 'message'):
             print(e.message)
         else:
             print(e)
-        time.sleep(loopIntervalInSeconds)
+        time.sleep(LOOP_INTERVAL_IN_SECONDS)
