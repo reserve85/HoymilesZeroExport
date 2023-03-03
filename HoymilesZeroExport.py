@@ -16,12 +16,14 @@ AHOY_IP = '192.168.10.57' # in settings/inverter set interval to 6 seconds!
 
 # --- defines for OPEN-DTU ---
 OPENDTU_IP = 'xxx.xxx.xxx.xxx'
-OPENDTU_USER = 'user'
+OPENDTU_USER = 'your_user'
 OPENDTU_PASS = 'your_password'
 OPENDTU_HOY_SERIAL_NR = 'xxxxxxxxxxxx' # Hoymiles Inverter Serial Number
 
 # --- defines for Tasmota ---
 TASMOTA_IP = '192.168.10.90'
+# the following three constants describes how to navigate through the Tasmota-JSON
+# e.g. JSON_Result = {"StatusSNS":{"Time":"2023-02-28T12:49:49","SML":{"total_kwh":15011.575,"curr_w":-71}}}
 TAS_JSON_STATUS = 'StatusSNS'
 TAS_JSON_PAYLOAD_MQTT_PREFIX = 'SML' # Prefix for Web UI and MQTT JSON payload
 TAS_JSON_POWER_MQTT_LABEL = 'curr_w' # Power-MQTT label
@@ -131,9 +133,9 @@ def GetPowermeterWattsShelly3EM():
 
 def GetPowermeterWatts():
     if USE_SHELLY_3EM:
-        return int(GetPowermeterWattsShelly3EM())
+        return GetPowermeterWattsShelly3EM()
     elif USE_TASMOTA:
-        return int(GetPowermeterWattsTasmota())
+        return GetPowermeterWattsTasmota()
     else:
         raise Exception("Error: no powermeter defined!")
 
