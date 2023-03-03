@@ -71,7 +71,7 @@ def SetLimit(pLimit):
         SetLimitOpenDTU(pLimit)
     else:
         raise Exception("Error: DTU Type not defined")
-    
+
 def GetHoymilesAvailableOpenDTU():
     url = f'http://{OPENDTU_IP}/api/livedata/status/inverters'
     ParsedData = requests.get(url).json()
@@ -84,7 +84,7 @@ def GetHoymilesAvailableAhoy():
     ParsedData = requests.get(url).json()
     Reachable = bool(ParsedData["inverter"][0]["is_avail"])
     logging.info("HM reachable: %s",Reachable)
-    return Reachable    
+    return Reachable
 
 def GetHoymilesAvailable():
     if USE_AHOY:
