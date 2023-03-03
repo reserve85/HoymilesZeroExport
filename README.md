@@ -1,6 +1,6 @@
 # Hoymiles Zero Export Control / Hoymiles Nulleinspeisung
 ## Supported Smart-Meter:
-- [Tasmota Smart Meter Interface](https://tasmota.github.io/docs/Smart-Meter-Interface/)
+- [Tasmota Smart Meter Interface](https://tasmota.github.io/docs/Smart-Meter-Interface/) (e.g. "[Hichi IR Lesekopf](https://www.ebay.de/sch/i.html?_ssn=hicbelm-8)" or equal)
 - [Shelly 3EM](https://www.shelly.cloud/de/products/product-overview/shelly-3em-1)
 ## Supported DTU
 - [Ahoy](https://github.com/lumapu/ahoy)
