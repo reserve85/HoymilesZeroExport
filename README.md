@@ -1,15 +1,21 @@
-# Hoymiles Zero Export Control with Tasmota Smart Meter Interface / Hoymiles Nulleinspeisung mit Tasmota Smart Meter Interface
-Zero Export Script for Hoymiles Inverters by using AhoyDTU and Tasmota Smart Meter inferface.
-It is tested with a Holley DTZ541 powermeter and a Hoymiles HM-1500 solar inverter.
-This script needs a powermeter which outputs negative power values via the interfaces when returning to the grid.
-For example: the Holley DTZ541 shows -150W (But it does not count the consumption counter backwards).
+# Hoymiles Zero Export Control / Hoymiles Nulleinspeisung
+## Supported Smart-Meter:
+- [Tasmota Smart Meter Interface](https://tasmota.github.io/docs/Smart-Meter-Interface/)
+- [Shelly 3EM](https://www.shelly.cloud/de/products/product-overview/shelly-3em-1)
+## Supported DTU
+- [Ahoy](https://github.com/lumapu/ahoy)
+- [OpenDTU](https://github.com/tbnobody/OpenDTU)
+
+## Zero Export Script for Hoymiles Inverters.
+
+This script needs a powermeter which can output a negative power value over the interface when returning some power to the grid.
+For example: the Holley DTZ541 shows -150W if the solar inverter is overproducing.
 
 This script does not use MQTT, its based on simple webapi.
 
 Examples in Home-Assistant:
 
 ![qkeo2J4U](https://user-images.githubusercontent.com/111107925/222456008-947bfbf1-09b3-4639-97d0-cc88c5af2a72.png)
-
 ![IMG_E0136](https://user-images.githubusercontent.com/111107925/217559535-1b530738-67bc-4c29-a6f2-9aa4addce41d.JPG)
 
 
@@ -18,12 +24,12 @@ you´ll only need to install Python (version 3 in my case, download is available
 ```sh
 sudo apt-get install python3-requests
 ```
-or windows:
+or windows (cmd):
 ```sh
 pip3 install requests
 ```
 
-### To install this script as a service:
+### install this script as a service:
 ```sh
 sudo nano /etc/systemd/system/HoymilesZeroExport.service
 ```
@@ -41,19 +47,20 @@ ExecStart=/usr/bin/python3 /path/to/your/HoymilesZeroExport.py
 WantedBy=multi-user.target
 ```
 
-### to start the service:
+### start the service:
 ```sh
 sudo systemctl daemon-reload
 sudo systemctl enable HoymilesZeroExport.service 
 sudo systemctl start HoymilesZeroExport.service
 ```
 
-### check the service if it is running correctly:
+### check if the service is running correctly:
 ```sh
 sudo systemctl status HoymilesZeroExport.service
 ```
-## Thanks to:
+## Special thanks to:
 - https://github.com/lumapu/ahoy
+- https://github.com/tbnobody/OpenDTU
 - https://tasmota.github.io/docs/Smart-Meter-Interface/
 - https://ottelo.jimdofree.com/stromz%C3%A4hler-auslesen-tasmota/
 - https://hessburg.de/tasmota-wifi-smartmeter-konfigurieren/
