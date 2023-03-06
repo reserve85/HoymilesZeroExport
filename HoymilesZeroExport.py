@@ -95,10 +95,9 @@ def GetHoymilesAvailable():
         raise Exception("Error: DTU Type not defined")
 
 def GetHoymilesActualPowerOpenDTU():
-    #todo
     url = f'http://{OPENDTU_IP}/api/livedata/status/inverters'
     ParsedData = requests.get(url).json()
-    ActualPower = int['inverters'][0]['0']['Power']['v']
+    ActualPower = int(ParsedData['inverters'][0]['0']['Power']['v'])
     logging.info("HM power: %s %s",ActualPower, " Watt")
     return int(ActualPower)
 
