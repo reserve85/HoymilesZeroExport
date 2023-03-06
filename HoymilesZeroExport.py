@@ -1,3 +1,6 @@
+__author__ = "reserve85"
+__version__ = "1.3"
+
 import requests, time
 from requests.auth import HTTPBasicAuth
 import os
@@ -32,9 +35,6 @@ TASMOTA_JSON_POWER_MQTT_LABEL = 'curr_w' # Power-MQTT label
 # --- defines for Shelly ---
 SHELLY_IP = 'xxx.xxx.xxx.xxx'
 
-# --- global defines for control behaviour ---
-POWERMETER_TARGET_POINT = int(-75) # this is the target power for powermeter in watts
-POWERMETER_TOLERANCE = int(25) # this is the tolerance (pos and neg) around the target point. in this range no adjustment will be set
 HOY_MAX_WATT = int(1500) # maximum limit in watts (100%)
 HOY_MIN_WATT = int(HOY_MAX_WATT * 0.05) # minimum limit in watts, e.g. 5%
 SLOW_APPROX_LIMIT = int(HOY_MAX_WATT * 0.2) # max difference between SetpointLimit change to Approximate the power to new setpoint
@@ -42,6 +42,34 @@ LOOP_INTERVAL_IN_SECONDS = int(20) # interval time for setting limit to Hoymiles
 SET_LIMIT_DELAY_IN_SECONDS = int(5) # delay time after sending limit to Hoymiles
 POLL_INTERVAL_IN_SECONDS = int(1) # polling interval for powermeter (must be < LOOP_INTERVAL_IN_SECONDS)
 JUMP_TO_MAX_LIMIT_ON_GRID_USAGE = bool(True) # when powermeter > 0: (True): always jump to maxLimit of inverter; (False): increase limit based on previous limit
+
+# --- global defines for control behaviour ---
+POWERMETER_TARGET_POINT = int(-75) # this is the target power for powermeter in watts
+POWERMETER_TOLERANCE = int(25) # this is the tolerance (pos and neg) around the target point. in this range no adjustment will be set
+POWERMETER_MAX_POINT = int(0) # this is the max power to regulate the limit. if your powermeter is above this point, the limit jumps to 100% (when JUMP_TO_MAX_LIMIT_ON_GRID_USAGE is set to TRUE). Must be higher than POWERMETER_TARGET_POINT + POWERMETER_TOLERANCE
+
+# powermeter
+#    ...
+#     |
+#     |       -> jump limit to HOY_MAX_WATT if (JUMP_TO_MAX_LIMIT_ON_GRID_USAGE = TRUE), else: increasing limit <-
+#     |
+#   [0W]      [POWERMETER_MAX_POINT]
+#     |
+#     |       -> increasing limit <-
+#     |
+#  [-50W]     [POWERMETER_TARGET_POINT + POWERMETER_TOLERANCE]
+#     |
+#     |       -> no limit change between -100W ... -50W <-
+#     |
+#  [-75W]     [POWERMETER_TARGET_POINT]
+#     |
+#     |       -> no limit change between -100W ... -50W <-
+#     |
+#  [-100W]    [POWERMETER_TARGET_POINT - POWERMETER_TOLERANCE]
+#     |
+#     |       -> decreasing limit <-
+#     |
+#    ...
 
 logging.basicConfig(
     format='%(asctime)s %(levelname)-8s %(message)s',
@@ -147,7 +175,7 @@ def ApplyLimitsToSetpoint(pSetpoint):
 
 newLimitSetpoint = HOY_MAX_WATT
 SetLimit(newLimitSetpoint)
-time.sleep(LOOP_INTERVAL_IN_SECONDS - SET_LIMIT_DELAY_IN_SECONDS)
+time.sleep(SET_LIMIT_DELAY_IN_SECONDS)
 
 while True:
     try:
@@ -155,7 +183,7 @@ while True:
         if GetHoymilesAvailable():
             for x in range(int(LOOP_INTERVAL_IN_SECONDS / POLL_INTERVAL_IN_SECONDS)):
                 powermeterWatts = GetPowermeterWatts()
-                if powermeterWatts > 0:
+                if powermeterWatts > POWERMETER_MAX_POINT:
                     if JUMP_TO_MAX_LIMIT_ON_GRID_USAGE:
                         newLimitSetpoint = HOY_MAX_WATT
                     else:
@@ -169,7 +197,7 @@ while True:
                     break
                 else:
                     time.sleep(POLL_INTERVAL_IN_SECONDS)
-            if powermeterWatts > 0:
+            if powermeterWatts > POWERMETER_MAX_POINT:
                 continue
 
             # producing too much power: reduce limit
