@@ -13,6 +13,7 @@ USE_SHELLY_3EM = bool(False)
 
 # --- defines for AHOY-DTU ---
 AHOY_IP = '192.168.10.57' # in settings/inverter set interval to 6 seconds!
+AHOY_HOY_INVERTER_ID = int(0) # number of inverter in Ahoy-Setup
 
 # --- defines for OPEN-DTU ---
 OPENDTU_IP = 'xxx.xxx.xxx.xxx'
@@ -24,9 +25,9 @@ OPENDTU_HOY_SERIAL_NR = 'xxxxxxxxxxxx' # Hoymiles Inverter Serial Number
 TASMOTA_IP = '192.168.10.90'
 # the following three constants describes how to navigate through the Tasmota-JSON
 # e.g. JSON_Result = {"StatusSNS":{"Time":"2023-02-28T12:49:49","SML":{"total_kwh":15011.575,"curr_w":-71}}}
-TAS_JSON_STATUS = 'StatusSNS'
-TAS_JSON_PAYLOAD_MQTT_PREFIX = 'SML' # Prefix for Web UI and MQTT JSON payload
-TAS_JSON_POWER_MQTT_LABEL = 'curr_w' # Power-MQTT label
+TASMOTA_JSON_STATUS = 'StatusSNS'
+TASMOTA_JSON_PAYLOAD_MQTT_PREFIX = 'SML' # Prefix for Web UI and MQTT JSON payload
+TASMOTA_JSON_POWER_MQTT_LABEL = 'curr_w' # Power-MQTT label
 
 # --- defines for Shelly ---
 SHELLY_IP = 'xxx.xxx.xxx.xxx'
@@ -34,7 +35,6 @@ SHELLY_IP = 'xxx.xxx.xxx.xxx'
 # --- global defines for control behaviour ---
 POWERMETER_TARGET_POINT = int(-75) # this is the target power for powermeter in watts
 POWERMETER_TOLERANCE = int(25) # this is the tolerance (pos and neg) around the target point. in this range no adjustment will be set
-HOY_INVERTER_ID = int(0) # number of inverter in Ahoy-Setup
 HOY_MAX_WATT = int(1500) # maximum limit in watts (100%)
 HOY_MIN_WATT = int(HOY_MAX_WATT * 0.05) # minimum limit in watts, e.g. 5%
 SLOW_APPROX_LIMIT = int(HOY_MAX_WATT * 0.2) # max difference between SetpointLimit change to Approximate the power to new setpoint
@@ -58,7 +58,7 @@ def SetLimitOpenDTU(pLimit):
 
 def SetLimitAhoy(pLimit):
     url = f"http://{AHOY_IP}/api/ctrl"
-    data = f'''{{"id": {HOY_INVERTER_ID}, "cmd": "limit_nonpersistent_absolute", "val": {pLimit}}}'''
+    data = f'''{{"id": {AHOY_HOY_INVERTER_ID}, "cmd": "limit_nonpersistent_absolute", "val": {pLimit}}}'''
     headers = {'Content-type': 'application/json', 'Accept': 'text/plain'}
     logging.info("setting new limit to %s %s",int(pLimit)," Watt")
     requests.post(url, data=data, headers=headers)
@@ -120,7 +120,7 @@ def GetHoymilesActualPower():
 def GetPowermeterWattsTasmota():
     url = f'http://{TASMOTA_IP}/cm?cmnd=status%2010'
     ParsedData = requests.get(url).json()
-    Watts = int(ParsedData[TAS_JSON_STATUS][TAS_JSON_PAYLOAD_MQTT_PREFIX][TAS_JSON_POWER_MQTT_LABEL])
+    Watts = int(ParsedData[TASMOTA_JSON_STATUS][TASMOTA_JSON_PAYLOAD_MQTT_PREFIX][TASMOTA_JSON_POWER_MQTT_LABEL])
     logging.info("powermeter: %s %s",Watts, " Watt")
     return int(Watts)
 
@@ -177,8 +177,9 @@ while True:
             if powermeterWatts < (POWERMETER_TARGET_POINT - POWERMETER_TOLERANCE):
                 if PreviousLimitSetpoint >= HOY_MAX_WATT:
                     hoymilesActualPower = GetHoymilesActualPower()
-                    CalculatedLimit = hoymilesActualPower - abs(powermeterWatts) + abs(POWERMETER_TARGET_POINT)
-                    newLimitSetpoint = CalculatedLimit + abs((PreviousLimitSetpoint - CalculatedLimit) / 4)
+                    newLimitSetpoint = hoymilesActualPower - abs(powermeterWatts) + abs(POWERMETER_TARGET_POINT)
+                    LimitDifference = abs(PreviousLimitSetpoint - newLimitSetpoint)
+                    newLimitSetpoint = newLimitSetpoint + (LimitDifference / 4)
                     if newLimitSetpoint > hoymilesActualPower:
                         newLimitSetpoint = hoymilesActualPower
                     logging.info("overproducing: reduce limit based on actual power")
