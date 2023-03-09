@@ -18,7 +18,8 @@ Examples in Home-Assistant:
 ![qkeo2J4U](https://user-images.githubusercontent.com/111107925/222456008-947bfbf1-09b3-4639-97d0-cc88c5af2a72.png)
 ![IMG_E0136](https://user-images.githubusercontent.com/111107925/217559535-1b530738-67bc-4c29-a6f2-9aa4addce41d.JPG)
 
-## Get the code and unpack the archive
+## Linux installation
+Get the code and unpack the archive:
 ```sh
 wget https://github.com/reserve85/HoymilesZeroExport/archive/refs/heads/main.zip
 unzip main.zip
@@ -26,32 +27,34 @@ rm main.zip
 mv HoymilesZeroExport-main/ HoymilesZeroExport/
 ```
 
-## Installation of python and zero export service
-in Linux
+launch installscript to install python and create zero export service
 ```sh
 sudo chmod +x install.sh
 ./install.sh
 ```
-or windows (cmd):
-```sh
-pip3 install requests
-```
 
-## Edit your configuration
+Edit your configuration
 ```sh
 sudo nano HoymilesZeroExport_Config.ini
 ```
 
-## Restart the service after modified configuration or script
+Restart the service after modified configuration or script
 ```sh
 sudo chmod +x restart.sh
 ./restart.sh
 ```
 
-## Showing the output-log
+Showing the output-log
 ```sh
 sudo journalctl -u HoymilesZeroExport.service -n 20000 -e -f
 ```
+
+## Windows installation
+Get Python 3 (download is available at https://www.python.org/) and then install the module "requests":
+```sh
+pip3 install requests
+```
+Now you can execute the script with python.
 
 ## Special thanks to:
 - https://github.com/lumapu/ahoy
