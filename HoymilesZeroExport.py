@@ -1,5 +1,5 @@
 __author__ = "reserve85"
-__version__ = "1.4"
+__version__ = "1.5"
 
 import requests, time
 from requests.auth import HTTPBasicAuth
@@ -142,7 +142,8 @@ POWERMETER_TOLERANCE = config.getint('CONTROL', 'POWERMETER_TOLERANCE')
 POWERMETER_MAX_POINT = config.getint('CONTROL', 'POWERMETER_MAX_POINT')
 
 newLimitSetpoint = HOY_MAX_WATT
-SetLimit(newLimitSetpoint)
+if GetHoymilesAvailable():
+    SetLimit(newLimitSetpoint)
 time.sleep(SET_LIMIT_DELAY_IN_SECONDS)
 
 while True:
