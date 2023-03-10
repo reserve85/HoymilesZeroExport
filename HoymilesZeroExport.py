@@ -14,8 +14,9 @@ logging.basicConfig(
     datefmt='%Y-%m-%d %H:%M:%S')
 
 def SetLimitOpenDTU(pLimit):
+    relLimit = int(pLimit / HOY_MAX_WATT * 100)
     url=f"http://{OPENDTU_IP}/api/limit/config"
-    data = f'''data={{"serial":"{OPENDTU_HOY_SERIAL_NR}", "limit_type":1, "limit_value":{pLimit}}}'''
+    data = f'''data={{"serial":"{OPENDTU_HOY_SERIAL_NR}", "limit_type":1, "limit_value":{relLimit}}}'''
     headers = {'Content-Type': 'application/x-www-form-urlencoded'}
     logging.info("setting new limit to %s %s",int(pLimit)," Watt")
     requests.post(url, data=data, auth=HTTPBasicAuth(OPENDTU_USER, OPENDTU_PASS), headers=headers)
@@ -62,7 +63,7 @@ def GetHoymilesAvailable():
 def GetHoymilesActualPowerOpenDTU():
     url = f'http://{OPENDTU_IP}/api/livedata/status/inverters'
     ParsedData = requests.get(url).json()
-    ActualPower = int(ParsedData['inverters'][0]['0']['Power']['v'])
+    ActualPower = int(ParsedData['inverters'][0]['AC']['0']['Power']['v'])
     logging.info("HM power: %s %s",ActualPower, " Watt")
     return int(ActualPower)
 
