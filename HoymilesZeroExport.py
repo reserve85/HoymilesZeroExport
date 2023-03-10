@@ -1,47 +1,12 @@
+__author__ = "reserve85"
+__version__ = "1.5"
+
 import requests, time
 from requests.auth import HTTPBasicAuth
 import os
 import logging
-
-# --- define your DTU (only one) ---
-USE_AHOY = bool(True)
-USE_OPENDTU = bool(False)
-
-# --- define your Powermeter (only one) ---
-USE_TASMOTA = bool(True)
-USE_SHELLY_3EM = bool(False)
-
-# --- defines for AHOY-DTU ---
-AHOY_IP = '192.168.10.57' # in settings/inverter set interval to 6 seconds!
-AHOY_HOY_INVERTER_ID = int(0) # number of inverter in Ahoy-Setup
-
-# --- defines for OPEN-DTU ---
-OPENDTU_IP = 'xxx.xxx.xxx.xxx'
-OPENDTU_USER = 'your_user'
-OPENDTU_PASS = 'your_password'
-OPENDTU_HOY_SERIAL_NR = 'xxxxxxxxxxxx' # Hoymiles Inverter Serial Number
-
-# --- defines for Tasmota ---
-TASMOTA_IP = '192.168.10.90'
-# the following three constants describes how to navigate through the Tasmota-JSON
-# e.g. JSON_Result = {"StatusSNS":{"Time":"2023-02-28T12:49:49","SML":{"total_kwh":15011.575,"curr_w":-71}}}
-TASMOTA_JSON_STATUS = 'StatusSNS'
-TASMOTA_JSON_PAYLOAD_MQTT_PREFIX = 'SML' # Prefix for Web UI and MQTT JSON payload
-TASMOTA_JSON_POWER_MQTT_LABEL = 'curr_w' # Power-MQTT label
-
-# --- defines for Shelly ---
-SHELLY_IP = 'xxx.xxx.xxx.xxx'
-
-# --- global defines for control behaviour ---
-POWERMETER_TARGET_POINT = int(-75) # this is the target power for powermeter in watts
-POWERMETER_TOLERANCE = int(25) # this is the tolerance (pos and neg) around the target point. in this range no adjustment will be set
-HOY_MAX_WATT = int(1500) # maximum limit in watts (100%)
-HOY_MIN_WATT = int(HOY_MAX_WATT * 0.05) # minimum limit in watts, e.g. 5%
-SLOW_APPROX_LIMIT = int(HOY_MAX_WATT * 0.2) # max difference between SetpointLimit change to Approximate the power to new setpoint
-LOOP_INTERVAL_IN_SECONDS = int(20) # interval time for setting limit to Hoymiles
-SET_LIMIT_DELAY_IN_SECONDS = int(5) # delay time after sending limit to Hoymiles
-POLL_INTERVAL_IN_SECONDS = int(1) # polling interval for powermeter (must be < LOOP_INTERVAL_IN_SECONDS)
-JUMP_TO_MAX_LIMIT_ON_GRID_USAGE = bool(True) # when powermeter > 0: (True): always jump to maxLimit of inverter; (False): increase limit based on previous limit
+from configparser import ConfigParser
+from pathlib import Path
 
 logging.basicConfig(
     format='%(asctime)s %(levelname)-8s %(message)s',
@@ -49,8 +14,9 @@ logging.basicConfig(
     datefmt='%Y-%m-%d %H:%M:%S')
 
 def SetLimitOpenDTU(pLimit):
+    relLimit = int(pLimit / HOY_MAX_WATT * 100)
     url=f"http://{OPENDTU_IP}/api/limit/config"
-    data = f'''data={{"serial":"{OPENDTU_HOY_SERIAL_NR}", "limit_type":1, "limit_value":{pLimit}}}'''
+    data = f'''data={{"serial":"{OPENDTU_HOY_SERIAL_NR}", "limit_type":1, "limit_value":{relLimit}}}'''
     headers = {'Content-Type': 'application/x-www-form-urlencoded'}
     logging.info("setting new limit to %s %s",int(pLimit)," Watt")
     requests.post(url, data=data, auth=HTTPBasicAuth(OPENDTU_USER, OPENDTU_PASS), headers=headers)
@@ -97,7 +63,7 @@ def GetHoymilesAvailable():
 def GetHoymilesActualPowerOpenDTU():
     url = f'http://{OPENDTU_IP}/api/livedata/status/inverters'
     ParsedData = requests.get(url).json()
-    ActualPower = int(ParsedData['inverters'][0]['0']['Power']['v'])
+    ActualPower = int(ParsedData['inverters'][0]['AC']['0']['Power']['v'])
     logging.info("HM power: %s %s",ActualPower, " Watt")
     return int(ActualPower)
 
@@ -145,9 +111,40 @@ def ApplyLimitsToSetpoint(pSetpoint):
         pSetpoint = HOY_MIN_WATT
     return pSetpoint
 
+# read config:
+config = ConfigParser()
+logging.info("read config file: " + str(Path.joinpath(Path(__file__).parent.resolve(), "HoymilesZeroExport_Config.ini")))
+config.read(str(Path.joinpath(Path(__file__).parent.resolve(), "HoymilesZeroExport_Config.ini")))
+USE_AHOY = config.getboolean('SELECT_DTU', 'USE_AHOY')
+USE_OPENDTU = config.getboolean('SELECT_DTU', 'USE_OPENDTU')
+USE_TASMOTA = config.getboolean('SELECT_POWERMETER', 'USE_TASMOTA')
+USE_SHELLY_3EM = config.getboolean('SELECT_POWERMETER', 'USE_SHELLY_3EM')
+AHOY_IP = config.get('AHOY_DTU', 'AHOY_IP')
+AHOY_HOY_INVERTER_ID = config.getint('AHOY_DTU', 'AHOY_HOY_INVERTER_ID')
+OPENDTU_IP = config.get('OPEN_DTU', 'OPENDTU_IP')
+OPENDTU_USER = config.get('OPEN_DTU', 'OPENDTU_USER')
+OPENDTU_PASS = config.get('OPEN_DTU', 'OPENDTU_PASS')
+OPENDTU_HOY_SERIAL_NR = config.get('OPEN_DTU', 'OPENDTU_HOY_SERIAL_NR')
+TASMOTA_IP = config.get('TASMOTA', 'TASMOTA_IP')
+TASMOTA_JSON_STATUS = config.get('TASMOTA', 'TASMOTA_JSON_STATUS')
+TASMOTA_JSON_PAYLOAD_MQTT_PREFIX = config.get('TASMOTA', 'TASMOTA_JSON_PAYLOAD_MQTT_PREFIX')
+TASMOTA_JSON_POWER_MQTT_LABEL = config.get('TASMOTA', 'TASMOTA_JSON_POWER_MQTT_LABEL')
+SHELLY_IP = config.get('SHELLY_3EM', 'SHELLY_IP')
+HOY_MAX_WATT = config.getint('COMMON', 'HOY_MAX_WATT')
+HOY_MIN_WATT = int(HOY_MAX_WATT * config.getint('COMMON', 'HOY_MIN_WATT_IN_PERCENT') / 100)
+SLOW_APPROX_LIMIT = int(HOY_MAX_WATT * config.getint('COMMON', 'SLOW_APPROX_LIMIT_IN_PERCENT') / 100)
+LOOP_INTERVAL_IN_SECONDS = config.getint('COMMON', 'LOOP_INTERVAL_IN_SECONDS')
+SET_LIMIT_DELAY_IN_SECONDS = config.getint('COMMON', 'SET_LIMIT_DELAY_IN_SECONDS')
+POLL_INTERVAL_IN_SECONDS = config.getint('COMMON', 'POLL_INTERVAL_IN_SECONDS')
+JUMP_TO_MAX_LIMIT_ON_GRID_USAGE = config.getboolean('COMMON', 'JUMP_TO_MAX_LIMIT_ON_GRID_USAGE')
+POWERMETER_TARGET_POINT = config.getint('CONTROL', 'POWERMETER_TARGET_POINT')
+POWERMETER_TOLERANCE = config.getint('CONTROL', 'POWERMETER_TOLERANCE')
+POWERMETER_MAX_POINT = config.getint('CONTROL', 'POWERMETER_MAX_POINT')
+
 newLimitSetpoint = HOY_MAX_WATT
-SetLimit(newLimitSetpoint)
-time.sleep(LOOP_INTERVAL_IN_SECONDS - SET_LIMIT_DELAY_IN_SECONDS)
+if GetHoymilesAvailable():
+    SetLimit(newLimitSetpoint)
+time.sleep(SET_LIMIT_DELAY_IN_SECONDS)
 
 while True:
     try:
@@ -155,11 +152,11 @@ while True:
         if GetHoymilesAvailable():
             for x in range(int(LOOP_INTERVAL_IN_SECONDS / POLL_INTERVAL_IN_SECONDS)):
                 powermeterWatts = GetPowermeterWatts()
-                if powermeterWatts > 0:
+                if powermeterWatts > POWERMETER_MAX_POINT:
                     if JUMP_TO_MAX_LIMIT_ON_GRID_USAGE:
                         newLimitSetpoint = HOY_MAX_WATT
                     else:
-                        newLimitSetpoint = PreviousLimitSetpoint + powermeterWatts + abs(POWERMETER_TARGET_POINT)
+                        newLimitSetpoint = PreviousLimitSetpoint + powermeterWatts -POWERMETER_TARGET_POINT
                     newLimitSetpoint = ApplyLimitsToSetpoint(newLimitSetpoint)
                     SetLimit(newLimitSetpoint)
                     if int(LOOP_INTERVAL_IN_SECONDS) - SET_LIMIT_DELAY_IN_SECONDS - x * POLL_INTERVAL_IN_SECONDS <= 0:
@@ -169,21 +166,21 @@ while True:
                     break
                 else:
                     time.sleep(POLL_INTERVAL_IN_SECONDS)
-            if powermeterWatts > 0:
+            if powermeterWatts > POWERMETER_MAX_POINT:
                 continue
 
             # producing too much power: reduce limit
             if powermeterWatts < (POWERMETER_TARGET_POINT - POWERMETER_TOLERANCE):
                 if PreviousLimitSetpoint >= HOY_MAX_WATT:
                     hoymilesActualPower = GetHoymilesActualPower()
-                    newLimitSetpoint = hoymilesActualPower - abs(powermeterWatts) + abs(POWERMETER_TARGET_POINT)
+                    newLimitSetpoint = hoymilesActualPower + powermeterWatts - POWERMETER_TARGET_POINT
                     LimitDifference = abs(PreviousLimitSetpoint - newLimitSetpoint)
                     newLimitSetpoint = newLimitSetpoint + (LimitDifference / 4)
                     if newLimitSetpoint > hoymilesActualPower:
                         newLimitSetpoint = hoymilesActualPower
                     logging.info("overproducing: reduce limit based on actual power")
                 else:
-                    newLimitSetpoint = PreviousLimitSetpoint - abs(powermeterWatts) + abs(POWERMETER_TARGET_POINT)
+                    newLimitSetpoint = PreviousLimitSetpoint + powermeterWatts - POWERMETER_TARGET_POINT
                     # check if it is necessary to approximate to the setpoint with some more passes. this reduce overshoot
                     LimitDifference = abs(PreviousLimitSetpoint - newLimitSetpoint)
                     if LimitDifference > SLOW_APPROX_LIMIT:
@@ -195,7 +192,7 @@ while True:
             # producing too little power: increase limit
             elif powermeterWatts > (POWERMETER_TARGET_POINT + POWERMETER_TOLERANCE):
                 if PreviousLimitSetpoint < HOY_MAX_WATT:
-                    newLimitSetpoint = PreviousLimitSetpoint - abs(powermeterWatts) + abs(POWERMETER_TARGET_POINT)
+                    newLimitSetpoint = PreviousLimitSetpoint + powermeterWatts - POWERMETER_TARGET_POINT
                     logging.info("Not enough energy producing: increasing limit")
                 else:
                     logging.info("Not enough energy producing: limit already at maximum")
