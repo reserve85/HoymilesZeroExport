@@ -3,11 +3,14 @@
 - [Tasmota Smart Meter Interface](https://tasmota.github.io/docs/Smart-Meter-Interface/) (e.g. "[Hichi IR Lesekopf](https://www.ebay.de/sch/i.html?_ssn=hicbelm-8)" or equal)
 - [Shelly 3EM](https://www.shelly.cloud/de/products/product-overview/shelly-3em-1)
 
-## Supported DTU
-- [Ahoy](https://github.com/lumapu/ahoy)
+## Supported DTU and Inverters
+- [Ahoy](https://github.com/lumapu/ahoy) - developed on it and therefore recommend 
 - [OpenDTU](https://github.com/tbnobody/OpenDTU)
+- Hoymiles HM-Series Inverter (since V1.7 multiple inverters are supported)
 
 ## Zero Export Script for Hoymiles Inverters.
+Goal of this project is to reduce the generated power to the grid. You won´t get paid for that, so why giving it away it to your local energy provider?
+
 This script needs a powermeter which can output a negative power value over the interface when returning some power to the grid.
 For example: the Holley DTZ541 shows -150W if the solar inverter is overproducing.
 
@@ -62,3 +65,8 @@ Now you can execute the script with python.
 - https://tasmota.github.io/docs/Smart-Meter-Interface/
 - https://ottelo.jimdofree.com/stromz%C3%A4hler-auslesen-tasmota/
 - https://hessburg.de/tasmota-wifi-smartmeter-konfigurieren/
+
+## Donate
+[![paypal](https://www.paypalobjects.com/en_US/i/btn/btn_donate_LG.gif)](https://paypal.me/TobiasWKraft/5)
+
+Please support me if you like this project by spending me a coffee instead of giving away your electricity.
