@@ -1,5 +1,5 @@
 __author__ = "reserve85"
-__version__ = "1.6"
+__version__ = "1.7"
 
 import requests, time
 from requests.auth import HTTPBasicAuth
@@ -7,7 +7,6 @@ import os
 import logging
 from configparser import ConfigParser
 from pathlib import Path
-import random
 
 logging.basicConfig(
     format='%(asctime)s %(levelname)-8s %(message)s',
@@ -38,9 +37,9 @@ def SetLimitAhoy(pInverterId, pLimit):
 def SetLimit(pLimit):
     logging.info("setting new limit to %s Watt",int(pLimit))
     for i in range(INVERTER_COUNT):
-        Factor = HOY_MAX_WATT[i] / GetMaxWattFromAllInverters
+        Factor = HOY_MAX_WATT[i] / GetMaxWattFromAllInverters()
         NewLimit = int(pLimit*Factor)
-        NewLimit = ApplyLimitsToSetpoint(i, NewLimit)
+        NewLimit = ApplyLimitsToSetpointInverter(i, NewLimit)
         if USE_AHOY:
             SetLimitAhoy(i, NewLimit)
         elif USE_OPENDTU:
@@ -102,14 +101,6 @@ def GetHoymilesActualPower():
         return ActualPower
     else:
         raise Exception("Error: DTU Type not defined")
-    
-def GetHoymilesActualPower(pInverterId):
-    if USE_AHOY:
-        return GetHoymilesActualPowerAhoy(pInverterId)
-    elif USE_OPENDTU:
-        return GetHoymilesActualPowerOpenDTU(pInverterId)
-    else:
-        raise Exception("Error: DTU Type not defined")
 
 def GetPowermeterWattsTasmota():
     url = f'http://{TASMOTA_IP}/cm?cmnd=status%2010'
@@ -140,7 +131,7 @@ def ApplyLimitsToSetpoint(pSetpoint):
         pSetpoint = GetMinWattFromAllInverters()
     return pSetpoint
 
-def ApplyLimitsToSetpoint(pInverter, pSetpoint):
+def ApplyLimitsToSetpointInverter(pInverter, pSetpoint):
     if pSetpoint > HOY_MAX_WATT[pInverter]:
         pSetpoint = HOY_MAX_WATT[pInverter]
     if pSetpoint < HOY_MIN_WATT[pInverter]:
@@ -158,6 +149,10 @@ def GetMinWattFromAllInverters():
     for i in range(INVERTER_COUNT):
         minWatt = minWatt + HOY_MIN_WATT[i]
     return minWatt
+
+# ----- START -----
+
+logging.info("Author: %s / Script Version: %s",__author__, __version__)
 
 # read config:
 config = ConfigParser()
