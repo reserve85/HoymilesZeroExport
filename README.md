@@ -1,23 +1,23 @@
 # Hoymiles Zero Export Control / Hoymiles Nulleinspeisung
-## Supported Smart-Meter:
+
+## Introduction
+Hoymiles Zero Export is a Python script for managing the power of the Hoymiles inverters to reduce the amount of the generated power to the grid. Based on the current power output, the script can automatically adjust the export limit of the inverter, allowing for optimal energy management.
+
+## Prerequisites
+Before running this script make sure you have a powermeter which outputs a negative power value in case of returning to the grid.
+For example: the Holley DTZ541 shows -150W if the solar inverter is overproducing.
+This script does not use MQTT, its based on webapi communication.
+
+### Supported Smart-Meter:
 - [Tasmota Smart Meter Interface](https://tasmota.github.io/docs/Smart-Meter-Interface/) (e.g. "[Hichi IR Lesekopf](https://www.ebay.de/sch/i.html?_ssn=hicbelm-8)" or equal)
 - [Shelly 3EM](https://www.shelly.cloud/de/products/product-overview/shelly-3em-1)
 
-## Supported DTU and Inverters
+### Supported DTU and Inverters
 - [Ahoy](https://github.com/lumapu/ahoy) - developed on it and therefore recommend 
 - [OpenDTU](https://github.com/tbnobody/OpenDTU)
-- Hoymiles HM-Series Inverter (since V1.7 multiple inverters are supported)
+- Hoymiles HM-Series Inverter (since V1.7 multiple inverters are supported) like [1-in-1](https://www.hoymiles.com/product/microinverter/hm-300-350-400-eu/), [2-in-1](https://www.hoymiles.com/product/microinverter/hm-600-700-800-eu/) or [4-in-1](https://www.hoymiles.com/product/microinverter/hm-1200-1500-eu/)
 
-## Zero Export Script for Hoymiles Inverters.
-Goal of this project is to reduce the generated power to the grid. You won´t get paid for that, so why giving it away it to your local energy provider?
-
-This script needs a powermeter which can output a negative power value over the interface when returning some power to the grid.
-For example: the Holley DTZ541 shows -150W if the solar inverter is overproducing.
-
-This script does not use MQTT, its based on simple webapi.
-
-Examples in Home-Assistant:
-
+## Examples in Home-Assistant:
 ![qkeo2J4U](https://user-images.githubusercontent.com/111107925/222456008-947bfbf1-09b3-4639-97d0-cc88c5af2a72.png)
 ![IMG_E0136](https://user-images.githubusercontent.com/111107925/217559535-1b530738-67bc-4c29-a6f2-9aa4addce41d.JPG)
 
