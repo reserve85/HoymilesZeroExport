@@ -28,6 +28,7 @@ wget https://github.com/reserve85/HoymilesZeroExport/archive/refs/heads/main.zip
 unzip main.zip
 rm main.zip
 mv HoymilesZeroExport-main/ HoymilesZeroExport/
+cd HoymilesZeroExport/
 ```
 
 launch installscript to install python and create zero export service
@@ -36,7 +37,7 @@ sudo chmod +x install.sh
 ./install.sh
 ```
 
-Edit your configuration
+Edit your configuration, save with ctrl + s, exit with ctrl + x
 ```sh
 sudo nano HoymilesZeroExport_Config.ini
 ```
