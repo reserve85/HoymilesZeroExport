@@ -8,12 +8,13 @@ Before running this script make sure you have a powermeter which outputs a negat
 For example: the Holley DTZ541 shows -150W if the solar inverter is overproducing.
 This script does not use MQTT, its based on webapi communication.
 
-### Supported Smart-Meter:
+### Supported Smart-Meter Modules:
 - [Tasmota Smart Meter Interface](https://tasmota.github.io/docs/Smart-Meter-Interface/) (e.g. "[Hichi IR Lesekopf](https://www.ebay.de/sch/i.html?_ssn=hicbelm-8)" or equal)
 - [Shelly 3EM](https://www.shelly.cloud/de/products/product-overview/shelly-3em-1)
+- [SHRDZM Smartmeter Modul](https://cms.shrdzm.com/produkt/smartmeter-modul/)
 
 ### Supported DTU and Inverters
-- [Ahoy](https://github.com/lumapu/ahoy) - developed on it and therefore recommend 
+- [Ahoy](https://github.com/lumapu/ahoy) - this script is developed with AHOY and therefore i recommend it
 - [OpenDTU](https://github.com/tbnobody/OpenDTU)
 - Hoymiles HM-Series Inverter (since V1.7 multiple inverters are supported) like [1-in-1](https://www.hoymiles.com/product/microinverter/hm-300-350-400-eu/), [2-in-1](https://www.hoymiles.com/product/microinverter/hm-600-700-800-eu/) or [4-in-1](https://www.hoymiles.com/product/microinverter/hm-1200-1500-eu/)
 

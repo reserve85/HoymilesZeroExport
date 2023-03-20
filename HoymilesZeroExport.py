@@ -1,5 +1,5 @@
 __author__ = "reserve85"
-__version__ = "1.7"
+__version__ = "1.8"
 
 import requests, time
 from requests.auth import HTTPBasicAuth
@@ -105,7 +105,12 @@ def GetHoymilesActualPower():
 def GetPowermeterWattsTasmota():
     url = f'http://{TASMOTA_IP}/cm?cmnd=status%2010'
     ParsedData = requests.get(url).json()
-    Watts = int(ParsedData[TASMOTA_JSON_STATUS][TASMOTA_JSON_PAYLOAD_MQTT_PREFIX][TASMOTA_JSON_POWER_MQTT_LABEL])
+    if not TASMOTA_JSON_POWER_CALCULATE:
+        Watts = int(ParsedData[TASMOTA_JSON_STATUS][TASMOTA_JSON_PAYLOAD_MQTT_PREFIX][TASMOTA_JSON_POWER_MQTT_LABEL])
+    else:
+        input = ParsedData[TASMOTA_JSON_STATUS][TASMOTA_JSON_PAYLOAD_MQTT_PREFIX][TASMOTA_JSON_POWER_INPUT_MQTT_LABEL]
+        ouput = ParsedData[TASMOTA_JSON_STATUS][TASMOTA_JSON_PAYLOAD_MQTT_PREFIX][TASMOTA_JSON_POWER_OUTPUT_MQTT_LABEL]
+        Watts = int(input - ouput)
     logging.info("powermeter: %s %s",Watts," Watt")
     return int(Watts)
 
@@ -116,11 +121,20 @@ def GetPowermeterWattsShelly3EM():
     logging.info("powermeter: %s %s",Watts," Watt")
     return int(Watts)
 
+def GetPowermeterWattsShrdzm():
+    url = f'http://{SHRDZM_IP}/getLastData?user={SHRDZM_USER}&password={SHRDZM_PASS}'
+    ParsedData = requests.get(url).json()
+    Watts = int(ParsedData['1.7.0'] - ParsedData['2.7.0'])
+    logging.info("powermeter: %s %s",Watts," Watt")
+    return int(Watts)
+
 def GetPowermeterWatts():
     if USE_SHELLY_3EM:
         return GetPowermeterWattsShelly3EM()
     elif USE_TASMOTA:
         return GetPowermeterWattsTasmota()
+    elif USE_SHRDZM:
+        return GetPowermeterWattsShrdzm()
     else:
         raise Exception("Error: no powermeter defined!")
 
@@ -162,6 +176,7 @@ USE_AHOY = config.getboolean('SELECT_DTU', 'USE_AHOY')
 USE_OPENDTU = config.getboolean('SELECT_DTU', 'USE_OPENDTU')
 USE_TASMOTA = config.getboolean('SELECT_POWERMETER', 'USE_TASMOTA')
 USE_SHELLY_3EM = config.getboolean('SELECT_POWERMETER', 'USE_SHELLY_3EM')
+USE_SHRDZM = config.getboolean('SELECT_POWERMETER', 'USE_SHRDZM')
 AHOY_IP = config.get('AHOY_DTU', 'AHOY_IP')
 OPENDTU_IP = config.get('OPEN_DTU', 'OPENDTU_IP')
 OPENDTU_USER = config.get('OPEN_DTU', 'OPENDTU_USER')
@@ -170,7 +185,13 @@ TASMOTA_IP = config.get('TASMOTA', 'TASMOTA_IP')
 TASMOTA_JSON_STATUS = config.get('TASMOTA', 'TASMOTA_JSON_STATUS')
 TASMOTA_JSON_PAYLOAD_MQTT_PREFIX = config.get('TASMOTA', 'TASMOTA_JSON_PAYLOAD_MQTT_PREFIX')
 TASMOTA_JSON_POWER_MQTT_LABEL = config.get('TASMOTA', 'TASMOTA_JSON_POWER_MQTT_LABEL')
+TASMOTA_JSON_POWER_CALCULATE = config.getboolean('TASMOTA', 'TASMOTA_JSON_POWER_CALCULATE')
+TASMOTA_JSON_POWER_INPUT_MQTT_LABEL = config.get('TASMOTA', 'TASMOTA_JSON_POWER_INPUT_MQTT_LABEL')
+TASMOTA_JSON_POWER_OUTPUT_MQTT_LABEL = config.get('TASMOTA', 'TASMOTA_JSON_POWER_OUTPUT_MQTT_LABEL')
 SHELLY_IP = config.get('SHELLY_3EM', 'SHELLY_IP')
+SHRDZM_IP = config.get('SHRDZM', 'SHRDZM_IP')
+SHRDZM_USER = config.get('SHRDZM', 'SHRDZM_USER')
+SHRDZM_PASS = config.get('SHRDZM', 'SHRDZM_PASS')
 INVERTER_COUNT = config.getint('COMMON', 'INVERTER_COUNT')
 LOOP_INTERVAL_IN_SECONDS = config.getint('COMMON', 'LOOP_INTERVAL_IN_SECONDS')
 SET_LIMIT_DELAY_IN_SECONDS = config.getint('COMMON', 'SET_LIMIT_DELAY_IN_SECONDS')
