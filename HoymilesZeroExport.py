@@ -1,5 +1,5 @@
 __author__ = "reserve85"
-__version__ = "1.8"
+__version__ = "1.9"
 
 import requests, time
 from requests.auth import HTTPBasicAuth
@@ -138,6 +138,15 @@ def GetPowermeterWatts():
     else:
         raise Exception("Error: no powermeter defined!")
 
+def CutLimitToProduction(pSetpoint):
+    if pSetpoint != GetMaxWattFromAllInverters():
+        ActualPower = GetHoymilesActualPower()
+        # prevent the setpoint from running away...
+        if pSetpoint > ActualPower + (GetMaxWattFromAllInverters() * MAX_DIFFERENCE_BETWEEN_LIMIT_AND_OUTPUTPOWER / 100):
+            pSetpoint = int(ActualPower + (GetMaxWattFromAllInverters() * MAX_DIFFERENCE_BETWEEN_LIMIT_AND_OUTPUTPOWER / 100))
+            logging.info('Cut limit to %s Watt, limit was higher than %s percent of live-production', int(pSetpoint), MAX_DIFFERENCE_BETWEEN_LIMIT_AND_OUTPUTPOWER)
+    return int(pSetpoint)
+
 def ApplyLimitsToSetpoint(pSetpoint):
     if pSetpoint > GetMaxWattFromAllInverters():
         pSetpoint = GetMaxWattFromAllInverters()
@@ -198,6 +207,7 @@ SET_LIMIT_DELAY_IN_SECONDS = config.getint('COMMON', 'SET_LIMIT_DELAY_IN_SECONDS
 SET_LIMIT_DELAY_IN_SECONDS_MULTIPLE_INVERTER = config.getint('COMMON', 'SET_LIMIT_DELAY_IN_SECONDS_MULTIPLE_INVERTER')
 POLL_INTERVAL_IN_SECONDS = config.getint('COMMON', 'POLL_INTERVAL_IN_SECONDS')
 JUMP_TO_MAX_LIMIT_ON_GRID_USAGE = config.getboolean('COMMON', 'JUMP_TO_MAX_LIMIT_ON_GRID_USAGE')
+MAX_DIFFERENCE_BETWEEN_LIMIT_AND_OUTPUTPOWER = config.getint('COMMON', 'MAX_DIFFERENCE_BETWEEN_LIMIT_AND_OUTPUTPOWER')
 POWERMETER_TARGET_POINT = config.getint('CONTROL', 'POWERMETER_TARGET_POINT')
 POWERMETER_TOLERANCE = config.getint('CONTROL', 'POWERMETER_TOLERANCE')
 POWERMETER_MAX_POINT = config.getint('CONTROL', 'POWERMETER_MAX_POINT')
@@ -239,6 +249,13 @@ while True:
                     break
                 else:
                     time.sleep(POLL_INTERVAL_IN_SECONDS)
+            
+            if MAX_DIFFERENCE_BETWEEN_LIMIT_AND_OUTPUTPOWER != 100:
+                CutLimit = CutLimitToProduction(newLimitSetpoint)
+                if CutLimit != newLimitSetpoint:
+                    newLimitSetpoint = CutLimit
+                    PreviousLimitSetpoint = newLimitSetpoint
+
             if powermeterWatts > POWERMETER_MAX_POINT:
                 continue
 
