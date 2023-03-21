@@ -6,7 +6,7 @@ Hoymiles Zero Export is a Python script for managing the power of the Hoymiles i
 ## Prerequisites
 Before running this script make sure you have a powermeter which outputs a negative power value in case of returning to the grid.
 For example: the Holley DTZ541 shows -150W if the solar inverter is overproducing.
-This script does not use MQTT, its based on webapi communication.
+This script does not use MQTT, it's based on webapi communication.
 
 ### Supported Smart-Meter Modules:
 - [Tasmota Smart Meter Interface](https://tasmota.github.io/docs/Smart-Meter-Interface/) (e.g. "[Hichi IR Lesekopf](https://www.ebay.de/sch/i.html?_ssn=hicbelm-8)" or equal)
