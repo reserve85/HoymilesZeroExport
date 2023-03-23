@@ -5,13 +5,48 @@ import requests, time
 from requests.auth import HTTPBasicAuth
 import os
 import logging
+from logging.handlers import TimedRotatingFileHandler
 from configparser import ConfigParser
 from pathlib import Path
+import datetime as dt
 
 logging.basicConfig(
     format='%(asctime)s %(levelname)-8s %(message)s',
     level=logging.INFO,
     datefmt='%Y-%m-%d %H:%M:%S')
+logger = logging.getLogger()
+
+try:
+    config = ConfigParser()
+    config.read(str(Path.joinpath(Path(__file__).parent.resolve(), "HoymilesZeroExport_Config.ini")))
+    ENABLE_LOG_TO_FILE = config.getboolean('COMMON', 'ENABLE_LOG_TO_FILE')
+    LOG_BACKUP_COUNT = config.getint('COMMON', 'LOG_BACKUP_COUNT')
+except Exception as e:
+    logger.info('Error on reading ENABLE_LOG_TO_FILE, set it to DISABLED')
+    ENABLE_LOG_TO_FILE = False
+    if hasattr(e, 'message'):
+        logger.error(e.message)
+    else:
+        logger.error(e)
+
+if ENABLE_LOG_TO_FILE:
+    def GetNewLogFilename(self):
+        now = dt.datetime.now()
+        return Path.joinpath(Path.joinpath(Path(__file__).parent.resolve(), 'log'),''+now.strftime("%Y%m%d_%H%M%S")+'.log')
+    if not os.path.exists(Path.joinpath(Path(__file__).parent.resolve(), 'log')):
+        os.makedirs(Path.joinpath(Path(__file__).parent.resolve(), 'log'))
+    rotating_file_handler = TimedRotatingFileHandler(
+        filename=Path.joinpath(Path.joinpath(Path(__file__).parent.resolve(), 'log'),'today.log'),
+        when='midnight',
+        interval=2,
+        backupCount=LOG_BACKUP_COUNT)
+    rotating_file_handler.rotation_filename = GetNewLogFilename
+    formatter = logging.Formatter(
+        '%(asctime)s %(levelname)-8s %(message)s')
+    rotating_file_handler.setFormatter(formatter)
+    logger.addHandler(rotating_file_handler)
+
+logger.info('Log write to file: %s', ENABLE_LOG_TO_FILE)
 
 def SetLimitOpenDTU(pInverterId, pLimit):
     if INVERTER_ID[pInverterId] != 0:
@@ -20,7 +55,7 @@ def SetLimitOpenDTU(pInverterId, pLimit):
     url=f"http://{OPENDTU_IP}/api/limit/config"
     data = f'''data={{"serial":"{SERIAL_NUMBER[pInverterId]}", "limit_type":1, "limit_value":{relLimit}}}'''
     headers = {'Content-Type': 'application/x-www-form-urlencoded'}
-    logging.info("Inverter %s: setting new limit from %s Watt to %s Watt",int(pInverterId),int(CURRENT_LIMIT[pInverterId]),int(pLimit))
+    logger.info("Inverter %s: setting new limit from %s Watt to %s Watt",int(pInverterId),int(CURRENT_LIMIT[pInverterId]),int(pLimit))
     requests.post(url, data=data, auth=HTTPBasicAuth(OPENDTU_USER, OPENDTU_PASS), headers=headers)
     CURRENT_LIMIT[pInverterId] = pLimit
 
@@ -30,77 +65,89 @@ def SetLimitAhoy(pInverterId, pLimit):
     url = f"http://{AHOY_IP}/api/ctrl"
     data = f'''{{"id": {pInverterId}, "cmd": "limit_nonpersistent_absolute", "val": {pLimit}}}'''
     headers = {'Content-type': 'application/json', 'Accept': 'text/plain'}
-    logging.info("Inverter %s: setting new limit from %s Watt to %s Watt",int(pInverterId),int(CURRENT_LIMIT[pInverterId]),int(pLimit))
+    logger.info("Inverter %s: setting new limit from %s Watt to %s Watt",int(pInverterId),int(CURRENT_LIMIT[pInverterId]),int(pLimit))
     requests.post(url, data=data, headers=headers)
     CURRENT_LIMIT[pInverterId] = pLimit
 
 def SetLimit(pLimit):
-    logging.info("setting new limit to %s Watt",int(pLimit))
-    for i in range(INVERTER_COUNT):
-        Factor = HOY_MAX_WATT[i] / GetMaxWattFromAllInverters()
-        NewLimit = int(pLimit*Factor)
-        NewLimit = ApplyLimitsToSetpointInverter(i, NewLimit)
-        if USE_AHOY:
-            SetLimitAhoy(i, NewLimit)
-        elif USE_OPENDTU:
-            SetLimitOpenDTU(i, NewLimit)
-        else:
-            raise Exception("Error: DTU Type not defined")
-    time.sleep(SET_LIMIT_DELAY_IN_SECONDS)
+    try:
+        logger.info("setting new limit to %s Watt",int(pLimit))
+        for i in range(INVERTER_COUNT):
+            Factor = HOY_MAX_WATT[i] / GetMaxWattFromAllInverters()
+            NewLimit = int(pLimit*Factor)
+            NewLimit = ApplyLimitsToSetpointInverter(i, NewLimit)
+            if USE_AHOY:
+                SetLimitAhoy(i, NewLimit)
+            elif USE_OPENDTU:
+                SetLimitOpenDTU(i, NewLimit)
+            else:
+                raise Exception("Error: DTU Type not defined")
+        time.sleep(SET_LIMIT_DELAY_IN_SECONDS)
+    except:
+        logger.info("Exception at SetLimit")
+        raise
 
 def GetHoymilesAvailableOpenDTU(pInverterId):
     url = f'http://{OPENDTU_IP}/api/livedata/status/inverters'
     ParsedData = requests.get(url).json()
     Reachable = bool(ParsedData["inverters"][pInverterId]["reachable"])
-    logging.info("Inverter %s reachable: %s",int(pInverterId),Reachable)
+    logger.info("Inverter %s reachable: %s",int(pInverterId),Reachable)
     return Reachable
 
 def GetHoymilesAvailableAhoy(pInverterId):
     url = f'http://{AHOY_IP}/api/index'
     ParsedData = requests.get(url).json()
     Reachable = bool(ParsedData["inverter"][pInverterId]["is_avail"])
-    logging.info("Inverter %s reachable: %s",int(pInverterId),Reachable)
+    logger.info("Inverter %s reachable: %s",int(pInverterId),Reachable)
     return Reachable
 
 def GetHoymilesAvailable():
-    GetHoymilesAvailable = True
-    if USE_AHOY:
-        for i in range(INVERTER_COUNT):
-            GetHoymilesAvailable = GetHoymilesAvailable and GetHoymilesAvailableAhoy(i)
-        return GetHoymilesAvailable
-    elif USE_OPENDTU:
-        for i in range(INVERTER_COUNT):
-            GetHoymilesAvailable = GetHoymilesAvailable and GetHoymilesAvailableOpenDTU(i)
-        return GetHoymilesAvailable
-    else:
-        raise Exception("Error: DTU Type not defined")
+    try:
+        GetHoymilesAvailable = True
+        if USE_AHOY:
+            for i in range(INVERTER_COUNT):
+                GetHoymilesAvailable = GetHoymilesAvailable and GetHoymilesAvailableAhoy(i)
+            return GetHoymilesAvailable
+        elif USE_OPENDTU:
+            for i in range(INVERTER_COUNT):
+                GetHoymilesAvailable = GetHoymilesAvailable and GetHoymilesAvailableOpenDTU(i)
+            return GetHoymilesAvailable
+        else:
+            raise Exception("Error: DTU Type not defined")
+    except:
+        logger.info("Exception at GetHoymilesAvailable, Inverter not available")
+        raise
 
 def GetHoymilesActualPowerOpenDTU(pInverterId):
     url = f'http://{OPENDTU_IP}/api/livedata/status/inverters'
     ParsedData = requests.get(url).json()
     ActualPower = int(ParsedData['inverters'][pInverterId]['AC']['0']['Power']['v'])
-    logging.info("Inverter %s power producing: %s %s",int(pInverterId),ActualPower," Watt")
+    logger.info("Inverter %s power producing: %s %s",int(pInverterId),ActualPower," Watt")
     return int(ActualPower)
 
 def GetHoymilesActualPowerAhoy(pInverterId):
     url = f'http://{AHOY_IP}/api/record/live'
     ParsedData = requests.get(url).json()
     ActualPower = int(float(next(item for item in ParsedData['inverter'][pInverterId] if item['fld'] == 'P_AC')['val']))
-    logging.info("Inverter %s power producing: %s %s",int(pInverterId),ActualPower," Watt")
+    logger.info("Inverter %s power producing: %s %s",int(pInverterId),ActualPower," Watt")
     return int(ActualPower)
 
 def GetHoymilesActualPower():
-    ActualPower = 0
-    if USE_AHOY:
-        for i in range(INVERTER_COUNT):
-            ActualPower = ActualPower + GetHoymilesActualPowerAhoy(i)
-        return ActualPower
-    elif USE_OPENDTU:
-        for i in range(INVERTER_COUNT):
-            ActualPower = ActualPower + GetHoymilesActualPowerOpenDTU(i)
-        return ActualPower
-    else:
-        raise Exception("Error: DTU Type not defined")
+    try:
+        ActualPower = 0
+        if USE_AHOY:
+            for i in range(INVERTER_COUNT):
+                ActualPower = ActualPower + GetHoymilesActualPowerAhoy(i)
+            return ActualPower
+        elif USE_OPENDTU:
+            for i in range(INVERTER_COUNT):
+                ActualPower = ActualPower + GetHoymilesActualPowerOpenDTU(i)
+            return ActualPower
+        else:
+            raise Exception("Error: DTU Type not defined")
+    except:
+        logger.info("Exception at GetHoymilesActualPower")
+        raise
 
 def GetPowermeterWattsTasmota():
     url = f'http://{TASMOTA_IP}/cm?cmnd=status%2010'
@@ -111,40 +158,44 @@ def GetPowermeterWattsTasmota():
         input = ParsedData[TASMOTA_JSON_STATUS][TASMOTA_JSON_PAYLOAD_MQTT_PREFIX][TASMOTA_JSON_POWER_INPUT_MQTT_LABEL]
         ouput = ParsedData[TASMOTA_JSON_STATUS][TASMOTA_JSON_PAYLOAD_MQTT_PREFIX][TASMOTA_JSON_POWER_OUTPUT_MQTT_LABEL]
         Watts = int(input - ouput)
-    logging.info("powermeter: %s %s",Watts," Watt")
+    logger.info("powermeter: %s %s",Watts," Watt")
     return int(Watts)
 
 def GetPowermeterWattsShelly3EM():
     url = f'http://{SHELLY_IP}/status'
     ParsedData = requests.get(url).json()
     Watts = int(ParsedData['total_power'])
-    logging.info("powermeter: %s %s",Watts," Watt")
+    logger.info("powermeter: %s %s",Watts," Watt")
     return int(Watts)
 
 def GetPowermeterWattsShrdzm():
     url = f'http://{SHRDZM_IP}/getLastData?user={SHRDZM_USER}&password={SHRDZM_PASS}'
     ParsedData = requests.get(url).json()
-    Watts = int(ParsedData['1.7.0'] - ParsedData['2.7.0'])
-    logging.info("powermeter: %s %s",Watts," Watt")
+    Watts = int(int(ParsedData['1.7.0']) - int(ParsedData['2.7.0']))
+    logger.info("powermeter: %s %s",Watts," Watt")
     return int(Watts)
 
 def GetPowermeterWatts():
-    if USE_SHELLY_3EM:
-        return GetPowermeterWattsShelly3EM()
-    elif USE_TASMOTA:
-        return GetPowermeterWattsTasmota()
-    elif USE_SHRDZM:
-        return GetPowermeterWattsShrdzm()
-    else:
-        raise Exception("Error: no powermeter defined!")
-
+    try:
+        if USE_SHELLY_3EM:
+            return GetPowermeterWattsShelly3EM()
+        elif USE_TASMOTA:
+            return GetPowermeterWattsTasmota()
+        elif USE_SHRDZM:
+            return GetPowermeterWattsShrdzm()
+        else:
+            raise Exception("Error: no powermeter defined!")
+    except:
+        logger.info("Exception at GetPowermeterWatts")
+        raise
+    
 def CutLimitToProduction(pSetpoint):
     if pSetpoint != GetMaxWattFromAllInverters():
         ActualPower = GetHoymilesActualPower()
         # prevent the setpoint from running away...
         if pSetpoint > ActualPower + (GetMaxWattFromAllInverters() * MAX_DIFFERENCE_BETWEEN_LIMIT_AND_OUTPUTPOWER / 100):
             pSetpoint = int(ActualPower + (GetMaxWattFromAllInverters() * MAX_DIFFERENCE_BETWEEN_LIMIT_AND_OUTPUTPOWER / 100))
-            logging.info('Cut limit to %s Watt, limit was higher than %s percent of live-production', int(pSetpoint), MAX_DIFFERENCE_BETWEEN_LIMIT_AND_OUTPUTPOWER)
+            logger.info('Cut limit to %s Watt, limit was higher than %s percent of live-production', int(pSetpoint), MAX_DIFFERENCE_BETWEEN_LIMIT_AND_OUTPUTPOWER)
     return int(pSetpoint)
 
 def ApplyLimitsToSetpoint(pSetpoint):
@@ -175,12 +226,14 @@ def GetMinWattFromAllInverters():
 
 # ----- START -----
 
-logging.info("Author: %s / Script Version: %s",__author__, __version__)
+logger.info("Author: %s / Script Version: %s",__author__, __version__)
 
 # read config:
 config = ConfigParser()
-logging.info("read config file: " + str(Path.joinpath(Path(__file__).parent.resolve(), "HoymilesZeroExport_Config.ini")))
+logger.info("read config file: " + str(Path.joinpath(Path(__file__).parent.resolve(), "HoymilesZeroExport_Config.ini")))
 config.read(str(Path.joinpath(Path(__file__).parent.resolve(), "HoymilesZeroExport_Config.ini")))
+VERSION = config.get('VERSION', 'VERSION')
+logger.info("Config file V %s", VERSION)
 USE_AHOY = config.getboolean('SELECT_DTU', 'USE_AHOY')
 USE_OPENDTU = config.getboolean('SELECT_DTU', 'USE_OPENDTU')
 USE_TASMOTA = config.getboolean('SELECT_POWERMETER', 'USE_TASMOTA')
@@ -224,11 +277,18 @@ for i in range(INVERTER_COUNT):
     CURRENT_LIMIT.append(int(0))
 SLOW_APPROX_LIMIT = int(GetMaxWattFromAllInverters() * config.getint('COMMON', 'SLOW_APPROX_LIMIT_IN_PERCENT') / 100)
 
-newLimitSetpoint = GetMaxWattFromAllInverters()
-if GetHoymilesAvailable():
-    SetLimit(newLimitSetpoint)
-time.sleep(SET_LIMIT_DELAY_IN_SECONDS)
-
+try:
+    newLimitSetpoint = GetMaxWattFromAllInverters()
+    if GetHoymilesAvailable():
+        SetLimit(newLimitSetpoint)
+    time.sleep(SET_LIMIT_DELAY_IN_SECONDS)
+except Exception as e:
+    if hasattr(e, 'message'):
+        logger.error(e.message)
+    else:
+        logger.error(e)
+    time.sleep(LOOP_INTERVAL_IN_SECONDS)
+    
 while True:
     try:
         PreviousLimitSetpoint = newLimitSetpoint
@@ -249,7 +309,7 @@ while True:
                     break
                 else:
                     time.sleep(POLL_INTERVAL_IN_SECONDS)
-            
+
             if MAX_DIFFERENCE_BETWEEN_LIMIT_AND_OUTPUTPOWER != 100:
                 CutLimit = CutLimitToProduction(newLimitSetpoint)
                 if CutLimit != newLimitSetpoint:
@@ -268,24 +328,24 @@ while True:
                     newLimitSetpoint = newLimitSetpoint + (LimitDifference / 4)
                     if newLimitSetpoint > hoymilesActualPower:
                         newLimitSetpoint = hoymilesActualPower
-                    logging.info("overproducing: reduce limit based on actual power")
+                    logger.info("overproducing: reduce limit based on actual power")
                 else:
                     newLimitSetpoint = PreviousLimitSetpoint + powermeterWatts - POWERMETER_TARGET_POINT
                     # check if it is necessary to approximate to the setpoint with some more passes. this reduce overshoot
                     LimitDifference = abs(PreviousLimitSetpoint - newLimitSetpoint)
                     if LimitDifference > SLOW_APPROX_LIMIT:
-                        logging.info("overproducing: reduce limit based on previous limit setpoint by approximation")
+                        logger.info("overproducing: reduce limit based on previous limit setpoint by approximation")
                         newLimitSetpoint = newLimitSetpoint + (LimitDifference / 4)
                     else:
-                        logging.info("overproducing: reduce limit based on previous limit setpoint")
+                        logger.info("overproducing: reduce limit based on previous limit setpoint")
 
             # producing too little power: increase limit
             elif powermeterWatts > (POWERMETER_TARGET_POINT + POWERMETER_TOLERANCE):
                 if PreviousLimitSetpoint < GetMaxWattFromAllInverters():
                     newLimitSetpoint = PreviousLimitSetpoint + powermeterWatts - POWERMETER_TARGET_POINT
-                    logging.info("Not enough energy producing: increasing limit")
+                    logger.info("Not enough energy producing: increasing limit")
                 else:
-                    logging.info("Not enough energy producing: limit already at maximum")
+                    logger.info("Not enough energy producing: limit already at maximum")
 
             # check for upper and lower limits
             newLimitSetpoint = ApplyLimitsToSetpoint(newLimitSetpoint)
@@ -297,7 +357,7 @@ while True:
 
     except Exception as e:
         if hasattr(e, 'message'):
-            print(e.message)
+            logger.error(e.message)
         else:
-            print(e)
+            logger.error(e)
         time.sleep(LOOP_INTERVAL_IN_SECONDS)

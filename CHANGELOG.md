@@ -1,8 +1,11 @@
 # Changelog
 ## V1.9
 ### Script
-* Added SHRDZM Powermeter Interface 
-* Added an optional function CutLimitToProduction: prevents the setpoint from running away... 
+* Add: SHRDZM Powermeter Interface 
+* Add: an optional function CutLimitToProduction: prevents the setpoint from running away... 
+* Changed: logging to ./log/daily.log, creates a new logfile on midnight
 ### Config
-* Added Section `[SHRDZM]` + `USE_SHRDZM = false` in Config 
-* Added `MAX_DIFFERENCE_BETWEEN_LIMIT_AND_OUTPUTPOWER = 100` to Config (default disabled)
+* Add: Section `[SHRDZM]` + `USE_SHRDZM` in Config (default disabled)
+* Add: `MAX_DIFFERENCE_BETWEEN_LIMIT_AND_OUTPUTPOWER` (default disabled)
+* Add: `ENABLE_LOG_TO_FILE` and `LOG_BACKUP_COUNT` (default disabled)
+* Add: VERSION information
