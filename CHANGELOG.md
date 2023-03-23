@@ -1,4 +1,7 @@
 # Changelog
+## V1.10
+### Script
+* Bugfix for openDTU set limit, missing array index
 ## V1.9
 ### Script
 * Add: SHRDZM Powermeter Interface 
