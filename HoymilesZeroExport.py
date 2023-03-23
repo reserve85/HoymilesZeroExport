@@ -1,5 +1,5 @@
 __author__ = "reserve85"
-__version__ = "1.9"
+__version__ = "1.10"
 
 import requests, time
 from requests.auth import HTTPBasicAuth
@@ -51,7 +51,7 @@ logger.info('Log write to file: %s', ENABLE_LOG_TO_FILE)
 def SetLimitOpenDTU(pInverterId, pLimit):
     if INVERTER_ID[pInverterId] != 0:
         time.sleep(SET_LIMIT_DELAY_IN_SECONDS_MULTIPLE_INVERTER)
-    relLimit = int(pLimit / HOY_MAX_WATT * 100)
+    relLimit = int(pLimit / HOY_MAX_WATT[pInverterId] * 100)
     url=f"http://{OPENDTU_IP}/api/limit/config"
     data = f'''data={{"serial":"{SERIAL_NUMBER[pInverterId]}", "limit_type":1, "limit_value":{relLimit}}}'''
     headers = {'Content-Type': 'application/x-www-form-urlencoded'}
