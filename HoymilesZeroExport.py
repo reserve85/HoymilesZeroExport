@@ -1,5 +1,5 @@
 __author__ = "reserve85"
-__version__ = "1.10"
+__version__ = "1.11"
 
 import requests, time
 from requests.auth import HTTPBasicAuth
@@ -8,7 +8,10 @@ import logging
 from logging.handlers import TimedRotatingFileHandler
 from configparser import ConfigParser
 from pathlib import Path
-import datetime as dt
+#import datetime as dt
+from datetime import date
+from datetime import timedelta
+import datetime
 
 logging.basicConfig(
     format='%(asctime)s %(levelname)-8s %(message)s',
@@ -31,8 +34,8 @@ except Exception as e:
 
 if ENABLE_LOG_TO_FILE:
     def GetNewLogFilename(self):
-        now = dt.datetime.now()
-        return Path.joinpath(Path.joinpath(Path(__file__).parent.resolve(), 'log'),''+now.strftime("%Y%m%d_%H%M%S")+'.log')
+        yesterday = datetime.datetime.now() - timedelta(days = 1)
+        return Path.joinpath(Path.joinpath(Path(__file__).parent.resolve(), 'log'),''+yesterday.strftime("%Y%m%d")+'.log')
     if not os.path.exists(Path.joinpath(Path(__file__).parent.resolve(), 'log')):
         os.makedirs(Path.joinpath(Path(__file__).parent.resolve(), 'log'))
     rotating_file_handler = TimedRotatingFileHandler(

@@ -1,4 +1,7 @@
 # Changelog
+## V1.11
+### Script
+* Bugfix: filename of midnight rolling backup-logfiles was "today" but should be "yesterday".
 ## V1.10
 ### Script
 * Bugfix for openDTU set limit, missing array index
