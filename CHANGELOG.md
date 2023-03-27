@@ -1,5 +1,11 @@
 # Changelog
 
+## V1.13
+### Script
+* Removed: Intermediate meter calculation option
+### Config
+* Removed: defines for Intermediate meter calculation option: `TASMOTA_JSON_POWER_CALCULATE = FALSE`, `TASMOTA_JSON_POWER_INPUT_MQTT_LABEL`, `TASMOTA_JSON_POWER_OUTPUT_MQTT_LABEL`
+
 ## V1.12
 ### Script
 * Add: Intermediate meter support. If you have an intermediate meter behind your solar inverters to measure the exact outputpower, you can set it here. It's faster than the Ahoy/OpenDTU current_power value.
