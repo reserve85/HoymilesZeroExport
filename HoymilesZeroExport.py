@@ -1,15 +1,14 @@
 __author__ = "reserve85"
-__version__ = "1.11"
+__version__ = "1.12"
 
-import requests, time
+import requests
+import time
 from requests.auth import HTTPBasicAuth
 import os
 import logging
 from logging.handlers import TimedRotatingFileHandler
 from configparser import ConfigParser
 from pathlib import Path
-#import datetime as dt
-from datetime import date
 from datetime import timedelta
 import datetime
 
@@ -33,16 +32,22 @@ except Exception as e:
         logger.error(e)
 
 if ENABLE_LOG_TO_FILE:
+    
     def GetNewLogFilename(self):
+        if not os.path.exists(Path.joinpath(Path(__file__).parent.resolve(), 'log')):
+            os.makedirs(Path.joinpath(Path(__file__).parent.resolve(), 'log'))
         yesterday = datetime.datetime.now() - timedelta(days = 1)
         return Path.joinpath(Path.joinpath(Path(__file__).parent.resolve(), 'log'),''+yesterday.strftime("%Y%m%d")+'.log')
+    
     if not os.path.exists(Path.joinpath(Path(__file__).parent.resolve(), 'log')):
         os.makedirs(Path.joinpath(Path(__file__).parent.resolve(), 'log'))
+        
     rotating_file_handler = TimedRotatingFileHandler(
         filename=Path.joinpath(Path.joinpath(Path(__file__).parent.resolve(), 'log'),'today.log'),
         when='midnight',
         interval=2,
         backupCount=LOG_BACKUP_COUNT)
+    
     rotating_file_handler.rotation_filename = GetNewLogFilename
     formatter = logging.Formatter(
         '%(asctime)s %(levelname)-8s %(message)s')
@@ -87,7 +92,7 @@ def SetLimit(pLimit):
                 raise Exception("Error: DTU Type not defined")
         time.sleep(SET_LIMIT_DELAY_IN_SECONDS)
     except:
-        logger.info("Exception at SetLimit")
+        logger.error("Exception at SetLimit")
         raise
 
 def GetHoymilesAvailableOpenDTU(pInverterId):
@@ -118,7 +123,7 @@ def GetHoymilesAvailable():
         else:
             raise Exception("Error: DTU Type not defined")
     except:
-        logger.info("Exception at GetHoymilesAvailable, Inverter not available")
+        logger.error("Exception at GetHoymilesAvailable, Inverter not available")
         raise
 
 def GetHoymilesActualPowerOpenDTU(pInverterId):
@@ -138,6 +143,8 @@ def GetHoymilesActualPowerAhoy(pInverterId):
 def GetHoymilesActualPower():
     try:
         ActualPower = 0
+        if USE_TASMOTA_INTERMEDIATE or USE_SHELLY_3EM_INTERMEDIATE or USE_SHRDZM_INTERMEDIATE:
+            return GetPowermeterWatts_Intermediate()
         if USE_AHOY:
             for i in range(INVERTER_COUNT):
                 ActualPower = ActualPower + GetHoymilesActualPowerAhoy(i)
@@ -149,7 +156,47 @@ def GetHoymilesActualPower():
         else:
             raise Exception("Error: DTU Type not defined")
     except:
-        logger.info("Exception at GetHoymilesActualPower")
+        logger.error("Exception at GetHoymilesActualPower")
+        raise
+    
+def GetPowermeterWattsTasmota_Intermediate():
+    url = f'http://{TASMOTA_IP_INTERMEDIATE}/cm?cmnd=status%2010'
+    ParsedData = requests.get(url).json()
+    if not TASMOTA_JSON_POWER_CALCULATE_INTERMEDIATE:
+        Watts = int(ParsedData[TASMOTA_JSON_STATUS_INTERMEDIATE][TASMOTA_JSON_PAYLOAD_MQTT_PREFIX_INTERMEDIATE][TASMOTA_JSON_POWER_MQTT_LABEL_INTERMEDIATE])
+    else:
+        input = ParsedData[TASMOTA_JSON_STATUS_INTERMEDIATE][TASMOTA_JSON_PAYLOAD_MQTT_PREFIX_INTERMEDIATE][TASMOTA_JSON_POWER_INPUT_MQTT_LABEL_INTERMEDIATE]
+        ouput = ParsedData[TASMOTA_JSON_STATUS_INTERMEDIATE][TASMOTA_JSON_PAYLOAD_MQTT_PREFIX_INTERMEDIATE][TASMOTA_JSON_POWER_OUTPUT_MQTT_LABEL_INTERMEDIATE]
+        Watts = int(input - ouput)
+    logger.info("intermediate meter: %s %s",Watts," Watt")
+    return int(Watts)
+
+def GetPowermeterWattsShelly3EM_Intermediate():
+    url = f'http://{SHELLY_IP_INTERMEDIATE}/status'
+    ParsedData = requests.get(url).json()
+    Watts = int(ParsedData['total_power'])
+    logger.info("intermediate meter: %s %s",Watts," Watt")
+    return int(Watts)
+
+def GetPowermeterWattsShrdzm_Intermediate():
+    url = f'http://{SHRDZM_IP_INTERMEDIATE}/getLastData?user={SHRDZM_USER_INTERMEDIATE}&password={SHRDZM_PASS_INTERMEDIATE}'
+    ParsedData = requests.get(url).json()
+    Watts = int(int(ParsedData['1.7.0']) - int(ParsedData['2.7.0']))
+    logger.info("intermediate meter: %s %s",Watts," Watt")
+    return int(Watts)
+
+def GetPowermeterWatts_Intermediate():
+    try:
+        if USE_SHELLY_3EM:
+            return GetPowermeterWattsShelly3EM_Intermediate()
+        elif USE_TASMOTA:
+            return GetPowermeterWattsTasmota_Intermediate()
+        elif USE_SHRDZM:
+            return GetPowermeterWattsShrdzm_Intermediate()
+        else:
+            raise Exception("Error: no powermeter defined!")
+    except:
+        logger.error("Exception at GetPowermeterWatts_Intermediate")
         raise
 
 def GetPowermeterWattsTasmota():
@@ -189,7 +236,7 @@ def GetPowermeterWatts():
         else:
             raise Exception("Error: no powermeter defined!")
     except:
-        logger.info("Exception at GetPowermeterWatts")
+        logger.error("Exception at GetPowermeterWatts")
         raise
     
 def CutLimitToProduction(pSetpoint):
@@ -232,9 +279,7 @@ def GetMinWattFromAllInverters():
 logger.info("Author: %s / Script Version: %s",__author__, __version__)
 
 # read config:
-config = ConfigParser()
 logger.info("read config file: " + str(Path.joinpath(Path(__file__).parent.resolve(), "HoymilesZeroExport_Config.ini")))
-config.read(str(Path.joinpath(Path(__file__).parent.resolve(), "HoymilesZeroExport_Config.ini")))
 VERSION = config.get('VERSION', 'VERSION')
 logger.info("Config file V %s", VERSION)
 USE_AHOY = config.getboolean('SELECT_DTU', 'USE_AHOY')
@@ -257,6 +302,20 @@ SHELLY_IP = config.get('SHELLY_3EM', 'SHELLY_IP')
 SHRDZM_IP = config.get('SHRDZM', 'SHRDZM_IP')
 SHRDZM_USER = config.get('SHRDZM', 'SHRDZM_USER')
 SHRDZM_PASS = config.get('SHRDZM', 'SHRDZM_PASS')
+USE_TASMOTA_INTERMEDIATE = config.getboolean('SELECT_INTERMEDIATE_METER', 'USE_TASMOTA_INTERMEDIATE')
+USE_SHELLY_3EM_INTERMEDIATE = config.getboolean('SELECT_INTERMEDIATE_METER', 'USE_SHELLY_3EM_INTERMEDIATE')
+USE_SHRDZM_INTERMEDIATE = config.getboolean('SELECT_INTERMEDIATE_METER', 'USE_SHRDZM_INTERMEDIATE')
+TASMOTA_IP_INTERMEDIATE = config.get('INTERMEDIATE_TASMOTA', 'TASMOTA_IP_INTERMEDIATE')
+TASMOTA_JSON_STATUS_INTERMEDIATE = config.get('INTERMEDIATE_TASMOTA', 'TASMOTA_JSON_STATUS_INTERMEDIATE')
+TASMOTA_JSON_PAYLOAD_MQTT_PREFIX_INTERMEDIATE = config.get('INTERMEDIATE_TASMOTA', 'TASMOTA_JSON_PAYLOAD_MQTT_PREFIX_INTERMEDIATE')
+TASMOTA_JSON_POWER_MQTT_LABEL_INTERMEDIATE = config.get('INTERMEDIATE_TASMOTA', 'TASMOTA_JSON_POWER_MQTT_LABEL_INTERMEDIATE')
+TASMOTA_JSON_POWER_CALCULATE_INTERMEDIATE = config.getboolean('INTERMEDIATE_TASMOTA', 'TASMOTA_JSON_POWER_CALCULATE_INTERMEDIATE')
+TASMOTA_JSON_POWER_INPUT_MQTT_LABEL_INTERMEDIATE = config.get('INTERMEDIATE_TASMOTA', 'TASMOTA_JSON_POWER_INPUT_MQTT_LABEL_INTERMEDIATE')
+TASMOTA_JSON_POWER_OUTPUT_MQTT_LABEL_INTERMEDIATE = config.get('INTERMEDIATE_TASMOTA', 'TASMOTA_JSON_POWER_OUTPUT_MQTT_LABEL_INTERMEDIATE')
+SHELLY_IP_INTERMEDIATE = config.get('INTERMEDIATE_SHELLY_3EM', 'SHELLY_IP_INTERMEDIATE')
+SHRDZM_IP_INTERMEDIATE = config.get('INTERMEDIATE_SHRDZM', 'SHRDZM_IP_INTERMEDIATE')
+SHRDZM_USER_INTERMEDIATE = config.get('INTERMEDIATE_SHRDZM', 'SHRDZM_USER_INTERMEDIATE')
+SHRDZM_PASS_INTERMEDIATE = config.get('INTERMEDIATE_SHRDZM', 'SHRDZM_PASS_INTERMEDIATE')
 INVERTER_COUNT = config.getint('COMMON', 'INVERTER_COUNT')
 LOOP_INTERVAL_IN_SECONDS = config.getint('COMMON', 'LOOP_INTERVAL_IN_SECONDS')
 SET_LIMIT_DELAY_IN_SECONDS = config.getint('COMMON', 'SET_LIMIT_DELAY_IN_SECONDS')
