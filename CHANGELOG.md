@@ -1,5 +1,11 @@
 # Changelog
 
+## V1.14
+### Script
+* add: limit the retry of function `SetLimit` if it is the same limit in watt
+### Config
+* add: In Section `[COMMON]`: `SET_LIMIT_RETRY = 10`
+
 ## V1.13
 ### Script
 * Removed: Intermediate meter calculation option

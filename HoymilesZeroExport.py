@@ -1,5 +1,5 @@
 __author__ = "reserve85"
-__version__ = "1.13"
+__version__ = "1.14"
 
 import requests
 import time
@@ -79,6 +79,21 @@ def SetLimitAhoy(pInverterId, pLimit):
 
 def SetLimit(pLimit):
     try:
+        if SET_LIMIT_RETRY != -1:
+            if not hasattr(SetLimit, "LastLimit"):
+                SetLimit.LastLimit = 0
+            if not hasattr(SetLimit, "SameLimitCnt"):
+                SetLimit.SameLimitCnt = 0
+                
+            if SetLimit.LastLimit == pLimit:
+                SetLimit.SameLimitCnt += 1
+            else:
+                SetLimit.LastLimit = pLimit
+                SetLimit.SameLimitCnt = 0
+            if SetLimit.SameLimitCnt >= SET_LIMIT_RETRY:
+                logger.info("Set Limit Retry Counter exceeded: Inverterlimit already at %s Watt",int(pLimit))
+                return
+        
         logger.info("setting new limit to %s Watt",int(pLimit))
         for i in range(INVERTER_COUNT):
             Factor = HOY_MAX_WATT[i] / GetMaxWattFromAllInverters()
@@ -315,6 +330,7 @@ SET_LIMIT_DELAY_IN_SECONDS_MULTIPLE_INVERTER = config.getint('COMMON', 'SET_LIMI
 POLL_INTERVAL_IN_SECONDS = config.getint('COMMON', 'POLL_INTERVAL_IN_SECONDS')
 JUMP_TO_MAX_LIMIT_ON_GRID_USAGE = config.getboolean('COMMON', 'JUMP_TO_MAX_LIMIT_ON_GRID_USAGE')
 MAX_DIFFERENCE_BETWEEN_LIMIT_AND_OUTPUTPOWER = config.getint('COMMON', 'MAX_DIFFERENCE_BETWEEN_LIMIT_AND_OUTPUTPOWER')
+SET_LIMIT_RETRY = config.getint('COMMON', 'SET_LIMIT_RETRY')
 POWERMETER_TARGET_POINT = config.getint('CONTROL', 'POWERMETER_TARGET_POINT')
 POWERMETER_TOLERANCE = config.getint('CONTROL', 'POWERMETER_TOLERANCE')
 POWERMETER_MAX_POINT = config.getint('CONTROL', 'POWERMETER_MAX_POINT')
