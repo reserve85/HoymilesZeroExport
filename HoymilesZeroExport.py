@@ -32,22 +32,22 @@ except Exception as e:
         logger.error(e)
 
 if ENABLE_LOG_TO_FILE:
-    
+
     def GetNewLogFilename(self):
         if not os.path.exists(Path.joinpath(Path(__file__).parent.resolve(), 'log')):
             os.makedirs(Path.joinpath(Path(__file__).parent.resolve(), 'log'))
         yesterday = datetime.datetime.now() - timedelta(days = 1)
         return Path.joinpath(Path.joinpath(Path(__file__).parent.resolve(), 'log'),''+yesterday.strftime("%Y%m%d")+'.log')
-    
+
     if not os.path.exists(Path.joinpath(Path(__file__).parent.resolve(), 'log')):
         os.makedirs(Path.joinpath(Path(__file__).parent.resolve(), 'log'))
-        
+
     rotating_file_handler = TimedRotatingFileHandler(
         filename=Path.joinpath(Path.joinpath(Path(__file__).parent.resolve(), 'log'),'today.log'),
         when='midnight',
         interval=2,
         backupCount=LOG_BACKUP_COUNT)
-    
+
     rotating_file_handler.rotation_filename = GetNewLogFilename
     formatter = logging.Formatter(
         '%(asctime)s %(levelname)-8s %(message)s')
@@ -173,7 +173,7 @@ def GetHoymilesActualPower():
     except:
         logger.error("Exception at GetHoymilesActualPower")
         raise
-    
+
 def GetPowermeterWattsTasmota_Intermediate():
     url = f'http://{TASMOTA_IP_INTERMEDIATE}/cm?cmnd=status%2010'
     ParsedData = requests.get(url).json()
@@ -248,7 +248,7 @@ def GetPowermeterWatts():
     except:
         logger.error("Exception at GetPowermeterWatts")
         raise
-    
+
 def CutLimitToProduction(pSetpoint):
     if pSetpoint != GetMaxWattFromAllInverters():
         ActualPower = GetHoymilesActualPower()
