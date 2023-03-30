@@ -12,7 +12,7 @@ if [ -z $PIP3 ]; then
   apt update
   apt -y install python3-pip
 fi
-pip install requests
+pip3 install requests
 echo 'Packages install completed'
 
 if systemctl --type=service --state=running | grep -Fq 'HoymilesZeroExport.service'; then
