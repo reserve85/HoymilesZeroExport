@@ -46,13 +46,17 @@ sudo nano HoymilesZeroExport_Config.ini
 
 Restart the service after modified configuration or script
 ```sh
-sudo chmod +x restart.sh
 ./restart.sh
 ```
 
 Showing the output-log
 ```sh
 sudo journalctl -u HoymilesZeroExport.service -n 20000 -e -f
+```
+
+If you really don´t wont the service anymore, just uninstall it
+```sh
+./uninstall_service.sh
 ```
 
 ## Windows installation
