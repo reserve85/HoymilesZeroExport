@@ -15,7 +15,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 __author__ = "Tobias Kraft"
-__version__ = "1.15"
+__version__ = "1.16"
 
 import requests
 import time
@@ -100,7 +100,6 @@ def SetLimit(pLimit):
                 SetLimit.LastLimit = 0
             if not hasattr(SetLimit, "SameLimitCnt"):
                 SetLimit.SameLimitCnt = 0
-                
             if SetLimit.LastLimit == pLimit:
                 SetLimit.SameLimitCnt += 1
             else:
@@ -109,7 +108,6 @@ def SetLimit(pLimit):
             if SetLimit.SameLimitCnt >= SET_LIMIT_RETRY:
                 logger.info("Set Limit Retry Counter exceeded: Inverterlimit already at %s Watt",int(pLimit))
                 return
-        
         logger.info("setting new limit to %s Watt",int(pLimit))
         for i in range(INVERTER_COUNT):
             Factor = HOY_MAX_WATT[i] / GetMaxWattFromAllInverters()
@@ -197,6 +195,13 @@ def GetPowermeterWattsTasmota_Intermediate():
     logger.info("intermediate meter: %s %s",Watts," Watt")
     return int(Watts)
 
+def GetPowermeterWattsShelly1PM_Intermediate():
+    url = f'http://{SHELLY_IP_INTERMEDIATE}/rpc/Switch.GetStatus?id=0'
+    ParsedData = requests.get(url).json()
+    Watts = int(ParsedData['apower'])
+    logger.info("intermediate meter: %s %s",Watts," Watt")
+    return int(Watts)
+
 def GetPowermeterWattsShelly3EM_Intermediate():
     url = f'http://{SHELLY_IP_INTERMEDIATE}/status'
     ParsedData = requests.get(url).json()
@@ -213,11 +218,13 @@ def GetPowermeterWattsShrdzm_Intermediate():
 
 def GetPowermeterWatts_Intermediate():
     try:
-        if USE_SHELLY_3EM:
+        if USE_SHELLY_3EM_INTERMEDIATE:
             return GetPowermeterWattsShelly3EM_Intermediate()
-        elif USE_TASMOTA:
+        elif USE_SHELLY_1PM_INTERMEDIATE:
+            return GetPowermeterWattsShelly1PM_Intermediate()
+        elif USE_TASMOTA_INTERMEDIATE:
             return GetPowermeterWattsTasmota_Intermediate()
-        elif USE_SHRDZM:
+        elif USE_SHRDZM_INTERMEDIATE:
             return GetPowermeterWattsShrdzm_Intermediate()
         else:
             raise Exception("Error: no powermeter defined!")
@@ -330,12 +337,13 @@ SHRDZM_USER = config.get('SHRDZM', 'SHRDZM_USER')
 SHRDZM_PASS = config.get('SHRDZM', 'SHRDZM_PASS')
 USE_TASMOTA_INTERMEDIATE = config.getboolean('SELECT_INTERMEDIATE_METER', 'USE_TASMOTA_INTERMEDIATE')
 USE_SHELLY_3EM_INTERMEDIATE = config.getboolean('SELECT_INTERMEDIATE_METER', 'USE_SHELLY_3EM_INTERMEDIATE')
+USE_SHELLY_1PM_INTERMEDIATE = config.getboolean('SELECT_INTERMEDIATE_METER', 'USE_SHELLY_1PM_INTERMEDIATE')
 USE_SHRDZM_INTERMEDIATE = config.getboolean('SELECT_INTERMEDIATE_METER', 'USE_SHRDZM_INTERMEDIATE')
 TASMOTA_IP_INTERMEDIATE = config.get('INTERMEDIATE_TASMOTA', 'TASMOTA_IP_INTERMEDIATE')
 TASMOTA_JSON_STATUS_INTERMEDIATE = config.get('INTERMEDIATE_TASMOTA', 'TASMOTA_JSON_STATUS_INTERMEDIATE')
 TASMOTA_JSON_PAYLOAD_MQTT_PREFIX_INTERMEDIATE = config.get('INTERMEDIATE_TASMOTA', 'TASMOTA_JSON_PAYLOAD_MQTT_PREFIX_INTERMEDIATE')
 TASMOTA_JSON_POWER_MQTT_LABEL_INTERMEDIATE = config.get('INTERMEDIATE_TASMOTA', 'TASMOTA_JSON_POWER_MQTT_LABEL_INTERMEDIATE')
-SHELLY_IP_INTERMEDIATE = config.get('INTERMEDIATE_SHELLY_3EM', 'SHELLY_IP_INTERMEDIATE')
+SHELLY_IP_INTERMEDIATE = config.get('INTERMEDIATE_SHELLY', 'SHELLY_IP_INTERMEDIATE')
 SHRDZM_IP_INTERMEDIATE = config.get('INTERMEDIATE_SHRDZM', 'SHRDZM_IP_INTERMEDIATE')
 SHRDZM_USER_INTERMEDIATE = config.get('INTERMEDIATE_SHRDZM', 'SHRDZM_USER_INTERMEDIATE')
 SHRDZM_PASS_INTERMEDIATE = config.get('INTERMEDIATE_SHRDZM', 'SHRDZM_PASS_INTERMEDIATE')
@@ -375,7 +383,7 @@ except Exception as e:
     else:
         logger.error(e)
     time.sleep(LOOP_INTERVAL_IN_SECONDS)
-    
+
 while True:
     try:
         PreviousLimitSetpoint = newLimitSetpoint
