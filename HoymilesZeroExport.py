@@ -100,7 +100,6 @@ def SetLimit(pLimit):
                 SetLimit.LastLimit = 0
             if not hasattr(SetLimit, "SameLimitCnt"):
                 SetLimit.SameLimitCnt = 0
-                
             if SetLimit.LastLimit == pLimit:
                 SetLimit.SameLimitCnt += 1
             else:
@@ -109,7 +108,6 @@ def SetLimit(pLimit):
             if SetLimit.SameLimitCnt >= SET_LIMIT_RETRY:
                 logger.info("Set Limit Retry Counter exceeded: Inverterlimit already at %s Watt",int(pLimit))
                 return
-        
         logger.info("setting new limit to %s Watt",int(pLimit))
         for i in range(INVERTER_COUNT):
             Factor = HOY_MAX_WATT[i] / GetMaxWattFromAllInverters()
@@ -222,7 +220,7 @@ def GetPowermeterWatts_Intermediate():
     try:
         if USE_SHELLY_3EM_INTERMEDIATE:
             return GetPowermeterWattsShelly3EM_Intermediate()
-        if USE_SHELLY_1PM_INTERMEDIATE:
+        elif USE_SHELLY_1PM_INTERMEDIATE:
             return GetPowermeterWattsShelly1PM_Intermediate()
         elif USE_TASMOTA_INTERMEDIATE:
             return GetPowermeterWattsTasmota_Intermediate()
@@ -385,7 +383,7 @@ except Exception as e:
     else:
         logger.error(e)
     time.sleep(LOOP_INTERVAL_IN_SECONDS)
-    
+
 while True:
     try:
         PreviousLimitSetpoint = newLimitSetpoint
