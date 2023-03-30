@@ -1,5 +1,12 @@
 # Changelog
 
+## V1.16
+### Script
+* add: support Shelly 1PM as intermediate meter
+* bugfix: selection of intermediate meter was incorrect.
+### Config
+* add: In Section `[SELECT_INTERMEDIATE_METER]`: `USE_SHELLY_1PM_INTERMEDIATE`
+
 ## V1.15
 ### Script
 * change: replace fixed factor for slow approximation with configurable one (SLOW_APPROX_FACTOR_IN_PERCENT)
