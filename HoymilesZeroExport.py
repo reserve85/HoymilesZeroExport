@@ -1,5 +1,5 @@
 __author__ = "reserve85"
-__version__ = "1.14"
+__version__ = "1.15"
 
 import requests
 import time
@@ -331,6 +331,7 @@ POLL_INTERVAL_IN_SECONDS = config.getint('COMMON', 'POLL_INTERVAL_IN_SECONDS')
 JUMP_TO_MAX_LIMIT_ON_GRID_USAGE = config.getboolean('COMMON', 'JUMP_TO_MAX_LIMIT_ON_GRID_USAGE')
 MAX_DIFFERENCE_BETWEEN_LIMIT_AND_OUTPUTPOWER = config.getint('COMMON', 'MAX_DIFFERENCE_BETWEEN_LIMIT_AND_OUTPUTPOWER')
 SET_LIMIT_RETRY = config.getint('COMMON', 'SET_LIMIT_RETRY')
+SLOW_APPROX_FACTOR_IN_PERCENT = config.getint('COMMON', 'SLOW_APPROX_FACTOR_IN_PERCENT')
 POWERMETER_TARGET_POINT = config.getint('CONTROL', 'POWERMETER_TARGET_POINT')
 POWERMETER_TOLERANCE = config.getint('CONTROL', 'POWERMETER_TOLERANCE')
 POWERMETER_MAX_POINT = config.getint('CONTROL', 'POWERMETER_MAX_POINT')
@@ -394,8 +395,9 @@ while True:
                 if PreviousLimitSetpoint >= GetMaxWattFromAllInverters():
                     hoymilesActualPower = GetHoymilesActualPower()
                     newLimitSetpoint = hoymilesActualPower + powermeterWatts - POWERMETER_TARGET_POINT
-                    LimitDifference = abs(PreviousLimitSetpoint - newLimitSetpoint)
-                    newLimitSetpoint = newLimitSetpoint + (LimitDifference / 4)
+                    LimitDifference = abs(hoymilesActualPower - newLimitSetpoint)
+                    if LimitDifference > SLOW_APPROX_LIMIT:
+                        newLimitSetpoint = newLimitSetpoint + (LimitDifference * SLOW_APPROX_FACTOR_IN_PERCENT / 100)
                     if newLimitSetpoint > hoymilesActualPower:
                         newLimitSetpoint = hoymilesActualPower
                     logger.info("overproducing: reduce limit based on actual power")
@@ -405,7 +407,7 @@ while True:
                     LimitDifference = abs(PreviousLimitSetpoint - newLimitSetpoint)
                     if LimitDifference > SLOW_APPROX_LIMIT:
                         logger.info("overproducing: reduce limit based on previous limit setpoint by approximation")
-                        newLimitSetpoint = newLimitSetpoint + (LimitDifference / 4)
+                        newLimitSetpoint = newLimitSetpoint + (LimitDifference * SLOW_APPROX_FACTOR_IN_PERCENT / 100)
                     else:
                         logger.info("overproducing: reduce limit based on previous limit setpoint")
 

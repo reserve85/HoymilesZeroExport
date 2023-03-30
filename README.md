@@ -12,6 +12,7 @@ This script does not use MQTT, it's based on webapi communication.
 - [Tasmota Smart Meter Interface](https://tasmota.github.io/docs/Smart-Meter-Interface/) (e.g. "[Hichi IR Lesekopf](https://www.ebay.de/sch/i.html?_ssn=hicbelm-8)" or equal)
 - [Shelly 3EM](https://www.shelly.cloud/de/products/product-overview/shelly-3em-1)
 - [SHRDZM Smartmeter Modul](https://cms.shrdzm.com/produkt/smartmeter-modul/)
+- easy to implement new smart meter modules supporting WebAPI / JSON
 
 ### Supported DTU and Inverters
 - [Ahoy](https://github.com/lumapu/ahoy) - this script is developed with AHOY and therefore i recommend it
@@ -35,7 +36,7 @@ cd HoymilesZeroExport/
 launch installscript to install python and create zero export service
 ```sh
 sudo chmod +x install.sh
-./install.sh
+sudo ./install.sh
 ```
 
 Edit your configuration, save with ctrl + s, exit with ctrl + x

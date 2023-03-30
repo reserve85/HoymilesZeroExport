@@ -1,16 +1,31 @@
 #!/bin/bash
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 
+chmod +x $SCRIPT_DIR/HoymilesZeroExport.py
+chmod +x $SCRIPT_DIR/restart.sh
+chmod +x $SCRIPT_DIR/uninstall_service.sh
+
 PIP3=$(which pip3)
 
 echo 'Installing packages'
 if [ -z $PIP3 ]; then
-  sudo apt update
-  sudo apt -y install python3-pip
+  apt update
+  apt -y install python3-pip
 fi
-sudo pip install requests
+pip install requests
+echo 'Packages install completed'
 
-cat << EOF | sudo tee /etc/systemd/system/HoymilesZeroExport.service
+if systemctl --type=service --state=running | grep -Fq 'HoymilesZeroExport.service'; then
+  echo 'Uninstall HoymilesZeroExport.service'
+  systemctl stop HoymilesZeroExport.service
+  systemctl disable HoymilesZeroExport.service
+  rm /etc/systemd/system/HoymilesZeroExport.service
+  systemctl daemon-reload
+  systemctl reset-failed
+  echo 'Uninstallation of HoymilesZeroExport.service completed'
+fi
+
+cat << EOF | tee /etc/systemd/system/HoymilesZeroExport.service
 [Unit]
 Description=HoymilesZeroExport Service
 After=multi-user.target
@@ -22,11 +37,9 @@ ExecStart=/usr/bin/python3 ${SCRIPT_DIR}/HoymilesZeroExport.py
 WantedBy=multi-user.target
 EOF
 
-sudo chmod 644 /usr/lib/systemd/system/HoymilesZeroExport.service
-sudo systemctl daemon-reload
-sudo systemctl enable HoymilesZeroExport.service
-sudo systemctl stop HoymilesZeroExport.service
-sudo systemctl start HoymilesZeroExport.service
-sudo systemctl status HoymilesZeroExport.service
+systemctl daemon-reload
+systemctl enable HoymilesZeroExport.service
+systemctl start HoymilesZeroExport.service
+systemctl status HoymilesZeroExport.service
 
-echo "Installation of HoymilesZeroExport completed"
+echo 'Installation of HoymilesZeroExport completed'
