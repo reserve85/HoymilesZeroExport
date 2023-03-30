@@ -1,5 +1,16 @@
 # Changelog
 
+## V1.15
+### Script
+* change: replace fixed factor for slow approximation with configurable one (SLOW_APPROX_FACTOR_IN_PERCENT)
+* change: check if slow approx is really needed when old limit was 100% (jump down)
+* change: calculate "LimitDifference" based on ActualPower and not on MaxWatt in case of old limit was at 100% (jump down)
+### Config
+* add: In Section `[COMMON]`: `SLOW_APPROX_FACTOR_IN_PERCENT = 20`
+### Bash script
+* change: update install.sh script for reinstall
+* add: uninstall_service.sh script to uninstall the service
+
 ## V1.14
 ### Script
 * add: limit the retry of function `SetLimit` if it is the same limit in watt
