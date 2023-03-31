@@ -1,5 +1,14 @@
 # Changelog
 
+## V1.17
+### Script
+* add: support EMLOG System for powermeter and intermediate powermeter
+* change: added powermeter-type and DTU-type to logs
+### Config
+* add: In Section `[SELECT_POWERMETER]`: `USE_EMLOG`
+* add: Section `[EMLOG]`: `EMLOG_IP` + `EMLOG_METERINDEX`
+* add: Section `[INTERMEDIATE_EMLOG]`: `EMLOG_IP_INTERMEDIATE` + `EMLOG_METERINDEX_INTERMEDIATE`
+
 ## V1.16
 ### Script
 * add: support Shelly 1PM as intermediate meter
