@@ -12,6 +12,7 @@ This script does not use MQTT, it's based on webapi communication.
 - [Tasmota Smart Meter Interface](https://tasmota.github.io/docs/Smart-Meter-Interface/) (e.g. "[Hichi IR Lesekopf](https://www.ebay.de/sch/i.html?_ssn=hicbelm-8)" or equal)
 - [Shelly 3EM](https://www.shelly.cloud/de/products/product-overview/shelly-3em-1)
 - [SHRDZM Smartmeter Modul](https://cms.shrdzm.com/produkt/smartmeter-modul/)
+- [Emlog ("electronic meter log")](https://weidmann-elektronik.de/Emlog_Projekt.html)
 - easy to implement new smart meter modules supporting WebAPI / JSON
 
 ### Supported DTU and Inverters
