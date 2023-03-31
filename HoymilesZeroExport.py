@@ -15,7 +15,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 __author__ = "Tobias Kraft"
-__version__ = "1.16"
+__version__ = "1.17"
 
 import requests
 import time
@@ -79,7 +79,7 @@ def SetLimitOpenDTU(pInverterId, pLimit):
     url=f"http://{OPENDTU_IP}/api/limit/config"
     data = f'''data={{"serial":"{SERIAL_NUMBER[pInverterId]}", "limit_type":1, "limit_value":{relLimit}}}'''
     headers = {'Content-Type': 'application/x-www-form-urlencoded'}
-    logger.info("Inverter %s: setting new limit from %s Watt to %s Watt",int(pInverterId),int(CURRENT_LIMIT[pInverterId]),int(pLimit))
+    logger.info("OpenDTU: Inverter %s: setting new limit from %s Watt to %s Watt",int(pInverterId),int(CURRENT_LIMIT[pInverterId]),int(pLimit))
     requests.post(url, data=data, auth=HTTPBasicAuth(OPENDTU_USER, OPENDTU_PASS), headers=headers)
     CURRENT_LIMIT[pInverterId] = pLimit
 
@@ -89,7 +89,7 @@ def SetLimitAhoy(pInverterId, pLimit):
     url = f"http://{AHOY_IP}/api/ctrl"
     data = f'''{{"id": {pInverterId}, "cmd": "limit_nonpersistent_absolute", "val": {pLimit}}}'''
     headers = {'Content-type': 'application/json', 'Accept': 'text/plain'}
-    logger.info("Inverter %s: setting new limit from %s Watt to %s Watt",int(pInverterId),int(CURRENT_LIMIT[pInverterId]),int(pLimit))
+    logger.info("Ahoy: Inverter %s: setting new limit from %s Watt to %s Watt",int(pInverterId),int(CURRENT_LIMIT[pInverterId]),int(pLimit))
     requests.post(url, data=data, headers=headers)
     CURRENT_LIMIT[pInverterId] = pLimit
 
@@ -128,14 +128,14 @@ def GetHoymilesAvailableOpenDTU(pInverterId):
     url = f'http://{OPENDTU_IP}/api/livedata/status/inverters'
     ParsedData = requests.get(url).json()
     Reachable = bool(ParsedData["inverters"][pInverterId]["reachable"])
-    logger.info("Inverter %s reachable: %s",int(pInverterId),Reachable)
+    logger.info("OpenDTU: Inverter %s reachable: %s",int(pInverterId),Reachable)
     return Reachable
 
 def GetHoymilesAvailableAhoy(pInverterId):
     url = f'http://{AHOY_IP}/api/index'
     ParsedData = requests.get(url).json()
     Reachable = bool(ParsedData["inverter"][pInverterId]["is_avail"])
-    logger.info("Inverter %s reachable: %s",int(pInverterId),Reachable)
+    logger.info("Ahoy: Inverter %s reachable: %s",int(pInverterId),Reachable)
     return Reachable
 
 def GetHoymilesAvailable():
@@ -159,20 +159,20 @@ def GetHoymilesActualPowerOpenDTU(pInverterId):
     url = f'http://{OPENDTU_IP}/api/livedata/status/inverters'
     ParsedData = requests.get(url).json()
     ActualPower = int(ParsedData['inverters'][pInverterId]['AC']['0']['Power']['v'])
-    logger.info("Inverter %s power producing: %s %s",int(pInverterId),ActualPower," Watt")
+    logger.info("OpenDTU: Inverter %s power producing: %s %s",int(pInverterId),ActualPower," Watt")
     return int(ActualPower)
 
 def GetHoymilesActualPowerAhoy(pInverterId):
     url = f'http://{AHOY_IP}/api/record/live'
     ParsedData = requests.get(url).json()
     ActualPower = int(float(next(item for item in ParsedData['inverter'][pInverterId] if item['fld'] == 'P_AC')['val']))
-    logger.info("Inverter %s power producing: %s %s",int(pInverterId),ActualPower," Watt")
+    logger.info("Ahoy: Inverter %s power producing: %s %s",int(pInverterId),ActualPower," Watt")
     return int(ActualPower)
 
 def GetHoymilesActualPower():
     try:
         ActualPower = 0
-        if USE_TASMOTA_INTERMEDIATE or USE_SHELLY_3EM_INTERMEDIATE or USE_SHRDZM_INTERMEDIATE:
+        if USE_TASMOTA_INTERMEDIATE or USE_SHELLY_3EM_INTERMEDIATE or USE_SHRDZM_INTERMEDIATE or USE_EMLOG_INTERMEDIATE:
             return GetPowermeterWatts_Intermediate()
         if USE_AHOY:
             for i in range(INVERTER_COUNT):
@@ -192,28 +192,35 @@ def GetPowermeterWattsTasmota_Intermediate():
     url = f'http://{TASMOTA_IP_INTERMEDIATE}/cm?cmnd=status%2010'
     ParsedData = requests.get(url).json()
     Watts = int(ParsedData[TASMOTA_JSON_STATUS_INTERMEDIATE][TASMOTA_JSON_PAYLOAD_MQTT_PREFIX_INTERMEDIATE][TASMOTA_JSON_POWER_MQTT_LABEL_INTERMEDIATE])
-    logger.info("intermediate meter: %s %s",Watts," Watt")
+    logger.info("intermediate meter Tasmota: %s %s",Watts," Watt")
     return int(Watts)
 
 def GetPowermeterWattsShelly1PM_Intermediate():
     url = f'http://{SHELLY_IP_INTERMEDIATE}/rpc/Switch.GetStatus?id=0'
     ParsedData = requests.get(url).json()
     Watts = int(ParsedData['apower'])
-    logger.info("intermediate meter: %s %s",Watts," Watt")
+    logger.info("intermediate meter Shelly 1PM: %s %s",Watts," Watt")
     return int(Watts)
 
 def GetPowermeterWattsShelly3EM_Intermediate():
     url = f'http://{SHELLY_IP_INTERMEDIATE}/status'
     ParsedData = requests.get(url).json()
     Watts = int(ParsedData['total_power'])
-    logger.info("intermediate meter: %s %s",Watts," Watt")
+    logger.info("intermediate meter Shelly 3EM: %s %s",Watts," Watt")
     return int(Watts)
 
 def GetPowermeterWattsShrdzm_Intermediate():
     url = f'http://{SHRDZM_IP_INTERMEDIATE}/getLastData?user={SHRDZM_USER_INTERMEDIATE}&password={SHRDZM_PASS_INTERMEDIATE}'
     ParsedData = requests.get(url).json()
     Watts = int(int(ParsedData['1.7.0']) - int(ParsedData['2.7.0']))
-    logger.info("intermediate meter: %s %s",Watts," Watt")
+    logger.info("intermediate meter SHRDZM: %s %s",Watts," Watt")
+    return int(Watts)
+
+def GetPowermeterWattsEmlog_Intermediate():
+    url = f'http://{EMLOG_IP_INTERMEDIATE}/pages/getinformation.php?heute&meterindex={EMLOG_METERINDEX_INTERMEDIATE}'
+    ParsedData = requests.get(url).json()
+    Watts = int(ParsedData['Leistung170'])
+    logger.info("intermediate meter EMLOG: %s %s",Watts," Watt")
     return int(Watts)
 
 def GetPowermeterWatts_Intermediate():
@@ -226,6 +233,8 @@ def GetPowermeterWatts_Intermediate():
             return GetPowermeterWattsTasmota_Intermediate()
         elif USE_SHRDZM_INTERMEDIATE:
             return GetPowermeterWattsShrdzm_Intermediate()
+        elif USE_EMLOG_INTERMEDIATE:
+            return GetPowermeterWattsEmlog_Intermediate()
         else:
             raise Exception("Error: no powermeter defined!")
     except:
@@ -241,21 +250,28 @@ def GetPowermeterWattsTasmota():
         input = ParsedData[TASMOTA_JSON_STATUS][TASMOTA_JSON_PAYLOAD_MQTT_PREFIX][TASMOTA_JSON_POWER_INPUT_MQTT_LABEL]
         ouput = ParsedData[TASMOTA_JSON_STATUS][TASMOTA_JSON_PAYLOAD_MQTT_PREFIX][TASMOTA_JSON_POWER_OUTPUT_MQTT_LABEL]
         Watts = int(input - ouput)
-    logger.info("powermeter: %s %s",Watts," Watt")
+    logger.info("powermeter Tasmota: %s %s",Watts," Watt")
     return int(Watts)
 
 def GetPowermeterWattsShelly3EM():
     url = f'http://{SHELLY_IP}/status'
     ParsedData = requests.get(url).json()
     Watts = int(ParsedData['total_power'])
-    logger.info("powermeter: %s %s",Watts," Watt")
+    logger.info("powermeter Shelly 3EM: %s %s",Watts," Watt")
     return int(Watts)
 
 def GetPowermeterWattsShrdzm():
     url = f'http://{SHRDZM_IP}/getLastData?user={SHRDZM_USER}&password={SHRDZM_PASS}'
     ParsedData = requests.get(url).json()
     Watts = int(int(ParsedData['1.7.0']) - int(ParsedData['2.7.0']))
-    logger.info("powermeter: %s %s",Watts," Watt")
+    logger.info("powermeter SHRDZM: %s %s",Watts," Watt")
+    return int(Watts)
+
+def GetPowermeterWattsEmlog():
+    url = f'http://{EMLOG_IP}/pages/getinformation.php?heute&meterindex={EMLOG_METERINDEX}'
+    ParsedData = requests.get(url).json()
+    Watts = int(int(ParsedData['Leistung170']) - int(ParsedData['Leistung270']))
+    logger.info("powermeter EMLOG: %s %s",Watts," Watt")
     return int(Watts)
 
 def GetPowermeterWatts():
@@ -266,6 +282,8 @@ def GetPowermeterWatts():
             return GetPowermeterWattsTasmota()
         elif USE_SHRDZM:
             return GetPowermeterWattsShrdzm()
+        elif USE_EMLOG:
+            return GetPowermeterWattsEmlog()
         else:
             raise Exception("Error: no powermeter defined!")
     except:
@@ -320,6 +338,7 @@ USE_OPENDTU = config.getboolean('SELECT_DTU', 'USE_OPENDTU')
 USE_TASMOTA = config.getboolean('SELECT_POWERMETER', 'USE_TASMOTA')
 USE_SHELLY_3EM = config.getboolean('SELECT_POWERMETER', 'USE_SHELLY_3EM')
 USE_SHRDZM = config.getboolean('SELECT_POWERMETER', 'USE_SHRDZM')
+USE_EMLOG = config.getboolean('SELECT_POWERMETER', 'USE_EMLOG')
 AHOY_IP = config.get('AHOY_DTU', 'AHOY_IP')
 OPENDTU_IP = config.get('OPEN_DTU', 'OPENDTU_IP')
 OPENDTU_USER = config.get('OPEN_DTU', 'OPENDTU_USER')
@@ -335,10 +354,13 @@ SHELLY_IP = config.get('SHELLY_3EM', 'SHELLY_IP')
 SHRDZM_IP = config.get('SHRDZM', 'SHRDZM_IP')
 SHRDZM_USER = config.get('SHRDZM', 'SHRDZM_USER')
 SHRDZM_PASS = config.get('SHRDZM', 'SHRDZM_PASS')
+EMLOG_IP = config.get('EMLOG', 'EMLOG_IP')
+EMLOG_METERINDEX = config.get('EMLOG', 'EMLOG_METERINDEX')
 USE_TASMOTA_INTERMEDIATE = config.getboolean('SELECT_INTERMEDIATE_METER', 'USE_TASMOTA_INTERMEDIATE')
 USE_SHELLY_3EM_INTERMEDIATE = config.getboolean('SELECT_INTERMEDIATE_METER', 'USE_SHELLY_3EM_INTERMEDIATE')
 USE_SHELLY_1PM_INTERMEDIATE = config.getboolean('SELECT_INTERMEDIATE_METER', 'USE_SHELLY_1PM_INTERMEDIATE')
 USE_SHRDZM_INTERMEDIATE = config.getboolean('SELECT_INTERMEDIATE_METER', 'USE_SHRDZM_INTERMEDIATE')
+USE_EMLOG_INTERMEDIATE = config.getboolean('SELECT_INTERMEDIATE_METER', 'USE_EMLOG_INTERMEDIATE')
 TASMOTA_IP_INTERMEDIATE = config.get('INTERMEDIATE_TASMOTA', 'TASMOTA_IP_INTERMEDIATE')
 TASMOTA_JSON_STATUS_INTERMEDIATE = config.get('INTERMEDIATE_TASMOTA', 'TASMOTA_JSON_STATUS_INTERMEDIATE')
 TASMOTA_JSON_PAYLOAD_MQTT_PREFIX_INTERMEDIATE = config.get('INTERMEDIATE_TASMOTA', 'TASMOTA_JSON_PAYLOAD_MQTT_PREFIX_INTERMEDIATE')
@@ -347,6 +369,8 @@ SHELLY_IP_INTERMEDIATE = config.get('INTERMEDIATE_SHELLY', 'SHELLY_IP_INTERMEDIA
 SHRDZM_IP_INTERMEDIATE = config.get('INTERMEDIATE_SHRDZM', 'SHRDZM_IP_INTERMEDIATE')
 SHRDZM_USER_INTERMEDIATE = config.get('INTERMEDIATE_SHRDZM', 'SHRDZM_USER_INTERMEDIATE')
 SHRDZM_PASS_INTERMEDIATE = config.get('INTERMEDIATE_SHRDZM', 'SHRDZM_PASS_INTERMEDIATE')
+EMLOG_IP_INTERMEDIATE = config.get('INTERMEDIATE_EMLOG', 'EMLOG_IP_INTERMEDIATE')
+EMLOG_METERINDEX_INTERMEDIATE = config.get('INTERMEDIATE_EMLOG', 'EMLOG_METERINDEX_INTERMEDIATE')
 INVERTER_COUNT = config.getint('COMMON', 'INVERTER_COUNT')
 LOOP_INTERVAL_IN_SECONDS = config.getint('COMMON', 'LOOP_INTERVAL_IN_SECONDS')
 SET_LIMIT_DELAY_IN_SECONDS = config.getint('COMMON', 'SET_LIMIT_DELAY_IN_SECONDS')
@@ -373,9 +397,12 @@ for i in range(INVERTER_COUNT):
 SLOW_APPROX_LIMIT = int(GetMaxWattFromAllInverters() * config.getint('COMMON', 'SLOW_APPROX_LIMIT_IN_PERCENT') / 100)
 
 try:
+    logger.info("---Init---")
     newLimitSetpoint = GetMaxWattFromAllInverters()
     if GetHoymilesAvailable():
+        GetHoymilesActualPower()
         SetLimit(newLimitSetpoint)
+    GetPowermeterWatts()
     time.sleep(SET_LIMIT_DELAY_IN_SECONDS)
 except Exception as e:
     if hasattr(e, 'message'):
@@ -383,6 +410,7 @@ except Exception as e:
     else:
         logger.error(e)
     time.sleep(LOOP_INTERVAL_IN_SECONDS)
+logger.info("---Start Zero Export---")
 
 while True:
     try:
