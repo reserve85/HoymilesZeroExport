@@ -217,7 +217,7 @@ def GetPowermeterWattsShrdzm_Intermediate():
     return int(Watts)
 
 def GetPowermeterWattsEmlog_Intermediate():
-    url = f'http://{EMLOG_IP_INTERMEDIATE}//pages/getinformation.php?heute&meterindex={EMLOG_METERINDEX_INTERMEDIATE}'
+    url = f'http://{EMLOG_IP_INTERMEDIATE}/pages/getinformation.php?heute&meterindex={EMLOG_METERINDEX_INTERMEDIATE}'
     ParsedData = requests.get(url).json()
     Watts = int(ParsedData['Leistung170'])
     logger.info("intermediate meter EMLOG: %s %s",Watts," Watt")
@@ -268,7 +268,7 @@ def GetPowermeterWattsShrdzm():
     return int(Watts)
 
 def GetPowermeterWattsEmlog():
-    url = f'http://{EMLOG_IP}//pages/getinformation.php?heute&meterindex={EMLOG_METERINDEX}'
+    url = f'http://{EMLOG_IP}/pages/getinformation.php?heute&meterindex={EMLOG_METERINDEX}'
     ParsedData = requests.get(url).json()
     Watts = int(int(ParsedData['Leistung170']) - int(ParsedData['Leistung270']))
     logger.info("powermeter EMLOG: %s %s",Watts," Watt")
@@ -397,9 +397,12 @@ for i in range(INVERTER_COUNT):
 SLOW_APPROX_LIMIT = int(GetMaxWattFromAllInverters() * config.getint('COMMON', 'SLOW_APPROX_LIMIT_IN_PERCENT') / 100)
 
 try:
+    logger.info("---Init---")
     newLimitSetpoint = GetMaxWattFromAllInverters()
     if GetHoymilesAvailable():
+        GetHoymilesActualPower()
         SetLimit(newLimitSetpoint)
+    GetPowermeterWatts()
     time.sleep(SET_LIMIT_DELAY_IN_SECONDS)
 except Exception as e:
     if hasattr(e, 'message'):
@@ -407,6 +410,7 @@ except Exception as e:
     else:
         logger.error(e)
     time.sleep(LOOP_INTERVAL_IN_SECONDS)
+logger.info("---Start Zero Export---")
 
 while True:
     try:
