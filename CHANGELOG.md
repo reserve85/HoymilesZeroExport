@@ -1,5 +1,15 @@
 # Changelog
 
+## V1.18
+### Script
+* bugfix: intermediate meter Shelly 1PM did not work
+* add: support Shelly 3EM Pro for powermeter and intermediate powermeter
+* add: support of Shelly 1PM & Shelly Plus 1PM
+### Config
+* add: `[SELECT_POWERMETER]`: `USE_SHELLY_3EM_PRO`
+* add: `[SELECT_INTERMEDIATE_METER]`: `USE_SHELLY_3EM_PRO_INTERMEDIATE`
+* add: `[SELECT_INTERMEDIATE_METER]`: `USE_SHELLY_PLUS_1PM_INTERMEDIATE`
+
 ## V1.17
 ### Script
 * add: support EMLOG System for powermeter and intermediate powermeter

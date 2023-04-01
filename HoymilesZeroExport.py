@@ -15,7 +15,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 __author__ = "Tobias Kraft"
-__version__ = "1.17"
+__version__ = "1.18"
 
 import requests
 import time
@@ -126,7 +126,7 @@ def SetLimit(pLimit):
 
 def GetHoymilesAvailableOpenDTU(pInverterId):
     url = f'http://{OPENDTU_IP}/api/livedata/status/inverters'
-    ParsedData = requests.get(url).json()
+    ParsedData = requests.get(url, auth=HTTPBasicAuth(OPENDTU_USER, OPENDTU_PASS)).json()
     Reachable = bool(ParsedData["inverters"][pInverterId]["reachable"])
     logger.info("OpenDTU: Inverter %s reachable: %s",int(pInverterId),Reachable)
     return Reachable
@@ -157,7 +157,7 @@ def GetHoymilesAvailable():
 
 def GetHoymilesActualPowerOpenDTU(pInverterId):
     url = f'http://{OPENDTU_IP}/api/livedata/status/inverters'
-    ParsedData = requests.get(url).json()
+    ParsedData = requests.get(url, auth=HTTPBasicAuth(OPENDTU_USER, OPENDTU_PASS)).json()
     ActualPower = int(ParsedData['inverters'][pInverterId]['AC']['0']['Power']['v'])
     logger.info("OpenDTU: Inverter %s power producing: %s %s",int(pInverterId),ActualPower," Watt")
     return int(ActualPower)
@@ -172,9 +172,21 @@ def GetHoymilesActualPowerAhoy(pInverterId):
 def GetHoymilesActualPower():
     try:
         ActualPower = 0
-        if USE_TASMOTA_INTERMEDIATE or USE_SHELLY_3EM_INTERMEDIATE or USE_SHRDZM_INTERMEDIATE or USE_EMLOG_INTERMEDIATE:
-            return GetPowermeterWatts_Intermediate()
-        if USE_AHOY:
+        if USE_SHELLY_3EM_INTERMEDIATE:
+            return GetPowermeterWattsShelly3EM_Intermediate()
+        elif USE_SHELLY_3EM_PRO_INTERMEDIATE:
+            return GetPowermeterWattsShelly3EMPro_Intermediate()
+        elif USE_SHELLY_1PM_INTERMEDIATE:
+            return GetPowermeterWattsShelly1PM_Intermediate()
+        elif USE_SHELLY_PLUS_1PM_INTERMEDIATE:
+            return GetPowermeterWattsShellyPlus1PM_Intermediate()
+        elif USE_TASMOTA_INTERMEDIATE:
+            return GetPowermeterWattsTasmota_Intermediate()
+        elif USE_SHRDZM_INTERMEDIATE:
+            return GetPowermeterWattsShrdzm_Intermediate()
+        elif USE_EMLOG_INTERMEDIATE:
+            return GetPowermeterWattsEmlog_Intermediate()
+        elif USE_AHOY:
             for i in range(INVERTER_COUNT):
                 ActualPower = ActualPower + GetHoymilesActualPowerAhoy(i)
             return ActualPower
@@ -196,10 +208,17 @@ def GetPowermeterWattsTasmota_Intermediate():
     return int(Watts)
 
 def GetPowermeterWattsShelly1PM_Intermediate():
+    url = f'http://{SHELLY_IP_INTERMEDIATE}/status'
+    ParsedData = requests.get(url).json()
+    Watts = int(ParsedData['meters'][0]['power'])
+    logger.info("intermediate meter Shelly 1PM: %s %s",Watts," Watt")
+    return int(Watts)
+
+def GetPowermeterWattsShellyPlus1PM_Intermediate():
     url = f'http://{SHELLY_IP_INTERMEDIATE}/rpc/Switch.GetStatus?id=0'
     ParsedData = requests.get(url).json()
     Watts = int(ParsedData['apower'])
-    logger.info("intermediate meter Shelly 1PM: %s %s",Watts," Watt")
+    logger.info("intermediate meter Shelly Plus 1PM: %s %s",Watts," Watt")
     return int(Watts)
 
 def GetPowermeterWattsShelly3EM_Intermediate():
@@ -207,6 +226,13 @@ def GetPowermeterWattsShelly3EM_Intermediate():
     ParsedData = requests.get(url).json()
     Watts = int(ParsedData['total_power'])
     logger.info("intermediate meter Shelly 3EM: %s %s",Watts," Watt")
+    return int(Watts)
+
+def GetPowermeterWattsShelly3EMPro_Intermediate():
+    url = f'http://{SHELLY_IP_INTERMEDIATE}/rpc/EM.GetStatus?id=0'
+    ParsedData = requests.get(url).json()
+    Watts = int(ParsedData['total_act_power'])
+    logger.info("intermediate meter Shelly 3EM Pro: %s %s",Watts," Watt")
     return int(Watts)
 
 def GetPowermeterWattsShrdzm_Intermediate():
@@ -222,24 +248,6 @@ def GetPowermeterWattsEmlog_Intermediate():
     Watts = int(ParsedData['Leistung170'])
     logger.info("intermediate meter EMLOG: %s %s",Watts," Watt")
     return int(Watts)
-
-def GetPowermeterWatts_Intermediate():
-    try:
-        if USE_SHELLY_3EM_INTERMEDIATE:
-            return GetPowermeterWattsShelly3EM_Intermediate()
-        elif USE_SHELLY_1PM_INTERMEDIATE:
-            return GetPowermeterWattsShelly1PM_Intermediate()
-        elif USE_TASMOTA_INTERMEDIATE:
-            return GetPowermeterWattsTasmota_Intermediate()
-        elif USE_SHRDZM_INTERMEDIATE:
-            return GetPowermeterWattsShrdzm_Intermediate()
-        elif USE_EMLOG_INTERMEDIATE:
-            return GetPowermeterWattsEmlog_Intermediate()
-        else:
-            raise Exception("Error: no powermeter defined!")
-    except:
-        logger.error("Exception at GetPowermeterWatts_Intermediate")
-        raise
 
 def GetPowermeterWattsTasmota():
     url = f'http://{TASMOTA_IP}/cm?cmnd=status%2010'
@@ -260,6 +268,13 @@ def GetPowermeterWattsShelly3EM():
     logger.info("powermeter Shelly 3EM: %s %s",Watts," Watt")
     return int(Watts)
 
+def GetPowermeterWattsShelly3EMPro():
+    url = f'http://{SHELLY_IP}/rpc/EM.GetStatus?id=0'
+    ParsedData = requests.get(url).json()
+    Watts = int(ParsedData['total_act_power'])
+    logger.info("powermeter Shelly 3EM Pro: %s %s",Watts," Watt")
+    return int(Watts)
+
 def GetPowermeterWattsShrdzm():
     url = f'http://{SHRDZM_IP}/getLastData?user={SHRDZM_USER}&password={SHRDZM_PASS}'
     ParsedData = requests.get(url).json()
@@ -278,6 +293,8 @@ def GetPowermeterWatts():
     try:
         if USE_SHELLY_3EM:
             return GetPowermeterWattsShelly3EM()
+        elif USE_SHELLY_3EM_PRO:
+            return GetPowermeterWattsShelly3EMPro()
         elif USE_TASMOTA:
             return GetPowermeterWattsTasmota()
         elif USE_SHRDZM:
@@ -337,6 +354,7 @@ USE_AHOY = config.getboolean('SELECT_DTU', 'USE_AHOY')
 USE_OPENDTU = config.getboolean('SELECT_DTU', 'USE_OPENDTU')
 USE_TASMOTA = config.getboolean('SELECT_POWERMETER', 'USE_TASMOTA')
 USE_SHELLY_3EM = config.getboolean('SELECT_POWERMETER', 'USE_SHELLY_3EM')
+USE_SHELLY_3EM_PRO = config.getboolean('SELECT_POWERMETER', 'USE_SHELLY_3EM_PRO')
 USE_SHRDZM = config.getboolean('SELECT_POWERMETER', 'USE_SHRDZM')
 USE_EMLOG = config.getboolean('SELECT_POWERMETER', 'USE_EMLOG')
 AHOY_IP = config.get('AHOY_DTU', 'AHOY_IP')
@@ -358,7 +376,9 @@ EMLOG_IP = config.get('EMLOG', 'EMLOG_IP')
 EMLOG_METERINDEX = config.get('EMLOG', 'EMLOG_METERINDEX')
 USE_TASMOTA_INTERMEDIATE = config.getboolean('SELECT_INTERMEDIATE_METER', 'USE_TASMOTA_INTERMEDIATE')
 USE_SHELLY_3EM_INTERMEDIATE = config.getboolean('SELECT_INTERMEDIATE_METER', 'USE_SHELLY_3EM_INTERMEDIATE')
+USE_SHELLY_3EM_PRO_INTERMEDIATE = config.getboolean('SELECT_INTERMEDIATE_METER', 'USE_SHELLY_3EM_PRO_INTERMEDIATE')
 USE_SHELLY_1PM_INTERMEDIATE = config.getboolean('SELECT_INTERMEDIATE_METER', 'USE_SHELLY_1PM_INTERMEDIATE')
+USE_SHELLY_PLUS_1PM_INTERMEDIATE = config.getboolean('SELECT_INTERMEDIATE_METER', 'USE_SHELLY_PLUS_1PM_INTERMEDIATE')
 USE_SHRDZM_INTERMEDIATE = config.getboolean('SELECT_INTERMEDIATE_METER', 'USE_SHRDZM_INTERMEDIATE')
 USE_EMLOG_INTERMEDIATE = config.getboolean('SELECT_INTERMEDIATE_METER', 'USE_EMLOG_INTERMEDIATE')
 TASMOTA_IP_INTERMEDIATE = config.get('INTERMEDIATE_TASMOTA', 'TASMOTA_IP_INTERMEDIATE')
