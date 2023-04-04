@@ -142,7 +142,7 @@ def GetHoymilesAvailableAhoy(pInverterId):
 
 def GetHoymilesAvailable():
     try:
-        GetHoymilesAvailable = True
+        GetHoymilesAvailable = False
         if USE_AHOY:
             for i in range(INVERTER_COUNT):
                 try:
@@ -435,6 +435,7 @@ SLOW_APPROX_LIMIT = int(GetMaxWattFromAllInverters() * config.getint('COMMON', '
 
 try:
     logger.info("---Init---")
+    newLimitSetpoint = 0
     if GetHoymilesAvailable():
         newLimitSetpoint = GetMaxWattFromAllInverters()
         GetHoymilesActualPower()
