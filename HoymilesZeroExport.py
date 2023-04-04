@@ -15,7 +15,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 __author__ = "Tobias Kraft"
-__version__ = "1.18"
+__version__ = "1.19"
 
 import requests
 import time
@@ -110,6 +110,8 @@ def SetLimit(pLimit):
                 return
         logger.info("setting new limit to %s Watt",int(pLimit))
         for i in range(INVERTER_COUNT):
+            if not AVAILABLE[i]:
+                continue
             Factor = HOY_MAX_WATT[i] / GetMaxWattFromAllInverters()
             NewLimit = int(pLimit*Factor)
             NewLimit = ApplyLimitsToSetpointInverter(i, NewLimit)
@@ -143,14 +145,19 @@ def GetHoymilesAvailable():
         GetHoymilesAvailable = True
         if USE_AHOY:
             for i in range(INVERTER_COUNT):
-                GetHoymilesAvailable = GetHoymilesAvailable and GetHoymilesAvailableAhoy(i)
+                try:
+                    if USE_AHOY:
+                        AVAILABLE[i] = GetHoymilesAvailableAhoy(i)
+                    elif USE_OPENDTU:
+                        AVAILABLE[i] = GetHoymilesAvailableOpenDTU(i)
+                    else:
+                        raise Exception("Error: DTU Type not defined")
+                    if AVAILABLE[i]:
+                        GetHoymilesAvailable = True
+                except:
+                    AVAILABLE[i] = False
+                    logger.error("Exception at GetHoymilesAvailable, Inverter not available")
             return GetHoymilesAvailable
-        elif USE_OPENDTU:
-            for i in range(INVERTER_COUNT):
-                GetHoymilesAvailable = GetHoymilesAvailable and GetHoymilesAvailableOpenDTU(i)
-            return GetHoymilesAvailable
-        else:
-            raise Exception("Error: DTU Type not defined")
     except:
         logger.error("Exception at GetHoymilesAvailable, Inverter not available")
         raise
@@ -188,10 +195,14 @@ def GetHoymilesActualPower():
             return GetPowermeterWattsEmlog_Intermediate()
         elif USE_AHOY:
             for i in range(INVERTER_COUNT):
+                if not AVAILABLE[i]:
+                    continue
                 ActualPower = ActualPower + GetHoymilesActualPowerAhoy(i)
             return ActualPower
         elif USE_OPENDTU:
             for i in range(INVERTER_COUNT):
+                if not AVAILABLE[i]:
+                    continue
                 ActualPower = ActualPower + GetHoymilesActualPowerOpenDTU(i)
             return ActualPower
         else:
@@ -333,12 +344,16 @@ def ApplyLimitsToSetpointInverter(pInverter, pSetpoint):
 def GetMaxWattFromAllInverters():
     maxWatt = 0
     for i in range(INVERTER_COUNT):
+        if not AVAILABLE[i]:
+            continue
         maxWatt = maxWatt + HOY_MAX_WATT[i]
     return maxWatt
 
 def GetMinWattFromAllInverters():
     minWatt = 0
     for i in range(INVERTER_COUNT):
+        if not AVAILABLE[i]:
+            continue
         minWatt = minWatt + HOY_MIN_WATT[i]
     return minWatt
 
@@ -408,18 +423,20 @@ SERIAL_NUMBER = []
 HOY_MAX_WATT = []
 HOY_MIN_WATT = []
 CURRENT_LIMIT = []
+AVAILABLE = []
 for i in range(INVERTER_COUNT):
     INVERTER_ID.append(i)
     SERIAL_NUMBER.append(config.get('INVERTER_' + str(i + 1), 'SERIAL_NUMBER'))
     HOY_MAX_WATT.append(config.getint('INVERTER_' + str(i + 1), 'HOY_MAX_WATT'))
     HOY_MIN_WATT.append(int(HOY_MAX_WATT[i] * config.getint('INVERTER_' + str(i + 1), 'HOY_MIN_WATT_IN_PERCENT') / 100))
     CURRENT_LIMIT.append(int(0))
+    AVAILABLE.append(bool(False))
 SLOW_APPROX_LIMIT = int(GetMaxWattFromAllInverters() * config.getint('COMMON', 'SLOW_APPROX_LIMIT_IN_PERCENT') / 100)
 
 try:
     logger.info("---Init---")
-    newLimitSetpoint = GetMaxWattFromAllInverters()
     if GetHoymilesAvailable():
+        newLimitSetpoint = GetMaxWattFromAllInverters()
         GetHoymilesActualPower()
         SetLimit(newLimitSetpoint)
     GetPowermeterWatts()

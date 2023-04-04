@@ -1,5 +1,9 @@
 # Changelog
 
+## V1.19
+### Script
+* script keeps running as long as minimum one inverter is available
+
 ## V1.18
 ### Script
 * bugfix: intermediate meter Shelly 1PM did not work
