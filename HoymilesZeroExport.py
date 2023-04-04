@@ -156,10 +156,10 @@ def GetHoymilesAvailable():
                         GetHoymilesAvailable = True
                 except:
                     AVAILABLE[i] = False
-                    logger.error("Exception at GetHoymilesAvailable, Inverter not available")
+                    logger.error("Exception at GetHoymilesAvailable, Inverter %s not reachable", i)
             return GetHoymilesAvailable
     except:
-        logger.error("Exception at GetHoymilesAvailable, Inverter not available")
+        logger.error("Exception at GetHoymilesAvailable, Inverter %s not reachable", i)
         raise
 
 def GetHoymilesActualPowerOpenDTU(pInverterId):
