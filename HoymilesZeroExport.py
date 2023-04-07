@@ -15,7 +15,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 __author__ = "Tobias Kraft"
-__version__ = "1.19"
+__version__ = "1.20"
 
 import requests
 import time
@@ -73,8 +73,6 @@ if ENABLE_LOG_TO_FILE:
 logger.info('Log write to file: %s', ENABLE_LOG_TO_FILE)
 
 def SetLimitOpenDTU(pInverterId, pLimit):
-    if INVERTER_ID[pInverterId] != 0:
-        time.sleep(SET_LIMIT_DELAY_IN_SECONDS_MULTIPLE_INVERTER)
     relLimit = int(pLimit / HOY_MAX_WATT[pInverterId] * 100)
     url=f"http://{OPENDTU_IP}/api/limit/config"
     data = f'''data={{"serial":"{SERIAL_NUMBER[pInverterId]}", "limit_type":1, "limit_value":{relLimit}}}'''
@@ -84,8 +82,6 @@ def SetLimitOpenDTU(pInverterId, pLimit):
     CURRENT_LIMIT[pInverterId] = pLimit
 
 def SetLimitAhoy(pInverterId, pLimit):
-    if INVERTER_ID[pInverterId] != 0:
-        time.sleep(SET_LIMIT_DELAY_IN_SECONDS_MULTIPLE_INVERTER)
     url = f"http://{AHOY_IP}/api/ctrl"
     data = f'''{{"id": {pInverterId}, "cmd": "limit_nonpersistent_absolute", "val": {pLimit}}}'''
     headers = {'Content-type': 'application/json', 'Accept': 'text/plain'}
@@ -107,11 +103,14 @@ def SetLimit(pLimit):
                 SetLimit.SameLimitCnt = 0
             if SetLimit.SameLimitCnt >= SET_LIMIT_RETRY:
                 logger.info("Set Limit Retry Counter exceeded: Inverterlimit already at %s Watt",int(pLimit))
+                time.sleep(SET_LIMIT_DELAY_IN_SECONDS)
                 return
         logger.info("setting new limit to %s Watt",int(pLimit))
         for i in range(INVERTER_COUNT):
             if not AVAILABLE[i]:
                 continue
+            if i != 0:
+                time.sleep(SET_LIMIT_DELAY_IN_SECONDS_MULTIPLE_INVERTER)
             Factor = HOY_MAX_WATT[i] / GetMaxWattFromAllInverters()
             NewLimit = int(pLimit*Factor)
             NewLimit = ApplyLimitsToSetpointInverter(i, NewLimit)
@@ -418,14 +417,12 @@ SLOW_APPROX_FACTOR_IN_PERCENT = config.getint('COMMON', 'SLOW_APPROX_FACTOR_IN_P
 POWERMETER_TARGET_POINT = config.getint('CONTROL', 'POWERMETER_TARGET_POINT')
 POWERMETER_TOLERANCE = config.getint('CONTROL', 'POWERMETER_TOLERANCE')
 POWERMETER_MAX_POINT = config.getint('CONTROL', 'POWERMETER_MAX_POINT')
-INVERTER_ID = []
 SERIAL_NUMBER = []
 HOY_MAX_WATT = []
 HOY_MIN_WATT = []
 CURRENT_LIMIT = []
 AVAILABLE = []
 for i in range(INVERTER_COUNT):
-    INVERTER_ID.append(i)
     SERIAL_NUMBER.append(config.get('INVERTER_' + str(i + 1), 'SERIAL_NUMBER'))
     HOY_MAX_WATT.append(config.getint('INVERTER_' + str(i + 1), 'HOY_MAX_WATT'))
     HOY_MIN_WATT.append(int(HOY_MAX_WATT[i] * config.getint('INVERTER_' + str(i + 1), 'HOY_MIN_WATT_IN_PERCENT') / 100))

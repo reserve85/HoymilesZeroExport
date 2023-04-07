@@ -1,5 +1,10 @@
 # Changelog
 
+## V1.20
+### Script
+* bugfix: intervall was too fast only in case of setLimit > SET_LIMIT_RETRY
+* change: small code optimization for setting limit to multiple inverters
+
 ## V1.19
 ### Script
 * script keeps running as long as minimum one inverter is available
