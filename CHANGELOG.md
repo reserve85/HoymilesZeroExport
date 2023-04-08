@@ -1,5 +1,9 @@
 # Changelog
 
+## V1.23
+### Script
+* bugfix: ignore LastLimit Counter if inverter was not available
+
 ## V1.22
 ### Script
 * bugfix: switch °C to degC, due to compatibility

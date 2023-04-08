@@ -15,7 +15,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 __author__ = "Tobias Kraft"
-__version__ = "1.22"
+__version__ = "1.23"
 
 import requests
 import time
@@ -100,7 +100,6 @@ def SetLimit(pLimit):
         logger.info("setting new limit to %s Watt",int(pLimit))
         for i in range(INVERTER_COUNT):
             if not AVAILABLE[i]:
-                SetLimit.LastLimit = -1
                 continue
             if i != 0:
                 time.sleep(SET_LIMIT_DELAY_IN_SECONDS_MULTIPLE_INVERTER)
@@ -581,6 +580,8 @@ while True:
             if newLimitSetpoint != PreviousLimitSetpoint:
                 SetLimit(newLimitSetpoint)
         else:
+            if hasattr(SetLimit, "LastLimit"):
+                SetLimit.LastLimit = -1
             time.sleep(LOOP_INTERVAL_IN_SECONDS)
 
     except Exception as e:
