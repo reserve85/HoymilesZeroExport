@@ -100,6 +100,7 @@ def SetLimit(pLimit):
         logger.info("setting new limit to %s Watt",int(pLimit))
         for i in range(INVERTER_COUNT):
             if not AVAILABLE[i]:
+                SetLimit.LastLimit = -1
                 continue
             if i != 0:
                 time.sleep(SET_LIMIT_DELAY_IN_SECONDS_MULTIPLE_INVERTER)
