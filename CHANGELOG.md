@@ -1,5 +1,9 @@
 # Changelog
 
+## V1.22
+### Script
+* bugfix: switch °C to degC, due to compatibility
+
 ## V1.21
 ### Script
 * bugfix: openDTU, GetHoymilesAvailable was faulty

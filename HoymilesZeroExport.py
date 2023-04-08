@@ -15,7 +15,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 __author__ = "Tobias Kraft"
-__version__ = "1.21"
+__version__ = "1.22"
 
 import requests
 import time
@@ -159,14 +159,14 @@ def GetHoymilesInfoOpenDTU(pInverterId):
     url = f'http://{OPENDTU_IP}/api/livedata/status/inverters'
     ParsedData = requests.get(url, auth=HTTPBasicAuth(OPENDTU_USER, OPENDTU_PASS)).json()
     SERIAL_NUMBER[pInverterId] = str(ParsedData['inverters'][pInverterId]['serial'])
-    TEMPERATURE[pInverterId] = str(round(float((ParsedData['inverters'][pInverterId]['INV']['0']['Temperature']['v'])),1)) + ' °C'
+    TEMPERATURE[pInverterId] = str(round(float((ParsedData['inverters'][pInverterId]['INV']['0']['Temperature']['v'])),1)) + ' degC'
     NAME[pInverterId] = str(ParsedData['inverters'][pInverterId]['name'])
     logger.info('OpenDTU: Inverter "%s" / serial number "%s" / temperature %s',NAME[pInverterId],SERIAL_NUMBER[pInverterId],TEMPERATURE[pInverterId])
 
 def GetHoymilesInfoAhoy(pInverterId):
     url = f'http://{AHOY_IP}/api/record/live'
     ParsedData = requests.get(url).json()
-    TEMPERATURE[pInverterId] = str(round(float(next(item for item in ParsedData['inverter'][pInverterId] if item['fld'] == 'Temp')['val']),1)) + ' °C'
+    TEMPERATURE[pInverterId] = str(round(float(next(item for item in ParsedData['inverter'][pInverterId] if item['fld'] == 'Temp')['val']),1)) + ' degC'
 
     url = f'http://{AHOY_IP}/api/inverter/list'
     ParsedData = requests.get(url).json()
@@ -195,13 +195,13 @@ def GetHoymilesInfo():
 def GetHoymilesTemperatureOpenDTU(pInverterId):
     url = f'http://{OPENDTU_IP}/api/livedata/status/inverters'
     ParsedData = requests.get(url, auth=HTTPBasicAuth(OPENDTU_USER, OPENDTU_PASS)).json()
-    TEMPERATURE[pInverterId] = str(round(float((ParsedData['inverters'][pInverterId]['INV']['0']['Temperature']['v'])),1)) + ' °C'
+    TEMPERATURE[pInverterId] = str(round(float((ParsedData['inverters'][pInverterId]['INV']['0']['Temperature']['v'])),1)) + ' degC'
     logger.info('OpenDTU: Inverter "%s" temperature: %s',NAME[pInverterId],TEMPERATURE[pInverterId])
 
 def GetHoymilesTemperatureAhoy(pInverterId):
     url = f'http://{AHOY_IP}/api/record/live'
     ParsedData = requests.get(url).json()
-    TEMPERATURE[pInverterId] = str(round(float(next(item for item in ParsedData['inverter'][pInverterId] if item['fld'] == 'Temp')['val']),1)) + ' °C'
+    TEMPERATURE[pInverterId] = str(round(float(next(item for item in ParsedData['inverter'][pInverterId] if item['fld'] == 'Temp')['val']),1)) + ' degC'
     logger.info('Ahoy: Inverter "%s" temperature: %s',NAME[pInverterId],TEMPERATURE[pInverterId])
 
 def GetHoymilesTemperature():
@@ -489,7 +489,7 @@ AVAILABLE = []
 for i in range(INVERTER_COUNT):
     SERIAL_NUMBER.append(str('yet unknown'))
     NAME.append(str('yet unknown'))
-    TEMPERATURE.append(str('--- °C'))
+    TEMPERATURE.append(str('--- degC'))
     HOY_MAX_WATT.append(config.getint('INVERTER_' + str(i + 1), 'HOY_MAX_WATT'))
     HOY_MIN_WATT.append(int(HOY_MAX_WATT[i] * config.getint('INVERTER_' + str(i + 1), 'HOY_MIN_WATT_IN_PERCENT') / 100))
     CURRENT_LIMIT.append(int(0))
