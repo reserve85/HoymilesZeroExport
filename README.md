@@ -34,7 +34,7 @@ mv HoymilesZeroExport-main/ HoymilesZeroExport/
 cd HoymilesZeroExport/
 ```
 
-launch installscript to install python and create zero export service
+Launch installscript to install python and create zero export service
 ```sh
 sudo chmod +x install.sh
 sudo ./install.sh
@@ -50,12 +50,12 @@ Restart the service after modified configuration or script
 sudo ./restart.sh
 ```
 
-Showing the output-log
+View the output log
 ```sh
 sudo journalctl -u HoymilesZeroExport.service -n 20000 -e -f
 ```
 
-If you really don´t wont the service anymore, just uninstall it
+If you really don´t want the service anymore, just uninstall it
 ```sh
 sudo ./uninstall_service.sh
 ```

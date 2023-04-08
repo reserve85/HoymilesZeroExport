@@ -1,5 +1,15 @@
 # Changelog
 
+## V1.21
+### Script
+* bugfix: openDTU, GetHoymilesAvailable was faulty
+* change: use default Log-Names to ensure deletion of old files
+* add: optional: read out temperature
+* add: read out serial number of inverter
+### Config
+* add: `LOG_TEMPERATURE = false`
+* removed: `SERIAL_NUMBER`, read it from API
+
 ## V1.20
 ### Script
 * bugfix: intervall was too fast only in case of setLimit > SET_LIMIT_RETRY
