@@ -25,6 +25,13 @@ This script does not use MQTT, it's based on webapi communication.
 ![IMG_E0136](https://user-images.githubusercontent.com/111107925/217559535-1b530738-67bc-4c29-a6f2-9aa4addce41d.JPG)
 
 ## Linux installation
+
+Make sure you have Python 3.9.2 or greater installed:
+```sh
+python3 --version
+```
+if you don´t have python installed or an older version is on your machine, then [install or upgrade](https://docs.python.org/3.11/using/unix.html#on-linux) it
+
 Get the code and unpack the archive:
 ```sh
 wget https://github.com/reserve85/HoymilesZeroExport/archive/refs/heads/main.zip
@@ -34,7 +41,7 @@ mv HoymilesZeroExport-main/ HoymilesZeroExport/
 cd HoymilesZeroExport/
 ```
 
-Launch installscript to install python and create zero export service
+Launch installscript to create zero export service
 ```sh
 sudo chmod +x install.sh
 sudo ./install.sh
