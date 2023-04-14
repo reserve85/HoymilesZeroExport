@@ -52,8 +52,8 @@ if ENABLE_LOG_TO_FILE:
         os.makedirs(Path.joinpath(Path(__file__).parent.resolve(), 'log'))
 
     rotating_file_handler = TimedRotatingFileHandler(
-        filename=Path.joinpath(Path.joinpath(Path(__file__).parent.resolve(), 'log'),'log.log'),
-        when='s',
+        filename=Path.joinpath(Path.joinpath(Path(__file__).parent.resolve(), 'log'),'log'),
+        when='midnight',
         interval=2,
         backupCount=LOG_BACKUP_COUNT)
 
