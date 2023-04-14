@@ -15,7 +15,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 __author__ = "Tobias Kraft"
-__version__ = "1.23"
+__version__ = "1.24"
 
 import requests
 import time
@@ -52,8 +52,8 @@ if ENABLE_LOG_TO_FILE:
         os.makedirs(Path.joinpath(Path(__file__).parent.resolve(), 'log'))
 
     rotating_file_handler = TimedRotatingFileHandler(
-        filename=Path.joinpath(Path.joinpath(Path(__file__).parent.resolve(), 'log'),'log'),
-        when='midnight',
+        filename=Path.joinpath(Path.joinpath(Path(__file__).parent.resolve(), 'log'),'log.log'),
+        when='s',
         interval=2,
         backupCount=LOG_BACKUP_COUNT)
 
@@ -113,8 +113,12 @@ def SetLimit(pLimit):
             else:
                 raise Exception("Error: DTU Type not defined")
         time.sleep(SET_LIMIT_DELAY_IN_SECONDS)
-    except:
+    except Exception as e:
         logger.error("Exception at SetLimit")
+        if hasattr(e, 'message'):
+            logger.error(e.message)
+        else:
+            logger.error(e)
         raise
 
 def GetHoymilesAvailableOpenDTU(pInverterId):
@@ -151,8 +155,12 @@ def GetHoymilesAvailable():
                 AVAILABLE[i] = False
                 logger.error("Exception at GetHoymilesAvailable, Inverter %s (%s) not reachable", i, NAME[i])
         return GetHoymilesAvailable
-    except:
-        logger.error('Exception at GetHoymilesAvailable, Inverter %s (%s) not reachable', i, NAME[i])
+    except Exception as e:
+        logger.error('Exception at GetHoymilesAvailable')
+        if hasattr(e, 'message'):
+            logger.error(e.message)
+        else:
+            logger.error(e)
         raise
 
 def GetHoymilesInfoOpenDTU(pInverterId):
@@ -188,8 +196,12 @@ def GetHoymilesInfo():
                     raise Exception("Error: DTU Type not defined")
             except:
                 logger.error("Exception at GetHoymilesInfo, Inverter %s not reachable", i)
-    except:
-        logger.error("Exception at GetHoymilesInfo, Inverter %s not reachable", i)
+    except Exception as e:
+        logger.error("Exception at GetHoymilesInfo")
+        if hasattr(e, 'message'):
+            logger.error(e.message)
+        else:
+            logger.error(e)
         raise
 
 def GetHoymilesTemperatureOpenDTU(pInverterId):
@@ -218,8 +230,12 @@ def GetHoymilesTemperature():
                     raise Exception("Error: DTU Type not defined")
             except:
                 logger.error("Exception at GetHoymilesTemperature, Inverter %s not reachable", i)
-    except:
-        logger.error("Exception at GetHoymilesTemperature, Inverter %s not reachable", i)
+    except Exception as e:
+        logger.error("Exception at GetHoymilesTemperature")
+        if hasattr(e, 'message'):
+            logger.error(e.message)
+        else:
+            logger.error(e)
         raise
 
 def GetHoymilesActualPowerOpenDTU(pInverterId):
@@ -253,6 +269,8 @@ def GetHoymilesActualPower():
             return GetPowermeterWattsShrdzm_Intermediate()
         elif USE_EMLOG_INTERMEDIATE:
             return GetPowermeterWattsEmlog_Intermediate()
+        elif USE_IOBROKER_INTERMEDIATE:
+            return GetPowermeterWattsIobroker_Intermediate()
         elif USE_AHOY:
             for i in range(INVERTER_COUNT):
                 if not AVAILABLE[i]:
@@ -267,8 +285,12 @@ def GetHoymilesActualPower():
             return ActualPower
         else:
             raise Exception("Error: DTU Type not defined")
-    except:
+    except Exception as e:
         logger.error("Exception at GetHoymilesActualPower")
+        if hasattr(e, 'message'):
+            logger.error(e.message)
+        else:
+            logger.error(e)
         raise
 
 def GetPowermeterWattsTasmota_Intermediate():
@@ -320,6 +342,13 @@ def GetPowermeterWattsEmlog_Intermediate():
     logger.info("intermediate meter EMLOG: %s %s",Watts," Watt")
     return int(Watts)
 
+def GetPowermeterWattsIobroker_Intermediate():
+    url = f'http://{IOBROKER_IP_INTERMEDIATE}:{IOBROKER_PORT_INTERMEDIATE}/getBulk/{IOBROKER_CURRENT_POWER_ALIAS_INTERMEDIATE}'
+    ParsedData = requests.get(url).json()
+    Watts = int(ParsedData[0]['val'])
+    logger.info("intermediate meter IOBROKER: %s %s",Watts," Watt")
+    return int(Watts)
+
 def GetPowermeterWattsTasmota():
     url = f'http://{TASMOTA_IP}/cm?cmnd=status%2010'
     ParsedData = requests.get(url).json()
@@ -360,6 +389,26 @@ def GetPowermeterWattsEmlog():
     logger.info("powermeter EMLOG: %s %s",Watts," Watt")
     return int(Watts)
 
+def GetPowermeterWattsIobroker():
+    if not IOBROKER_POWER_CALCULATE:
+        url = f'http://{IOBROKER_IP}:{IOBROKER_PORT}/getBulk/{IOBROKER_CURRENT_POWER_ALIAS}'
+        ParsedData = requests.get(url).json()
+        for item in ParsedData:
+            if item['id'] == IOBROKER_CURRENT_POWER_ALIAS:
+                Watts = int(item['val'])
+                break
+    else:
+        url = f'http://{IOBROKER_IP}:{IOBROKER_PORT}/getBulk/{IOBROKER_POWER_INPUT_ALIAS},{IOBROKER_POWER_OUTPUT_ALIAS}'
+        ParsedData = requests.get(url).json()
+        for item in ParsedData:
+            if item['id'] == IOBROKER_POWER_INPUT_ALIAS:
+                input = int(item['val'])
+            if item['id'] == IOBROKER_POWER_OUTPUT_ALIAS:
+                output = int(item['val'])
+        Watts = int(input - output)
+    logger.info("powermeter IOBROKER: %s %s",Watts," Watt")
+    return int(Watts)
+
 def GetPowermeterWatts():
     try:
         if USE_SHELLY_3EM:
@@ -372,10 +421,16 @@ def GetPowermeterWatts():
             return GetPowermeterWattsShrdzm()
         elif USE_EMLOG:
             return GetPowermeterWattsEmlog()
+        elif USE_IOBROKER:
+            return GetPowermeterWattsIobroker()
         else:
             raise Exception("Error: no powermeter defined!")
-    except:
+    except Exception as e:
         logger.error("Exception at GetPowermeterWatts")
+        if hasattr(e, 'message'):
+            logger.error(e.message)
+        else:
+            logger.error(e)
         raise
 
 def CutLimitToProduction(pSetpoint):
@@ -432,6 +487,7 @@ USE_SHELLY_3EM = config.getboolean('SELECT_POWERMETER', 'USE_SHELLY_3EM')
 USE_SHELLY_3EM_PRO = config.getboolean('SELECT_POWERMETER', 'USE_SHELLY_3EM_PRO')
 USE_SHRDZM = config.getboolean('SELECT_POWERMETER', 'USE_SHRDZM')
 USE_EMLOG = config.getboolean('SELECT_POWERMETER', 'USE_EMLOG')
+USE_IOBROKER = config.getboolean('SELECT_POWERMETER', 'USE_IOBROKER')
 AHOY_IP = config.get('AHOY_DTU', 'AHOY_IP')
 OPENDTU_IP = config.get('OPEN_DTU', 'OPENDTU_IP')
 OPENDTU_USER = config.get('OPEN_DTU', 'OPENDTU_USER')
@@ -449,6 +505,12 @@ SHRDZM_USER = config.get('SHRDZM', 'SHRDZM_USER')
 SHRDZM_PASS = config.get('SHRDZM', 'SHRDZM_PASS')
 EMLOG_IP = config.get('EMLOG', 'EMLOG_IP')
 EMLOG_METERINDEX = config.get('EMLOG', 'EMLOG_METERINDEX')
+IOBROKER_IP = config.get('IOBROKER', 'IOBROKER_IP')
+IOBROKER_PORT = config.get('IOBROKER', 'IOBROKER_PORT')
+IOBROKER_CURRENT_POWER_ALIAS = config.get('IOBROKER', 'IOBROKER_CURRENT_POWER_ALIAS')
+IOBROKER_POWER_CALCULATE = config.get('IOBROKER', 'IOBROKER_POWER_CALCULATE')
+IOBROKER_POWER_INPUT_ALIAS = config.get('IOBROKER', 'IOBROKER_POWER_INPUT_ALIAS')
+IOBROKER_POWER_OUTPUT_ALIAS = config.get('IOBROKER', 'IOBROKER_POWER_OUTPUT_ALIAS')
 USE_TASMOTA_INTERMEDIATE = config.getboolean('SELECT_INTERMEDIATE_METER', 'USE_TASMOTA_INTERMEDIATE')
 USE_SHELLY_3EM_INTERMEDIATE = config.getboolean('SELECT_INTERMEDIATE_METER', 'USE_SHELLY_3EM_INTERMEDIATE')
 USE_SHELLY_3EM_PRO_INTERMEDIATE = config.getboolean('SELECT_INTERMEDIATE_METER', 'USE_SHELLY_3EM_PRO_INTERMEDIATE')
@@ -456,6 +518,7 @@ USE_SHELLY_1PM_INTERMEDIATE = config.getboolean('SELECT_INTERMEDIATE_METER', 'US
 USE_SHELLY_PLUS_1PM_INTERMEDIATE = config.getboolean('SELECT_INTERMEDIATE_METER', 'USE_SHELLY_PLUS_1PM_INTERMEDIATE')
 USE_SHRDZM_INTERMEDIATE = config.getboolean('SELECT_INTERMEDIATE_METER', 'USE_SHRDZM_INTERMEDIATE')
 USE_EMLOG_INTERMEDIATE = config.getboolean('SELECT_INTERMEDIATE_METER', 'USE_EMLOG_INTERMEDIATE')
+USE_IOBROKER_INTERMEDIATE = config.getboolean('SELECT_INTERMEDIATE_METER', 'USE_IOBROKER_INTERMEDIATE')
 TASMOTA_IP_INTERMEDIATE = config.get('INTERMEDIATE_TASMOTA', 'TASMOTA_IP_INTERMEDIATE')
 TASMOTA_JSON_STATUS_INTERMEDIATE = config.get('INTERMEDIATE_TASMOTA', 'TASMOTA_JSON_STATUS_INTERMEDIATE')
 TASMOTA_JSON_PAYLOAD_MQTT_PREFIX_INTERMEDIATE = config.get('INTERMEDIATE_TASMOTA', 'TASMOTA_JSON_PAYLOAD_MQTT_PREFIX_INTERMEDIATE')
@@ -466,6 +529,9 @@ SHRDZM_USER_INTERMEDIATE = config.get('INTERMEDIATE_SHRDZM', 'SHRDZM_USER_INTERM
 SHRDZM_PASS_INTERMEDIATE = config.get('INTERMEDIATE_SHRDZM', 'SHRDZM_PASS_INTERMEDIATE')
 EMLOG_IP_INTERMEDIATE = config.get('INTERMEDIATE_EMLOG', 'EMLOG_IP_INTERMEDIATE')
 EMLOG_METERINDEX_INTERMEDIATE = config.get('INTERMEDIATE_EMLOG', 'EMLOG_METERINDEX_INTERMEDIATE')
+IOBROKER_IP_INTERMEDIATE = config.get('INTERMEDIATE_IOBROKER', 'IOBROKER_IP_INTERMEDIATE')
+IOBROKER_PORT_INTERMEDIATE = config.get('INTERMEDIATE_IOBROKER', 'IOBROKER_PORT_INTERMEDIATE')
+IOBROKER_CURRENT_POWER_ALIAS_INTERMEDIATE = config.get('INTERMEDIATE_IOBROKER', 'IOBROKER_CURRENT_POWER_ALIAS_INTERMEDIATE')
 INVERTER_COUNT = config.getint('COMMON', 'INVERTER_COUNT')
 LOOP_INTERVAL_IN_SECONDS = config.getint('COMMON', 'LOOP_INTERVAL_IN_SECONDS')
 SET_LIMIT_DELAY_IN_SECONDS = config.getint('COMMON', 'SET_LIMIT_DELAY_IN_SECONDS')
