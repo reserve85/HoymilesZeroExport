@@ -1,5 +1,14 @@
 # Changelog
 
+## V1.24
+### Script
+* add: support of IOBROKER. Needs installed https://github.com/ioBroker/ioBroker.simple-api
+* change: more detailed exception logs
+### Config
+* add: `[SELECT_POWERMETER]`: `USE_IOBROKER`
+* add: section `[IOBROKER]` + section `[INTERMEDIATE_IOBROKER]`
+* add: `[SELECT_INTERMEDIATE_METER]`: `USE_IOBROKER_INTERMEDIATE`
+
 ## V1.23
 ### Script
 * bugfix: ignore LastLimit Counter if inverter was not available

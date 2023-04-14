@@ -13,6 +13,7 @@ This script does not use MQTT, it's based on webapi communication.
 - [Shelly 3EM](https://www.shelly.cloud/de/products/product-overview/shelly-3em-1)
 - [SHRDZM Smartmeter Modul](https://cms.shrdzm.com/produkt/smartmeter-modul/)
 - [Emlog ("electronic meter log")](https://weidmann-elektronik.de/Emlog_Projekt.html)
+- [ioBroker](https://www.iobroker.net/) with [simpleAPI](https://github.com/ioBroker/ioBroker.simple-api)
 - easy to implement new smart meter modules supporting WebAPI / JSON
 
 ### Supported DTU and Inverters
