@@ -6,7 +6,7 @@
 * change: more detailed exception logs
 ### Config
 * add: `[SELECT_POWERMETER]`: `USE_IOBROKER`
-* add: section `[IOBROKER]` + section [INTERMEDIATE_IOBROKER]
+* add: section `[IOBROKER]` + section `[INTERMEDIATE_IOBROKER]`
 * add: `[SELECT_INTERMEDIATE_METER]`: `USE_IOBROKER_INTERMEDIATE`
 
 ## V1.23
