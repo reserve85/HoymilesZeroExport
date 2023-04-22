@@ -1,5 +1,12 @@
 # Changelog
 
+## V1.26
+### Script
+* bugfix: SetLimitOpenDTU: there was a calculation error if battery powered and reduced limit was active.
+* add ´HOY_BATTERY_THRESHOLD_NORMAL_LIMIT_IN_V´: if min_voltage of a panel is higher than this threshold voltage, then max_limit is reset to "max_Watt"
+### Config
+* add: `[INVERTER_x]`: `HOY_BATTERY_THRESHOLD_NORMAL_LIMIT_IN_V`
+
 ## V1.25
 ### Script
 * add: support of battery powered hoymiles inverters. activate it by setting `[INVERTER_x]/HOY_BATTERY_MODE` to `true`. 

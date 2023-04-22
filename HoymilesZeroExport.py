@@ -15,7 +15,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 __author__ = "Tobias Kraft"
-__version__ = "1.25"
+__version__ = "1.26"
 
 import requests
 import time
@@ -65,7 +65,7 @@ if ENABLE_LOG_TO_FILE:
 logger.info('Log write to file: %s', ENABLE_LOG_TO_FILE)
 
 def SetLimitOpenDTU(pInverterId, pLimit):
-    relLimit = int(pLimit / HOY_MAX_WATT[pInverterId] * 100)
+    relLimit = int(pLimit / HOY_INVERTER_WATT[pInverterId] * 100)
     url=f"http://{OPENDTU_IP}/api/limit/config"
     data = f'''data={{"serial":"{SERIAL_NUMBER[pInverterId]}", "limit_type":1, "limit_value":{relLimit}}}'''
     headers = {'Content-Type': 'application/x-www-form-urlencoded'}
@@ -320,11 +320,14 @@ def GetCheckBattery():
                 minVoltage = GetHoymilesPanelMinVoltage(i)
                 if minVoltage <= HOY_BATTERY_THRESHOLD_OFF_LIMIT_IN_V[i]:
                     SetHoymilesPowerStatus(i, False)
+                    HOY_MAX_WATT[i] = HOY_BATTERY_REDUCE_WATT[i]
                 elif minVoltage <= HOY_BATTERY_THRESHOLD_REDUCE_LIMIT_IN_V[i]:
                     HOY_MAX_WATT[i] = HOY_BATTERY_REDUCE_WATT[i]
-                elif minVoltage > HOY_BATTERY_THRESHOLD_ON_LIMIT_IN_V[i]:
-                    HOY_MAX_WATT[i] = HOY_BATTERY_NORMAL_WATT[i]
+                elif minVoltage >= HOY_BATTERY_THRESHOLD_ON_LIMIT_IN_V[i]:
                     SetHoymilesPowerStatus(i, True)
+                    HOY_MAX_WATT[i] = HOY_BATTERY_NORMAL_WATT[i]
+                elif minVoltage >= HOY_BATTERY_THRESHOLD_NORMAL_LIMIT_IN_V[i]:
+                    HOY_MAX_WATT[i] = HOY_BATTERY_NORMAL_WATT[i]
                 if HOY_POWER_STATUS[i]:
                     result = True
             except:
@@ -683,12 +686,14 @@ SERIAL_NUMBER = []
 NAME = []
 TEMPERATURE = []
 HOY_MAX_WATT = []
+HOY_INVERTER_WATT = []
 HOY_MIN_WATT = []
 CURRENT_LIMIT = []
 AVAILABLE = []
 HOY_BATTERY_MODE = []
 HOY_BATTERY_THRESHOLD_OFF_LIMIT_IN_V = []
 HOY_BATTERY_THRESHOLD_REDUCE_LIMIT_IN_V = []
+HOY_BATTERY_THRESHOLD_NORMAL_LIMIT_IN_V = []
 HOY_BATTERY_NORMAL_WATT = []
 HOY_BATTERY_REDUCE_WATT = []
 HOY_BATTERY_THRESHOLD_ON_LIMIT_IN_V = []
@@ -698,12 +703,14 @@ for i in range(INVERTER_COUNT):
     NAME.append(str('yet unknown'))
     TEMPERATURE.append(str('--- degC'))
     HOY_MAX_WATT.append(config.getint('INVERTER_' + str(i + 1), 'HOY_MAX_WATT'))
+    HOY_INVERTER_WATT.append(HOY_MAX_WATT)
     HOY_MIN_WATT.append(int(HOY_MAX_WATT[i] * config.getint('INVERTER_' + str(i + 1), 'HOY_MIN_WATT_IN_PERCENT') / 100))
     CURRENT_LIMIT.append(int(0))
     AVAILABLE.append(bool(False))
     HOY_BATTERY_MODE.append(config.getboolean('INVERTER_' + str(i + 1), 'HOY_BATTERY_MODE'))
     HOY_BATTERY_THRESHOLD_OFF_LIMIT_IN_V.append(config.getfloat('INVERTER_' + str(i + 1), 'HOY_BATTERY_THRESHOLD_OFF_LIMIT_IN_V'))
     HOY_BATTERY_THRESHOLD_REDUCE_LIMIT_IN_V.append(config.getfloat('INVERTER_' + str(i + 1), 'HOY_BATTERY_THRESHOLD_REDUCE_LIMIT_IN_V'))
+    HOY_BATTERY_THRESHOLD_NORMAL_LIMIT_IN_V.append(config.getfloat('INVERTER_' + str(i + 1), 'HOY_BATTERY_THRESHOLD_NORMAL_LIMIT_IN_V'))
     HOY_BATTERY_NORMAL_WATT.append(HOY_MAX_WATT)
     HOY_BATTERY_REDUCE_WATT.append(config.getint('INVERTER_' + str(i + 1), 'HOY_BATTERY_REDUCE_WATT'))
     HOY_BATTERY_THRESHOLD_ON_LIMIT_IN_V.append(config.getfloat('INVERTER_' + str(i + 1), 'HOY_BATTERY_THRESHOLD_ON_LIMIT_IN_V'))
