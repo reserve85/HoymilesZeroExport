@@ -16,17 +16,6 @@ a "turn on" limit (`HOY_BATTERY_THRESHOLD_ON_LIMIT_IN_V`) where the inverter sta
 ### Config
 * add: `[INVERTER_x]`: `HOY_BATTERY_MODE` + `HOY_BATTERY_THRESHOLD_OFF_LIMIT_IN_V` + `HOY_BATTERY_THRESHOLD_REDUCE_LIMIT_IN_V` + `HOY_BATTERY_REDUCE_WATT` + `HOY_BATTERY_THRESHOLD_ON_LIMIT_IN_V`
 
-# battery powered?
-HOY_BATTERY_MODE = false
-# voltage to turn off the inverter
-HOY_BATTERY_THRESHOLD_OFF_LIMIT_IN_V = 47
-# voltage to limit the inverter to a maximum of HOY_BATTERY_REDUCE_WATT
-HOY_BATTERY_THRESHOLD_REDUCE_LIMIT_IN_V = 48
-# maximum limit in watts when battery is low (below HOY_BATTERY_THRESHOLD_REDUCE_LIMIT_IN_V)
-HOY_BATTERY_REDUCE_WATT = 300
-# reenable inverter at this voltage
-HOY_BATTERY_THRESHOLD_ON_LIMIT_IN_V = 51
-
 ## V1.24
 ### Script
 * add: support of IOBROKER. Needs installed https://github.com/ioBroker/ioBroker.simple-api
