@@ -1,5 +1,10 @@
 # Changelog
 
+## V1.27
+### Script
+* bugfix: Assign problem when reading INI if more than two inverters
+* bugfix: changed a += operator because "unsupported operand type s for +:" occur
+
 ## V1.26
 ### Script
 * bugfix: SetLimitOpenDTU: there was a calculation error if battery powered and reduced limit was active.

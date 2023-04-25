@@ -15,7 +15,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 __author__ = "Tobias Kraft"
-__version__ = "1.26"
+__version__ = "1.27"
 
 import requests
 import time
@@ -85,11 +85,11 @@ def SetLimit(pLimit):
     try:
         if SET_LIMIT_RETRY != -1:
             if not hasattr(SetLimit, "LastLimit"):
-                SetLimit.LastLimit = 0
+                SetLimit.LastLimit = int(0)
             if not hasattr(SetLimit, "SameLimitCnt"):
-                SetLimit.SameLimitCnt = 0
+                SetLimit.SameLimitCnt = int(0)
             if SetLimit.LastLimit == pLimit:
-                SetLimit.SameLimitCnt += 1
+                SetLimit.SameLimitCnt = SetLimit.SameLimitCnt + 1
             else:
                 SetLimit.LastLimit = pLimit
                 SetLimit.SameLimitCnt = 0
@@ -211,10 +211,11 @@ def GetHoymilesPanelMinVoltageAhoy(pInverterId):
     for item in ParsedData['inverter'][pInverterId]:
         if item['fld'] == 'U_DC':
             PanelVDC.append(float(item['val']))
-    minVdc = float("inf")
+    minVdc = float('inf')
     for i in range(len(PanelVDC)):
-        if (minVdc > PanelVDC[i]) and (PanelVDC[i] > 1):
+        if (minVdc > PanelVDC[i]) and (PanelVDC[i] > 5):
             minVdc = PanelVDC[i]
+    logger.info("Lowest panel voltage: %s Volt",minVdc)
     return minVdc
 
 def GetHoymilesPanelMinVoltageOpenDTU(pInverterId):
@@ -223,10 +224,11 @@ def GetHoymilesPanelMinVoltageOpenDTU(pInverterId):
     PanelVDC = []
     for i in range(len(ParsedData['inverters'][pInverterId]['DC'])):
         PanelVDC.append(float(ParsedData['inverters'][pInverterId]['DC'][str(i)]['Voltage']['v']))
-    minVdc = float("inf")
+    minVdc = float('inf')
     for i in range(len(PanelVDC)):
-        if (minVdc > PanelVDC[i]) and (PanelVDC[i] > 1):
+        if (minVdc > PanelVDC[i]) and (PanelVDC[i] > 5):
             minVdc = PanelVDC[i]
+    logger.info("Lowest panelvoltage: %s Volt",minVdc)
     return minVdc
 
 def GetHoymilesPanelMinVoltage(pInverterId):
@@ -284,7 +286,7 @@ def SetHoymilesPowerStatus(pInverterId, pActive):
                 SetLimit.SamePowerStatusCnt = []
                 SetLimit.SamePowerStatusCnt = [0 for i in range(INVERTER_COUNT)] 
             if SetLimit.LastPowerStatus[pInverterId] == pActive:
-                SetLimit.SamePowerStatusCnt[pInverterId] += 1
+                SetLimit.SamePowerStatusCnt[pInverterId] = SetLimit.SamePowerStatusCnt[pInverterId] + 1
             else:
                 SetLimit.LastPowerStatus[pInverterId] = pActive
                 SetLimit.SamePowerStatusCnt[pInverterId] = 0
@@ -703,7 +705,7 @@ for i in range(INVERTER_COUNT):
     NAME.append(str('yet unknown'))
     TEMPERATURE.append(str('--- degC'))
     HOY_MAX_WATT.append(config.getint('INVERTER_' + str(i + 1), 'HOY_MAX_WATT'))
-    HOY_INVERTER_WATT.append(HOY_MAX_WATT)
+    HOY_INVERTER_WATT.append(HOY_MAX_WATT[i])
     HOY_MIN_WATT.append(int(HOY_MAX_WATT[i] * config.getint('INVERTER_' + str(i + 1), 'HOY_MIN_WATT_IN_PERCENT') / 100))
     CURRENT_LIMIT.append(int(0))
     AVAILABLE.append(bool(False))
@@ -711,7 +713,7 @@ for i in range(INVERTER_COUNT):
     HOY_BATTERY_THRESHOLD_OFF_LIMIT_IN_V.append(config.getfloat('INVERTER_' + str(i + 1), 'HOY_BATTERY_THRESHOLD_OFF_LIMIT_IN_V'))
     HOY_BATTERY_THRESHOLD_REDUCE_LIMIT_IN_V.append(config.getfloat('INVERTER_' + str(i + 1), 'HOY_BATTERY_THRESHOLD_REDUCE_LIMIT_IN_V'))
     HOY_BATTERY_THRESHOLD_NORMAL_LIMIT_IN_V.append(config.getfloat('INVERTER_' + str(i + 1), 'HOY_BATTERY_THRESHOLD_NORMAL_LIMIT_IN_V'))
-    HOY_BATTERY_NORMAL_WATT.append(HOY_MAX_WATT)
+    HOY_BATTERY_NORMAL_WATT.append(HOY_MAX_WATT[i])
     HOY_BATTERY_REDUCE_WATT.append(config.getint('INVERTER_' + str(i + 1), 'HOY_BATTERY_REDUCE_WATT'))
     HOY_BATTERY_THRESHOLD_ON_LIMIT_IN_V.append(config.getfloat('INVERTER_' + str(i + 1), 'HOY_BATTERY_THRESHOLD_ON_LIMIT_IN_V'))
     HOY_POWER_STATUS.append(bool(True))
