@@ -1,5 +1,11 @@
 # Changelog
 
+## V1.28
+### Script
+* add HOY_BATTERY_NORMAL_WATT: you can further limit the inverter in battery mode. E.g. if you have a 1500W Inverter you can limit the max. output power in battery mode to 750 Watts.
+### Config
+* add: `[INVERTER_x]`: `HOY_BATTERY_NORMAL_WATT`
+
 ## V1.27
 ### Script
 * bugfix: Assign problem when reading INI if more than two inverters

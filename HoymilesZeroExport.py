@@ -281,10 +281,10 @@ def SetHoymilesPowerStatus(pInverterId, pActive):
         if SET_LIMIT_RETRY != -1:
             if not hasattr(SetLimit, "LastPowerStatus"):
                 SetLimit.LastPowerStatus = []
-                SetLimit.LastPowerStatus = [False for i in range(INVERTER_COUNT)] 
+                SetLimit.LastPowerStatus = [False for i in range(INVERTER_COUNT)]
             if not hasattr(SetLimit, "SamePowerStatusCnt"):
                 SetLimit.SamePowerStatusCnt = []
-                SetLimit.SamePowerStatusCnt = [0 for i in range(INVERTER_COUNT)] 
+                SetLimit.SamePowerStatusCnt = [0 for i in range(INVERTER_COUNT)]
             if SetLimit.LastPowerStatus[pInverterId] == pActive:
                 SetLimit.SamePowerStatusCnt[pInverterId] = SetLimit.SamePowerStatusCnt[pInverterId] + 1
             else:
@@ -713,7 +713,9 @@ for i in range(INVERTER_COUNT):
     HOY_BATTERY_THRESHOLD_OFF_LIMIT_IN_V.append(config.getfloat('INVERTER_' + str(i + 1), 'HOY_BATTERY_THRESHOLD_OFF_LIMIT_IN_V'))
     HOY_BATTERY_THRESHOLD_REDUCE_LIMIT_IN_V.append(config.getfloat('INVERTER_' + str(i + 1), 'HOY_BATTERY_THRESHOLD_REDUCE_LIMIT_IN_V'))
     HOY_BATTERY_THRESHOLD_NORMAL_LIMIT_IN_V.append(config.getfloat('INVERTER_' + str(i + 1), 'HOY_BATTERY_THRESHOLD_NORMAL_LIMIT_IN_V'))
-    HOY_BATTERY_NORMAL_WATT.append(HOY_MAX_WATT[i])
+    HOY_BATTERY_NORMAL_WATT.append(config.getint('INVERTER_' + str(i + 1), 'HOY_BATTERY_NORMAL_WATT'))
+    if HOY_BATTERY_NORMAL_WATT[i] > HOY_MAX_WATT[i]:
+        HOY_BATTERY_NORMAL_WATT[i] = HOY_MAX_WATT[i]
     HOY_BATTERY_REDUCE_WATT.append(config.getint('INVERTER_' + str(i + 1), 'HOY_BATTERY_REDUCE_WATT'))
     HOY_BATTERY_THRESHOLD_ON_LIMIT_IN_V.append(config.getfloat('INVERTER_' + str(i + 1), 'HOY_BATTERY_THRESHOLD_ON_LIMIT_IN_V'))
     HOY_POWER_STATUS.append(bool(True))
