@@ -1,5 +1,32 @@
 # Changelog
 
+## V1.28
+### Script
+* add HOY_BATTERY_NORMAL_WATT: you can further limit the inverter in battery mode. E.g. if you have a 1500W Inverter you can limit the max. output power in battery mode to 750 Watts.
+### Config
+* add: `[INVERTER_x]`: `HOY_BATTERY_NORMAL_WATT`
+
+## V1.27
+### Script
+* bugfix: Assign problem when reading INI if more than two inverters
+* bugfix: changed a += operator because "unsupported operand type s for +:" occur
+
+## V1.26
+### Script
+* bugfix: SetLimitOpenDTU: there was a calculation error if battery powered and reduced limit was active.
+* add ´HOY_BATTERY_THRESHOLD_NORMAL_LIMIT_IN_V´: if min_voltage of a panel is higher than this threshold voltage, then max_limit is reset to "max_Watt"
+### Config
+* add: `[INVERTER_x]`: `HOY_BATTERY_THRESHOLD_NORMAL_LIMIT_IN_V`
+
+## V1.25
+### Script
+* add: support of battery powered hoymiles inverters. activate it by setting `[INVERTER_x]/HOY_BATTERY_MODE` to `true`. 
+There is an "off" Limit (`HOY_BATTERY_THRESHOLD_OFF_LIMIT_IN_V`) where the inverter stops working, if panel voltage is lower
+a "reduce" limit (`HOY_BATTERY_THRESHOLD_REDUCE_LIMIT_IN_V`) where the inverter reduces it´s max. power, if panel voltage is lower
+a "turn on" limit (`HOY_BATTERY_THRESHOLD_ON_LIMIT_IN_V`) where the inverter starts working again, if panel voltage is higher
+### Config
+* add: `[INVERTER_x]`: `HOY_BATTERY_MODE` + `HOY_BATTERY_THRESHOLD_OFF_LIMIT_IN_V` + `HOY_BATTERY_THRESHOLD_REDUCE_LIMIT_IN_V` + `HOY_BATTERY_REDUCE_WATT` + `HOY_BATTERY_THRESHOLD_ON_LIMIT_IN_V`
+
 ## V1.24
 ### Script
 * add: support of IOBROKER. Needs installed https://github.com/ioBroker/ioBroker.simple-api

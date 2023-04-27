@@ -21,6 +21,12 @@ This script does not use MQTT, it's based on webapi communication.
 - [OpenDTU](https://github.com/tbnobody/OpenDTU)
 - Hoymiles HM-Series Inverter (since V1.7 multiple inverters are supported) like [1-in-1](https://www.hoymiles.com/product/microinverter/hm-300-350-400-eu/), [2-in-1](https://www.hoymiles.com/product/microinverter/hm-600-700-800-eu/) or [4-in-1](https://www.hoymiles.com/product/microinverter/hm-1200-1500-eu/)
 
+### Support of battery powered Hoymiles Inverters
+With Version 1.28 and higher you can set various limits to support battery powered Hoymiles Inverters
+- power-off limit
+- limit reduction if battery voltage drops
+- auto-power-on if battery voltage rises 
+
 ## Examples in Home-Assistant:
 ![qkeo2J4U](https://user-images.githubusercontent.com/111107925/222456008-947bfbf1-09b3-4639-97d0-cc88c5af2a72.png)
 ![IMG_E0136](https://user-images.githubusercontent.com/111107925/217559535-1b530738-67bc-4c29-a6f2-9aa4addce41d.JPG)

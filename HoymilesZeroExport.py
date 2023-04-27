@@ -15,7 +15,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 __author__ = "Tobias Kraft"
-__version__ = "1.24"
+__version__ = "1.27"
 
 import requests
 import time
@@ -65,7 +65,7 @@ if ENABLE_LOG_TO_FILE:
 logger.info('Log write to file: %s', ENABLE_LOG_TO_FILE)
 
 def SetLimitOpenDTU(pInverterId, pLimit):
-    relLimit = int(pLimit / HOY_MAX_WATT[pInverterId] * 100)
+    relLimit = int(pLimit / HOY_INVERTER_WATT[pInverterId] * 100)
     url=f"http://{OPENDTU_IP}/api/limit/config"
     data = f'''data={{"serial":"{SERIAL_NUMBER[pInverterId]}", "limit_type":1, "limit_value":{relLimit}}}'''
     headers = {'Content-Type': 'application/x-www-form-urlencoded'}
@@ -85,11 +85,11 @@ def SetLimit(pLimit):
     try:
         if SET_LIMIT_RETRY != -1:
             if not hasattr(SetLimit, "LastLimit"):
-                SetLimit.LastLimit = 0
+                SetLimit.LastLimit = int(0)
             if not hasattr(SetLimit, "SameLimitCnt"):
-                SetLimit.SameLimitCnt = 0
+                SetLimit.SameLimitCnt = int(0)
             if SetLimit.LastLimit == pLimit:
-                SetLimit.SameLimitCnt += 1
+                SetLimit.SameLimitCnt = SetLimit.SameLimitCnt + 1
             else:
                 SetLimit.LastLimit = pLimit
                 SetLimit.SameLimitCnt = 0
@@ -99,7 +99,7 @@ def SetLimit(pLimit):
                 return
         logger.info("setting new limit to %s Watt",int(pLimit))
         for i in range(INVERTER_COUNT):
-            if not AVAILABLE[i]:
+            if (not AVAILABLE[i]) or (not HOY_POWER_STATUS[i]):
                 continue
             if i != 0:
                 time.sleep(SET_LIMIT_DELAY_IN_SECONDS_MULTIPLE_INVERTER)
@@ -204,6 +204,145 @@ def GetHoymilesInfo():
             logger.error(e)
         raise
 
+def GetHoymilesPanelMinVoltageAhoy(pInverterId):
+    url = f'http://{AHOY_IP}/api/record/live'
+    ParsedData = requests.get(url).json()
+    PanelVDC = []
+    for item in ParsedData['inverter'][pInverterId]:
+        if item['fld'] == 'U_DC':
+            PanelVDC.append(float(item['val']))
+    minVdc = float('inf')
+    for i in range(len(PanelVDC)):
+        if (minVdc > PanelVDC[i]) and (PanelVDC[i] > 5):
+            minVdc = PanelVDC[i]
+    logger.info("Lowest panel voltage: %s Volt",minVdc)
+    return minVdc
+
+def GetHoymilesPanelMinVoltageOpenDTU(pInverterId):
+    url = f'http://{OPENDTU_IP}/api/livedata/status/inverters'
+    ParsedData = requests.get(url, auth=HTTPBasicAuth(OPENDTU_USER, OPENDTU_PASS)).json()
+    PanelVDC = []
+    for i in range(len(ParsedData['inverters'][pInverterId]['DC'])):
+        PanelVDC.append(float(ParsedData['inverters'][pInverterId]['DC'][str(i)]['Voltage']['v']))
+    minVdc = float('inf')
+    for i in range(len(PanelVDC)):
+        if (minVdc > PanelVDC[i]) and (PanelVDC[i] > 5):
+            minVdc = PanelVDC[i]
+    logger.info("Lowest panelvoltage: %s Volt",minVdc)
+    return minVdc
+
+def GetHoymilesPanelMinVoltage(pInverterId):
+    try:
+        try:
+            if not AVAILABLE[pInverterId]:
+                return 0
+            if USE_AHOY:
+                return GetHoymilesPanelMinVoltageAhoy(pInverterId)
+            elif USE_OPENDTU:
+                return GetHoymilesPanelMinVoltageOpenDTU(pInverterId)
+            else:
+                raise Exception("Error: DTU Type not defined")
+        except:
+            logger.error("Exception at GetHoymilesPanelMinVoltage, Inverter %s not reachable", pInverterId)
+    except Exception as e:
+        logger.error("Exception at GetHoymilesPanelMinVoltage")
+        if hasattr(e, 'message'):
+            logger.error(e.message)
+        else:
+            logger.error(e)
+        raise
+
+def SetHoymilesPowerStatusAhoy(pInverterId, pActive):
+    url = f"http://{AHOY_IP}/api/ctrl"
+    data = f'''{{"id": {pInverterId}, "cmd": "power", "val": {int(pActive == True)}}}'''
+    headers = {'Content-type': 'application/json', 'Accept': 'text/plain'}
+    if pActive:
+        logger.info('Ahoy: Inverter "%s": Turn on',NAME[pInverterId])
+    else:
+        logger.info('Ahoy: Inverter "%s": Turn off',NAME[pInverterId])
+    requests.post(url, data=data, headers=headers)
+    HOY_POWER_STATUS[pInverterId] = pActive
+
+def SetHoymilesPowerStatusOpenDTU(pInverterId, pActive):
+    url=f"http://{OPENDTU_IP}/api/power/config"
+    data = f'''data={{"serial":"{SERIAL_NUMBER[pInverterId]}", "power":{int(pActive == True)}}}'''
+    headers = {'Content-Type': 'application/x-www-form-urlencoded'}
+    if pActive:
+        logger.info('OpenDTU: Inverter "%s": Turn on',NAME[pInverterId])
+    else:
+        logger.info('OpenDTU: Inverter "%s": Turn off',NAME[pInverterId])
+    a = requests.post(url, data=data, auth=HTTPBasicAuth(OPENDTU_USER, OPENDTU_PASS), headers=headers)
+    HOY_POWER_STATUS[pInverterId] = pActive
+
+def SetHoymilesPowerStatus(pInverterId, pActive):
+    try:
+        if not AVAILABLE[pInverterId]:
+            return
+        if SET_LIMIT_RETRY != -1:
+            if not hasattr(SetLimit, "LastPowerStatus"):
+                SetLimit.LastPowerStatus = []
+                SetLimit.LastPowerStatus = [False for i in range(INVERTER_COUNT)]
+            if not hasattr(SetLimit, "SamePowerStatusCnt"):
+                SetLimit.SamePowerStatusCnt = []
+                SetLimit.SamePowerStatusCnt = [0 for i in range(INVERTER_COUNT)]
+            if SetLimit.LastPowerStatus[pInverterId] == pActive:
+                SetLimit.SamePowerStatusCnt[pInverterId] = SetLimit.SamePowerStatusCnt[pInverterId] + 1
+            else:
+                SetLimit.LastPowerStatus[pInverterId] = pActive
+                SetLimit.SamePowerStatusCnt[pInverterId] = 0
+            if SetLimit.SamePowerStatusCnt[pInverterId] >= SET_LIMIT_RETRY:
+                logger.info("Set Limit Retry Counter exceeded: Inverter PowerStatus already %s",int(pActive))
+                time.sleep(SET_LIMIT_DELAY_IN_SECONDS)
+                return
+        if USE_AHOY:
+            SetHoymilesPowerStatusAhoy(pInverterId, pActive)
+        elif USE_OPENDTU:
+            SetHoymilesPowerStatusOpenDTU(pInverterId, pActive)
+        else:
+            raise Exception("Error: DTU Type not defined")
+        time.sleep(SET_LIMIT_DELAY_IN_SECONDS)
+    except Exception as e:
+        logger.error("Exception at SetHoymilesPowerStatus")
+        if hasattr(e, 'message'):
+            logger.error(e.message)
+        else:
+            logger.error(e)
+        raise
+
+def GetCheckBattery():
+    try:
+        result = False
+        for i in range(INVERTER_COUNT):
+            try:
+                if not AVAILABLE[i]:
+                    continue
+                if not HOY_BATTERY_MODE[i]:
+                    result = True
+                    continue
+                minVoltage = GetHoymilesPanelMinVoltage(i)
+                if minVoltage <= HOY_BATTERY_THRESHOLD_OFF_LIMIT_IN_V[i]:
+                    SetHoymilesPowerStatus(i, False)
+                    HOY_MAX_WATT[i] = HOY_BATTERY_REDUCE_WATT[i]
+                elif minVoltage <= HOY_BATTERY_THRESHOLD_REDUCE_LIMIT_IN_V[i]:
+                    HOY_MAX_WATT[i] = HOY_BATTERY_REDUCE_WATT[i]
+                elif minVoltage >= HOY_BATTERY_THRESHOLD_ON_LIMIT_IN_V[i]:
+                    SetHoymilesPowerStatus(i, True)
+                    HOY_MAX_WATT[i] = HOY_BATTERY_NORMAL_WATT[i]
+                elif minVoltage >= HOY_BATTERY_THRESHOLD_NORMAL_LIMIT_IN_V[i]:
+                    HOY_MAX_WATT[i] = HOY_BATTERY_NORMAL_WATT[i]
+                if HOY_POWER_STATUS[i]:
+                    result = True
+            except:
+                logger.error("Exception at CheckBattery, Inverter %s not reachable", i)
+        return result
+    except Exception as e:
+        logger.error("Exception at CheckBattery")
+        if hasattr(e, 'message'):
+            logger.error(e.message)
+        else:
+            logger.error(e)
+        raise
+
 def GetHoymilesTemperatureOpenDTU(pInverterId):
     url = f'http://{OPENDTU_IP}/api/livedata/status/inverters'
     ParsedData = requests.get(url, auth=HTTPBasicAuth(OPENDTU_USER, OPENDTU_PASS)).json()
@@ -273,13 +412,13 @@ def GetHoymilesActualPower():
             return GetPowermeterWattsIobroker_Intermediate()
         elif USE_AHOY:
             for i in range(INVERTER_COUNT):
-                if not AVAILABLE[i]:
+                if (not AVAILABLE[i]) or (not HOY_POWER_STATUS[i]):
                     continue
                 ActualPower = ActualPower + GetHoymilesActualPowerAhoy(i)
             return ActualPower
         elif USE_OPENDTU:
             for i in range(INVERTER_COUNT):
-                if not AVAILABLE[i]:
+                if (not AVAILABLE[i]) or (not HOY_POWER_STATUS[i]):
                     continue
                 ActualPower = ActualPower + GetHoymilesActualPowerOpenDTU(i)
             return ActualPower
@@ -459,7 +598,7 @@ def ApplyLimitsToSetpointInverter(pInverter, pSetpoint):
 def GetMaxWattFromAllInverters():
     maxWatt = 0
     for i in range(INVERTER_COUNT):
-        if not AVAILABLE[i]:
+        if (not AVAILABLE[i]) or (not HOY_POWER_STATUS[i]):
             continue
         maxWatt = maxWatt + HOY_MAX_WATT[i]
     return maxWatt
@@ -467,7 +606,7 @@ def GetMaxWattFromAllInverters():
 def GetMinWattFromAllInverters():
     minWatt = 0
     for i in range(INVERTER_COUNT):
-        if not AVAILABLE[i]:
+        if (not AVAILABLE[i]) or (not HOY_POWER_STATUS[i]):
             continue
         minWatt = minWatt + HOY_MIN_WATT[i]
     return minWatt
@@ -549,23 +688,45 @@ SERIAL_NUMBER = []
 NAME = []
 TEMPERATURE = []
 HOY_MAX_WATT = []
+HOY_INVERTER_WATT = []
 HOY_MIN_WATT = []
 CURRENT_LIMIT = []
 AVAILABLE = []
+HOY_BATTERY_MODE = []
+HOY_BATTERY_THRESHOLD_OFF_LIMIT_IN_V = []
+HOY_BATTERY_THRESHOLD_REDUCE_LIMIT_IN_V = []
+HOY_BATTERY_THRESHOLD_NORMAL_LIMIT_IN_V = []
+HOY_BATTERY_NORMAL_WATT = []
+HOY_BATTERY_REDUCE_WATT = []
+HOY_BATTERY_THRESHOLD_ON_LIMIT_IN_V = []
+HOY_POWER_STATUS = []
 for i in range(INVERTER_COUNT):
     SERIAL_NUMBER.append(str('yet unknown'))
     NAME.append(str('yet unknown'))
     TEMPERATURE.append(str('--- degC'))
     HOY_MAX_WATT.append(config.getint('INVERTER_' + str(i + 1), 'HOY_MAX_WATT'))
+    HOY_INVERTER_WATT.append(HOY_MAX_WATT[i])
     HOY_MIN_WATT.append(int(HOY_MAX_WATT[i] * config.getint('INVERTER_' + str(i + 1), 'HOY_MIN_WATT_IN_PERCENT') / 100))
     CURRENT_LIMIT.append(int(0))
     AVAILABLE.append(bool(False))
+    HOY_BATTERY_MODE.append(config.getboolean('INVERTER_' + str(i + 1), 'HOY_BATTERY_MODE'))
+    HOY_BATTERY_THRESHOLD_OFF_LIMIT_IN_V.append(config.getfloat('INVERTER_' + str(i + 1), 'HOY_BATTERY_THRESHOLD_OFF_LIMIT_IN_V'))
+    HOY_BATTERY_THRESHOLD_REDUCE_LIMIT_IN_V.append(config.getfloat('INVERTER_' + str(i + 1), 'HOY_BATTERY_THRESHOLD_REDUCE_LIMIT_IN_V'))
+    HOY_BATTERY_THRESHOLD_NORMAL_LIMIT_IN_V.append(config.getfloat('INVERTER_' + str(i + 1), 'HOY_BATTERY_THRESHOLD_NORMAL_LIMIT_IN_V'))
+    HOY_BATTERY_NORMAL_WATT.append(config.getint('INVERTER_' + str(i + 1), 'HOY_BATTERY_NORMAL_WATT'))
+    if HOY_BATTERY_NORMAL_WATT[i] > HOY_MAX_WATT[i]:
+        HOY_BATTERY_NORMAL_WATT[i] = HOY_MAX_WATT[i]
+    HOY_BATTERY_REDUCE_WATT.append(config.getint('INVERTER_' + str(i + 1), 'HOY_BATTERY_REDUCE_WATT'))
+    HOY_BATTERY_THRESHOLD_ON_LIMIT_IN_V.append(config.getfloat('INVERTER_' + str(i + 1), 'HOY_BATTERY_THRESHOLD_ON_LIMIT_IN_V'))
+    HOY_POWER_STATUS.append(bool(True))
 SLOW_APPROX_LIMIT = int(GetMaxWattFromAllInverters() * config.getint('COMMON', 'SLOW_APPROX_LIMIT_IN_PERCENT') / 100)
 
 try:
     logger.info("---Init---")
     newLimitSetpoint = 0
     if GetHoymilesAvailable():
+        for i in range(INVERTER_COUNT):
+            SetHoymilesPowerStatus(i, True)
         newLimitSetpoint = GetMaxWattFromAllInverters()
         GetHoymilesActualPower()
         SetLimit(newLimitSetpoint)
@@ -582,7 +743,7 @@ logger.info("---Start Zero Export---")
 while True:
     try:
         PreviousLimitSetpoint = newLimitSetpoint
-        if GetHoymilesAvailable():
+        if GetHoymilesAvailable() and GetCheckBattery():
             if LOG_TEMPERATURE:
                 GetHoymilesTemperature()
             for x in range(int(LOOP_INTERVAL_IN_SECONDS / POLL_INTERVAL_IN_SECONDS)):
