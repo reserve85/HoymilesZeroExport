@@ -1,5 +1,10 @@
 # Changelog
 
+## V1.29
+### Script
+* on Startup: initialize inverter with lowest limit.
+* allow to send same Limits to inverter, use SET_LIMIT_RETRY to limit the repeats
+
 ## V1.28
 ### Script
 * add HOY_BATTERY_NORMAL_WATT: you can further limit the inverter in battery mode. E.g. if you have a 1500W Inverter you can limit the max. output power in battery mode to 750 Watts.

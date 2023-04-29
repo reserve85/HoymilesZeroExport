@@ -15,7 +15,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 __author__ = "Tobias Kraft"
-__version__ = "1.28"
+__version__ = "1.29"
 
 import requests
 import time
@@ -727,7 +727,8 @@ try:
     if GetHoymilesAvailable():
         for i in range(INVERTER_COUNT):
             SetHoymilesPowerStatus(i, True)
-        newLimitSetpoint = GetMaxWattFromAllInverters()
+        GetCheckBattery()
+        newLimitSetpoint = GetMinWattFromAllInverters()
         GetHoymilesActualPower()
         SetLimit(newLimitSetpoint)
     GetPowermeterWatts()
@@ -804,8 +805,7 @@ while True:
             # check for upper and lower limits
             newLimitSetpoint = ApplyLimitsToSetpoint(newLimitSetpoint)
             # set new limit to inverter
-            if newLimitSetpoint != PreviousLimitSetpoint:
-                SetLimit(newLimitSetpoint)
+            SetLimit(newLimitSetpoint)
         else:
             if hasattr(SetLimit, "LastLimit"):
                 SetLimit.LastLimit = -1
