@@ -94,7 +94,7 @@ def SetLimit(pLimit):
                 SetLimit.LastLimit = pLimit
                 SetLimit.SameLimitCnt = 0
             if SetLimit.SameLimitCnt >= SET_LIMIT_RETRY:
-                logger.info("Set Limit Retry Counter exceeded: Inverterlimit already at %s Watt",int(pLimit))
+                logger.info("Retry Counter exceeded: Inverterlimit already at %s Watt",int(pLimit))
                 time.sleep(SET_LIMIT_DELAY_IN_SECONDS)
                 return
         logger.info("setting new limit to %s Watt",int(pLimit))
@@ -291,7 +291,10 @@ def SetHoymilesPowerStatus(pInverterId, pActive):
                 SetLimit.LastPowerStatus[pInverterId] = pActive
                 SetLimit.SamePowerStatusCnt[pInverterId] = 0
             if SetLimit.SamePowerStatusCnt[pInverterId] >= SET_LIMIT_RETRY:
-                logger.info("Set Limit Retry Counter exceeded: Inverter PowerStatus already %s",int(pActive))
+                if pActive:
+                    logger.info("Retry Counter exceeded: Inverter PowerStatus already ON")
+                else:
+                    logger.info("Retry Counter exceeded: Inverter PowerStatus already OFF")
                 time.sleep(SET_LIMIT_DELAY_IN_SECONDS)
                 return
         if USE_AHOY:
