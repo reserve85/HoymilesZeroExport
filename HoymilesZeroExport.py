@@ -15,7 +15,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 __author__ = "Tobias Kraft"
-__version__ = "1.31"
+__version__ = "1.32"
 
 import requests
 import time
@@ -108,7 +108,7 @@ def SetLimit(pLimit):
             NewLimit = ApplyLimitsToSetpointInverter(i, NewLimit)
             if HOY_COMPENSATE_WATT_FACTOR[i] != 1:
                 logger.info('Ahoy: Inverter "%s": compensate Limit from %s Watt to %s Watt', NAME[i], int(NewLimit), int(NewLimit*HOY_COMPENSATE_WATT_FACTOR[i]))
-                NewLimit = NewLimit * HOY_COMPENSATE_WATT_FACTOR[i]
+                NewLimit = int(NewLimit * HOY_COMPENSATE_WATT_FACTOR[i])
                 NewLimit = ApplyLimitsToMaxInverterLimits(i, NewLimit)
             if USE_AHOY:
                 SetLimitAhoy(i, NewLimit)

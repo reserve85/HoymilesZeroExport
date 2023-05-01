@@ -1,5 +1,9 @@
 # Changelog
 
+## V1.32
+### Script
+* bugfix: cast to int
+
 ## V1.31
 ### Script
 * support of power-output-factor to compensate some Inverters (e.g. 700W Limit = 800W Output)
