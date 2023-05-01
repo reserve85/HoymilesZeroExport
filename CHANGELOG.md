@@ -1,5 +1,11 @@
 # Changelog
 
+## V1.31
+### Script
+* support of power-output-factor to compensate some Inverters (e.g. 700W Limit = 800W Output)
+### Config
+* add: `[INVERTER_x]`: `HOY_COMPENSATE_WATT_FACTOR` - enter your Factor here. Eg: if you set a limit of 750W = 850W Output -> enter Factor 0.88
+
 ## V1.30
 ### Script
 * use different wait time for turning inverter off or on

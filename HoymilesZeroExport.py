@@ -15,7 +15,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 __author__ = "Tobias Kraft"
-__version__ = "1.30"
+__version__ = "1.31"
 
 import requests
 import time
@@ -106,6 +106,10 @@ def SetLimit(pLimit):
             Factor = HOY_MAX_WATT[i] / GetMaxWattFromAllInverters()
             NewLimit = int(pLimit*Factor)
             NewLimit = ApplyLimitsToSetpointInverter(i, NewLimit)
+            if HOY_COMPENSATE_WATT_FACTOR[i] != 1:
+                logger.info('Ahoy: Inverter "%s": compensate Limit from %s Watt to %s Watt', NAME[i], int(NewLimit), int(NewLimit*HOY_COMPENSATE_WATT_FACTOR[i]))
+                NewLimit = NewLimit * HOY_COMPENSATE_WATT_FACTOR[i]
+                NewLimit = ApplyLimitsToMaxInverterLimits(i, NewLimit)
             if USE_AHOY:
                 SetLimitAhoy(i, NewLimit)
             elif USE_OPENDTU:
@@ -628,6 +632,13 @@ def ApplyLimitsToSetpointInverter(pInverter, pSetpoint):
         pSetpoint = HOY_MIN_WATT[pInverter]
     return pSetpoint
 
+def ApplyLimitsToMaxInverterLimits(pInverter, pSetpoint):
+    if pSetpoint > HOY_INVERTER_WATT[pInverter]:
+        pSetpoint = HOY_INVERTER_WATT[pInverter]
+    if pSetpoint < HOY_MIN_WATT[pInverter]:
+        pSetpoint = HOY_MIN_WATT[pInverter]
+    return pSetpoint
+
 def GetMaxWattFromAllInverters():
     maxWatt = 0
     for i in range(INVERTER_COUNT):
@@ -739,6 +750,7 @@ HOY_INVERTER_WATT = []
 HOY_MIN_WATT = []
 CURRENT_LIMIT = []
 AVAILABLE = []
+HOY_COMPENSATE_WATT_FACTOR = []
 HOY_BATTERY_MODE = []
 HOY_BATTERY_THRESHOLD_OFF_LIMIT_IN_V = []
 HOY_BATTERY_THRESHOLD_REDUCE_LIMIT_IN_V = []
@@ -766,6 +778,7 @@ for i in range(INVERTER_COUNT):
     HOY_BATTERY_REDUCE_WATT.append(config.getint('INVERTER_' + str(i + 1), 'HOY_BATTERY_REDUCE_WATT'))
     HOY_BATTERY_THRESHOLD_ON_LIMIT_IN_V.append(config.getfloat('INVERTER_' + str(i + 1), 'HOY_BATTERY_THRESHOLD_ON_LIMIT_IN_V'))
     HOY_POWER_STATUS.append(bool(True))
+    HOY_COMPENSATE_WATT_FACTOR.append(config.getfloat('INVERTER_' + str(i + 1), 'HOY_COMPENSATE_WATT_FACTOR'))
 SLOW_APPROX_LIMIT = int(GetMaxWattFromAllInverters() * config.getint('COMMON', 'SLOW_APPROX_LIMIT_IN_PERCENT') / 100)
 
 try:
