@@ -15,7 +15,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 __author__ = "Tobias Kraft"
-__version__ = "1.29"
+__version__ = "1.30"
 
 import requests
 import time
@@ -295,7 +295,6 @@ def SetHoymilesPowerStatus(pInverterId, pActive):
                     logger.info("Retry Counter exceeded: Inverter PowerStatus already ON")
                 else:
                     logger.info("Retry Counter exceeded: Inverter PowerStatus already OFF")
-                time.sleep(SET_LIMIT_DELAY_IN_SECONDS)
                 return
         if USE_AHOY:
             SetHoymilesPowerStatusAhoy(pInverterId, pActive)
@@ -303,7 +302,7 @@ def SetHoymilesPowerStatus(pInverterId, pActive):
             SetHoymilesPowerStatusOpenDTU(pInverterId, pActive)
         else:
             raise Exception("Error: DTU Type not defined")
-        time.sleep(SET_LIMIT_DELAY_IN_SECONDS)
+        time.sleep(SET_POWER_STATUS_DELAY_IN_SECONDS)
     except Exception as e:
         logger.error("Exception at SetHoymilesPowerStatus")
         if hasattr(e, 'message'):
@@ -413,6 +412,8 @@ def GetHoymilesActualPower():
             return GetPowermeterWattsEmlog_Intermediate()
         elif USE_IOBROKER_INTERMEDIATE:
             return GetPowermeterWattsIobroker_Intermediate()
+        elif USE_HOMEASSISTANT_INTERMEDIATE:
+            return GetPowermeterWattsHomeAssistant_Intermediate()
         elif USE_AHOY:
             for i in range(INVERTER_COUNT):
                 if (not AVAILABLE[i]) or (not HOY_POWER_STATUS[i]):
@@ -491,6 +492,14 @@ def GetPowermeterWattsIobroker_Intermediate():
     logger.info("intermediate meter IOBROKER: %s %s",Watts," Watt")
     return int(Watts)
 
+def GetPowermeterWattsHomeAssistant_Intermediate():
+    url = f"http://{HA_IP_INTERMEDIATE}:{HA_PORT_INTERMEDIATE}/api/states/{HA_CURRENT_POWER_ENTITY_INTERMEDIATE}"
+    headers = {"Authorization": "Bearer " + HA_ACCESSTOKEN_INTERMEDIATE, "content-type": "application/json"}
+    ParsedData = requests.get(url, headers=headers).json()
+    Watts = int(ParsedData['state'])
+    logger.info("intermediate meter HomeAssistant: %s %s",Watts," Watt")
+    return int(Watts)
+
 def GetPowermeterWattsTasmota():
     url = f'http://{TASMOTA_IP}/cm?cmnd=status%2010'
     ParsedData = requests.get(url).json()
@@ -551,6 +560,25 @@ def GetPowermeterWattsIobroker():
     logger.info("powermeter IOBROKER: %s %s",Watts," Watt")
     return int(Watts)
 
+def GetPowermeterWattsHomeAssistant():
+    if not HA_POWER_CALCULATE:
+        url = f"http://{HA_IP}:{HA_PORT}/api/states/{HA_CURRENT_POWER_ENTITY}"
+        headers = {"Authorization": "Bearer " + HA_ACCESSTOKEN, "content-type": "application/json"}
+        ParsedData = requests.get(url, headers=headers).json()
+        Watts = int(ParsedData['state'])
+    else:
+        url = f"http://{HA_IP}:{HA_PORT}/api/states/{HA_POWER_INPUT_ALIAS}"
+        headers = {"Authorization": "Bearer " + HA_ACCESSTOKEN, "content-type": "application/json"}
+        ParsedData = requests.get(url, headers=headers).json()
+        input = int(ParsedData['state'])
+        url = f"http://{HA_IP}:{HA_PORT}/api/states/{HA_POWER_OUTPUT_ALIAS}"
+        headers = {"Authorization": "Bearer " + HA_ACCESSTOKEN, "content-type": "application/json"}
+        ParsedData = requests.get(url, headers=headers).json()
+        output = int(ParsedData['state'])
+        Watts = int(input - output)
+    logger.info("powermeter HomeAssistant: %s %s",Watts," Watt")
+    return int(Watts)
+
 def GetPowermeterWatts():
     try:
         if USE_SHELLY_3EM:
@@ -565,6 +593,8 @@ def GetPowermeterWatts():
             return GetPowermeterWattsEmlog()
         elif USE_IOBROKER:
             return GetPowermeterWattsIobroker()
+        elif USE_HOMEASSISTANT:
+            return GetPowermeterWattsHomeAssistant()
         else:
             raise Exception("Error: no powermeter defined!")
     except Exception as e:
@@ -630,6 +660,7 @@ USE_SHELLY_3EM_PRO = config.getboolean('SELECT_POWERMETER', 'USE_SHELLY_3EM_PRO'
 USE_SHRDZM = config.getboolean('SELECT_POWERMETER', 'USE_SHRDZM')
 USE_EMLOG = config.getboolean('SELECT_POWERMETER', 'USE_EMLOG')
 USE_IOBROKER = config.getboolean('SELECT_POWERMETER', 'USE_IOBROKER')
+USE_HOMEASSISTANT = config.getboolean('SELECT_POWERMETER', 'USE_HOMEASSISTANT')
 AHOY_IP = config.get('AHOY_DTU', 'AHOY_IP')
 OPENDTU_IP = config.get('OPEN_DTU', 'OPENDTU_IP')
 OPENDTU_USER = config.get('OPEN_DTU', 'OPENDTU_USER')
@@ -653,6 +684,13 @@ IOBROKER_CURRENT_POWER_ALIAS = config.get('IOBROKER', 'IOBROKER_CURRENT_POWER_AL
 IOBROKER_POWER_CALCULATE = config.getboolean('IOBROKER', 'IOBROKER_POWER_CALCULATE')
 IOBROKER_POWER_INPUT_ALIAS = config.get('IOBROKER', 'IOBROKER_POWER_INPUT_ALIAS')
 IOBROKER_POWER_OUTPUT_ALIAS = config.get('IOBROKER', 'IOBROKER_POWER_OUTPUT_ALIAS')
+HA_IP = config.get('HOMEASSISTANT', 'HA_IP')
+HA_PORT = config.get('HOMEASSISTANT', 'HA_PORT')
+HA_ACCESSTOKEN = config.get('HOMEASSISTANT', 'HA_ACCESSTOKEN')
+HA_CURRENT_POWER_ENTITY = config.get('HOMEASSISTANT', 'HA_CURRENT_POWER_ENTITY')
+HA_POWER_CALCULATE = config.getboolean('HOMEASSISTANT', 'HA_POWER_CALCULATE')
+HA_POWER_INPUT_ALIAS = config.get('HOMEASSISTANT', 'HA_POWER_INPUT_ALIAS')
+HA_POWER_OUTPUT_ALIAS = config.get('HOMEASSISTANT', 'HA_POWER_OUTPUT_ALIAS')
 USE_TASMOTA_INTERMEDIATE = config.getboolean('SELECT_INTERMEDIATE_METER', 'USE_TASMOTA_INTERMEDIATE')
 USE_SHELLY_3EM_INTERMEDIATE = config.getboolean('SELECT_INTERMEDIATE_METER', 'USE_SHELLY_3EM_INTERMEDIATE')
 USE_SHELLY_3EM_PRO_INTERMEDIATE = config.getboolean('SELECT_INTERMEDIATE_METER', 'USE_SHELLY_3EM_PRO_INTERMEDIATE')
@@ -661,6 +699,7 @@ USE_SHELLY_PLUS_1PM_INTERMEDIATE = config.getboolean('SELECT_INTERMEDIATE_METER'
 USE_SHRDZM_INTERMEDIATE = config.getboolean('SELECT_INTERMEDIATE_METER', 'USE_SHRDZM_INTERMEDIATE')
 USE_EMLOG_INTERMEDIATE = config.getboolean('SELECT_INTERMEDIATE_METER', 'USE_EMLOG_INTERMEDIATE')
 USE_IOBROKER_INTERMEDIATE = config.getboolean('SELECT_INTERMEDIATE_METER', 'USE_IOBROKER_INTERMEDIATE')
+USE_HOMEASSISTANT_INTERMEDIATE = config.getboolean('SELECT_INTERMEDIATE_METER', 'USE_HOMEASSISTANT_INTERMEDIATE')
 TASMOTA_IP_INTERMEDIATE = config.get('INTERMEDIATE_TASMOTA', 'TASMOTA_IP_INTERMEDIATE')
 TASMOTA_JSON_STATUS_INTERMEDIATE = config.get('INTERMEDIATE_TASMOTA', 'TASMOTA_JSON_STATUS_INTERMEDIATE')
 TASMOTA_JSON_PAYLOAD_MQTT_PREFIX_INTERMEDIATE = config.get('INTERMEDIATE_TASMOTA', 'TASMOTA_JSON_PAYLOAD_MQTT_PREFIX_INTERMEDIATE')
@@ -674,10 +713,15 @@ EMLOG_METERINDEX_INTERMEDIATE = config.get('INTERMEDIATE_EMLOG', 'EMLOG_METERIND
 IOBROKER_IP_INTERMEDIATE = config.get('INTERMEDIATE_IOBROKER', 'IOBROKER_IP_INTERMEDIATE')
 IOBROKER_PORT_INTERMEDIATE = config.get('INTERMEDIATE_IOBROKER', 'IOBROKER_PORT_INTERMEDIATE')
 IOBROKER_CURRENT_POWER_ALIAS_INTERMEDIATE = config.get('INTERMEDIATE_IOBROKER', 'IOBROKER_CURRENT_POWER_ALIAS_INTERMEDIATE')
+HA_IP_INTERMEDIATE = config.get('INTERMEDIATE_HOMEASSISTANT', 'HA_IP_INTERMEDIATE')
+HA_PORT_INTERMEDIATE = config.get('INTERMEDIATE_HOMEASSISTANT', 'HA_PORT_INTERMEDIATE')
+HA_ACCESSTOKEN_INTERMEDIATE = config.get('INTERMEDIATE_HOMEASSISTANT', 'HA_ACCESSTOKEN_INTERMEDIATE')
+HA_CURRENT_POWER_ENTITY_INTERMEDIATE = config.get('INTERMEDIATE_HOMEASSISTANT', 'HA_CURRENT_POWER_ENTITY_INTERMEDIATE')
 INVERTER_COUNT = config.getint('COMMON', 'INVERTER_COUNT')
 LOOP_INTERVAL_IN_SECONDS = config.getint('COMMON', 'LOOP_INTERVAL_IN_SECONDS')
 SET_LIMIT_DELAY_IN_SECONDS = config.getint('COMMON', 'SET_LIMIT_DELAY_IN_SECONDS')
 SET_LIMIT_DELAY_IN_SECONDS_MULTIPLE_INVERTER = config.getint('COMMON', 'SET_LIMIT_DELAY_IN_SECONDS_MULTIPLE_INVERTER')
+SET_POWER_STATUS_DELAY_IN_SECONDS = config.getint('COMMON', 'SET_POWER_STATUS_DELAY_IN_SECONDS')
 POLL_INTERVAL_IN_SECONDS = config.getint('COMMON', 'POLL_INTERVAL_IN_SECONDS')
 JUMP_TO_MAX_LIMIT_ON_GRID_USAGE = config.getboolean('COMMON', 'JUMP_TO_MAX_LIMIT_ON_GRID_USAGE')
 MAX_DIFFERENCE_BETWEEN_LIMIT_AND_OUTPUTPOWER = config.getint('COMMON', 'MAX_DIFFERENCE_BETWEEN_LIMIT_AND_OUTPUTPOWER')

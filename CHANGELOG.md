@@ -1,5 +1,15 @@
 # Changelog
 
+## V1.30
+### Script
+* use different wait time for turning inverter off or on
+* add HOME ASSISTANT support
+### Config
+* add: `[COMMON]`: `SET_POWER_STATUS_DELAY_IN_SECONDS` - delay time after turning the inverter off or on
+* add: `[SELECT_POWERMETER]`: `USE_HOMEASSISTANT`
+* add: section `[HOMEASSISTANT]` + section `[INTERMEDIATE_HOMEASSISTANT]`
+* add: `[SELECT_INTERMEDIATE_METER]`: `USE_HOMEASSISTANT_INTERMEDIATE`
+
 ## V1.29
 ### Script
 * on Startup: initialize inverter with lowest limit.
