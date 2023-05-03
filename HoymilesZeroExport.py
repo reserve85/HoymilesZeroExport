@@ -15,7 +15,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 __author__ = "Tobias Kraft"
-__version__ = "1.28"
+__version__ = "1.32"
 
 import requests
 import time
@@ -94,7 +94,7 @@ def SetLimit(pLimit):
                 SetLimit.LastLimit = pLimit
                 SetLimit.SameLimitCnt = 0
             if SetLimit.SameLimitCnt >= SET_LIMIT_RETRY:
-                logger.info("Set Limit Retry Counter exceeded: Inverterlimit already at %s Watt",int(pLimit))
+                logger.info("Retry Counter exceeded: Inverterlimit already at %s Watt",int(pLimit))
                 time.sleep(SET_LIMIT_DELAY_IN_SECONDS)
                 return
         logger.info("setting new limit to %s Watt",int(pLimit))
@@ -106,6 +106,10 @@ def SetLimit(pLimit):
             Factor = HOY_MAX_WATT[i] / GetMaxWattFromAllInverters()
             NewLimit = int(pLimit*Factor)
             NewLimit = ApplyLimitsToSetpointInverter(i, NewLimit)
+            if HOY_COMPENSATE_WATT_FACTOR[i] != 1:
+                logger.info('Ahoy: Inverter "%s": compensate Limit from %s Watt to %s Watt', NAME[i], int(NewLimit), int(NewLimit*HOY_COMPENSATE_WATT_FACTOR[i]))
+                NewLimit = int(NewLimit * HOY_COMPENSATE_WATT_FACTOR[i])
+                NewLimit = ApplyLimitsToMaxInverterLimits(i, NewLimit)
             if USE_AHOY:
                 SetLimitAhoy(i, NewLimit)
             elif USE_OPENDTU:
@@ -291,8 +295,10 @@ def SetHoymilesPowerStatus(pInverterId, pActive):
                 SetLimit.LastPowerStatus[pInverterId] = pActive
                 SetLimit.SamePowerStatusCnt[pInverterId] = 0
             if SetLimit.SamePowerStatusCnt[pInverterId] >= SET_LIMIT_RETRY:
-                logger.info("Set Limit Retry Counter exceeded: Inverter PowerStatus already %s",int(pActive))
-                time.sleep(SET_LIMIT_DELAY_IN_SECONDS)
+                if pActive:
+                    logger.info("Retry Counter exceeded: Inverter PowerStatus already ON")
+                else:
+                    logger.info("Retry Counter exceeded: Inverter PowerStatus already OFF")
                 return
         if USE_AHOY:
             SetHoymilesPowerStatusAhoy(pInverterId, pActive)
@@ -300,7 +306,7 @@ def SetHoymilesPowerStatus(pInverterId, pActive):
             SetHoymilesPowerStatusOpenDTU(pInverterId, pActive)
         else:
             raise Exception("Error: DTU Type not defined")
-        time.sleep(SET_LIMIT_DELAY_IN_SECONDS)
+        time.sleep(SET_POWER_STATUS_DELAY_IN_SECONDS)
     except Exception as e:
         logger.error("Exception at SetHoymilesPowerStatus")
         if hasattr(e, 'message'):
@@ -410,6 +416,8 @@ def GetHoymilesActualPower():
             return GetPowermeterWattsEmlog_Intermediate()
         elif USE_IOBROKER_INTERMEDIATE:
             return GetPowermeterWattsIobroker_Intermediate()
+        elif USE_HOMEASSISTANT_INTERMEDIATE:
+            return GetPowermeterWattsHomeAssistant_Intermediate()
         elif USE_AHOY:
             for i in range(INVERTER_COUNT):
                 if (not AVAILABLE[i]) or (not HOY_POWER_STATUS[i]):
@@ -488,6 +496,14 @@ def GetPowermeterWattsIobroker_Intermediate():
     logger.info("intermediate meter IOBROKER: %s %s",Watts," Watt")
     return int(Watts)
 
+def GetPowermeterWattsHomeAssistant_Intermediate():
+    url = f"http://{HA_IP_INTERMEDIATE}:{HA_PORT_INTERMEDIATE}/api/states/{HA_CURRENT_POWER_ENTITY_INTERMEDIATE}"
+    headers = {"Authorization": "Bearer " + HA_ACCESSTOKEN_INTERMEDIATE, "content-type": "application/json"}
+    ParsedData = requests.get(url, headers=headers).json()
+    Watts = int(ParsedData['state'])
+    logger.info("intermediate meter HomeAssistant: %s %s",Watts," Watt")
+    return int(Watts)
+
 def GetPowermeterWattsTasmota():
     url = f'http://{TASMOTA_IP}/cm?cmnd=status%2010'
     ParsedData = requests.get(url).json()
@@ -548,6 +564,25 @@ def GetPowermeterWattsIobroker():
     logger.info("powermeter IOBROKER: %s %s",Watts," Watt")
     return int(Watts)
 
+def GetPowermeterWattsHomeAssistant():
+    if not HA_POWER_CALCULATE:
+        url = f"http://{HA_IP}:{HA_PORT}/api/states/{HA_CURRENT_POWER_ENTITY}"
+        headers = {"Authorization": "Bearer " + HA_ACCESSTOKEN, "content-type": "application/json"}
+        ParsedData = requests.get(url, headers=headers).json()
+        Watts = int(ParsedData['state'])
+    else:
+        url = f"http://{HA_IP}:{HA_PORT}/api/states/{HA_POWER_INPUT_ALIAS}"
+        headers = {"Authorization": "Bearer " + HA_ACCESSTOKEN, "content-type": "application/json"}
+        ParsedData = requests.get(url, headers=headers).json()
+        input = int(ParsedData['state'])
+        url = f"http://{HA_IP}:{HA_PORT}/api/states/{HA_POWER_OUTPUT_ALIAS}"
+        headers = {"Authorization": "Bearer " + HA_ACCESSTOKEN, "content-type": "application/json"}
+        ParsedData = requests.get(url, headers=headers).json()
+        output = int(ParsedData['state'])
+        Watts = int(input - output)
+    logger.info("powermeter HomeAssistant: %s %s",Watts," Watt")
+    return int(Watts)
+
 def GetPowermeterWatts():
     try:
         if USE_SHELLY_3EM:
@@ -562,6 +597,8 @@ def GetPowermeterWatts():
             return GetPowermeterWattsEmlog()
         elif USE_IOBROKER:
             return GetPowermeterWattsIobroker()
+        elif USE_HOMEASSISTANT:
+            return GetPowermeterWattsHomeAssistant()
         else:
             raise Exception("Error: no powermeter defined!")
     except Exception as e:
@@ -591,6 +628,13 @@ def ApplyLimitsToSetpoint(pSetpoint):
 def ApplyLimitsToSetpointInverter(pInverter, pSetpoint):
     if pSetpoint > HOY_MAX_WATT[pInverter]:
         pSetpoint = HOY_MAX_WATT[pInverter]
+    if pSetpoint < HOY_MIN_WATT[pInverter]:
+        pSetpoint = HOY_MIN_WATT[pInverter]
+    return pSetpoint
+
+def ApplyLimitsToMaxInverterLimits(pInverter, pSetpoint):
+    if pSetpoint > HOY_INVERTER_WATT[pInverter]:
+        pSetpoint = HOY_INVERTER_WATT[pInverter]
     if pSetpoint < HOY_MIN_WATT[pInverter]:
         pSetpoint = HOY_MIN_WATT[pInverter]
     return pSetpoint
@@ -627,6 +671,7 @@ USE_SHELLY_3EM_PRO = config.getboolean('SELECT_POWERMETER', 'USE_SHELLY_3EM_PRO'
 USE_SHRDZM = config.getboolean('SELECT_POWERMETER', 'USE_SHRDZM')
 USE_EMLOG = config.getboolean('SELECT_POWERMETER', 'USE_EMLOG')
 USE_IOBROKER = config.getboolean('SELECT_POWERMETER', 'USE_IOBROKER')
+USE_HOMEASSISTANT = config.getboolean('SELECT_POWERMETER', 'USE_HOMEASSISTANT')
 AHOY_IP = config.get('AHOY_DTU', 'AHOY_IP')
 OPENDTU_IP = config.get('OPEN_DTU', 'OPENDTU_IP')
 OPENDTU_USER = config.get('OPEN_DTU', 'OPENDTU_USER')
@@ -650,6 +695,13 @@ IOBROKER_CURRENT_POWER_ALIAS = config.get('IOBROKER', 'IOBROKER_CURRENT_POWER_AL
 IOBROKER_POWER_CALCULATE = config.getboolean('IOBROKER', 'IOBROKER_POWER_CALCULATE')
 IOBROKER_POWER_INPUT_ALIAS = config.get('IOBROKER', 'IOBROKER_POWER_INPUT_ALIAS')
 IOBROKER_POWER_OUTPUT_ALIAS = config.get('IOBROKER', 'IOBROKER_POWER_OUTPUT_ALIAS')
+HA_IP = config.get('HOMEASSISTANT', 'HA_IP')
+HA_PORT = config.get('HOMEASSISTANT', 'HA_PORT')
+HA_ACCESSTOKEN = config.get('HOMEASSISTANT', 'HA_ACCESSTOKEN')
+HA_CURRENT_POWER_ENTITY = config.get('HOMEASSISTANT', 'HA_CURRENT_POWER_ENTITY')
+HA_POWER_CALCULATE = config.getboolean('HOMEASSISTANT', 'HA_POWER_CALCULATE')
+HA_POWER_INPUT_ALIAS = config.get('HOMEASSISTANT', 'HA_POWER_INPUT_ALIAS')
+HA_POWER_OUTPUT_ALIAS = config.get('HOMEASSISTANT', 'HA_POWER_OUTPUT_ALIAS')
 USE_TASMOTA_INTERMEDIATE = config.getboolean('SELECT_INTERMEDIATE_METER', 'USE_TASMOTA_INTERMEDIATE')
 USE_SHELLY_3EM_INTERMEDIATE = config.getboolean('SELECT_INTERMEDIATE_METER', 'USE_SHELLY_3EM_INTERMEDIATE')
 USE_SHELLY_3EM_PRO_INTERMEDIATE = config.getboolean('SELECT_INTERMEDIATE_METER', 'USE_SHELLY_3EM_PRO_INTERMEDIATE')
@@ -658,6 +710,7 @@ USE_SHELLY_PLUS_1PM_INTERMEDIATE = config.getboolean('SELECT_INTERMEDIATE_METER'
 USE_SHRDZM_INTERMEDIATE = config.getboolean('SELECT_INTERMEDIATE_METER', 'USE_SHRDZM_INTERMEDIATE')
 USE_EMLOG_INTERMEDIATE = config.getboolean('SELECT_INTERMEDIATE_METER', 'USE_EMLOG_INTERMEDIATE')
 USE_IOBROKER_INTERMEDIATE = config.getboolean('SELECT_INTERMEDIATE_METER', 'USE_IOBROKER_INTERMEDIATE')
+USE_HOMEASSISTANT_INTERMEDIATE = config.getboolean('SELECT_INTERMEDIATE_METER', 'USE_HOMEASSISTANT_INTERMEDIATE')
 TASMOTA_IP_INTERMEDIATE = config.get('INTERMEDIATE_TASMOTA', 'TASMOTA_IP_INTERMEDIATE')
 TASMOTA_JSON_STATUS_INTERMEDIATE = config.get('INTERMEDIATE_TASMOTA', 'TASMOTA_JSON_STATUS_INTERMEDIATE')
 TASMOTA_JSON_PAYLOAD_MQTT_PREFIX_INTERMEDIATE = config.get('INTERMEDIATE_TASMOTA', 'TASMOTA_JSON_PAYLOAD_MQTT_PREFIX_INTERMEDIATE')
@@ -671,10 +724,15 @@ EMLOG_METERINDEX_INTERMEDIATE = config.get('INTERMEDIATE_EMLOG', 'EMLOG_METERIND
 IOBROKER_IP_INTERMEDIATE = config.get('INTERMEDIATE_IOBROKER', 'IOBROKER_IP_INTERMEDIATE')
 IOBROKER_PORT_INTERMEDIATE = config.get('INTERMEDIATE_IOBROKER', 'IOBROKER_PORT_INTERMEDIATE')
 IOBROKER_CURRENT_POWER_ALIAS_INTERMEDIATE = config.get('INTERMEDIATE_IOBROKER', 'IOBROKER_CURRENT_POWER_ALIAS_INTERMEDIATE')
+HA_IP_INTERMEDIATE = config.get('INTERMEDIATE_HOMEASSISTANT', 'HA_IP_INTERMEDIATE')
+HA_PORT_INTERMEDIATE = config.get('INTERMEDIATE_HOMEASSISTANT', 'HA_PORT_INTERMEDIATE')
+HA_ACCESSTOKEN_INTERMEDIATE = config.get('INTERMEDIATE_HOMEASSISTANT', 'HA_ACCESSTOKEN_INTERMEDIATE')
+HA_CURRENT_POWER_ENTITY_INTERMEDIATE = config.get('INTERMEDIATE_HOMEASSISTANT', 'HA_CURRENT_POWER_ENTITY_INTERMEDIATE')
 INVERTER_COUNT = config.getint('COMMON', 'INVERTER_COUNT')
 LOOP_INTERVAL_IN_SECONDS = config.getint('COMMON', 'LOOP_INTERVAL_IN_SECONDS')
 SET_LIMIT_DELAY_IN_SECONDS = config.getint('COMMON', 'SET_LIMIT_DELAY_IN_SECONDS')
 SET_LIMIT_DELAY_IN_SECONDS_MULTIPLE_INVERTER = config.getint('COMMON', 'SET_LIMIT_DELAY_IN_SECONDS_MULTIPLE_INVERTER')
+SET_POWER_STATUS_DELAY_IN_SECONDS = config.getint('COMMON', 'SET_POWER_STATUS_DELAY_IN_SECONDS')
 POLL_INTERVAL_IN_SECONDS = config.getint('COMMON', 'POLL_INTERVAL_IN_SECONDS')
 JUMP_TO_MAX_LIMIT_ON_GRID_USAGE = config.getboolean('COMMON', 'JUMP_TO_MAX_LIMIT_ON_GRID_USAGE')
 MAX_DIFFERENCE_BETWEEN_LIMIT_AND_OUTPUTPOWER = config.getint('COMMON', 'MAX_DIFFERENCE_BETWEEN_LIMIT_AND_OUTPUTPOWER')
@@ -692,6 +750,7 @@ HOY_INVERTER_WATT = []
 HOY_MIN_WATT = []
 CURRENT_LIMIT = []
 AVAILABLE = []
+HOY_COMPENSATE_WATT_FACTOR = []
 HOY_BATTERY_MODE = []
 HOY_BATTERY_THRESHOLD_OFF_LIMIT_IN_V = []
 HOY_BATTERY_THRESHOLD_REDUCE_LIMIT_IN_V = []
@@ -719,6 +778,7 @@ for i in range(INVERTER_COUNT):
     HOY_BATTERY_REDUCE_WATT.append(config.getint('INVERTER_' + str(i + 1), 'HOY_BATTERY_REDUCE_WATT'))
     HOY_BATTERY_THRESHOLD_ON_LIMIT_IN_V.append(config.getfloat('INVERTER_' + str(i + 1), 'HOY_BATTERY_THRESHOLD_ON_LIMIT_IN_V'))
     HOY_POWER_STATUS.append(bool(True))
+    HOY_COMPENSATE_WATT_FACTOR.append(config.getfloat('INVERTER_' + str(i + 1), 'HOY_COMPENSATE_WATT_FACTOR'))
 SLOW_APPROX_LIMIT = int(GetMaxWattFromAllInverters() * config.getint('COMMON', 'SLOW_APPROX_LIMIT_IN_PERCENT') / 100)
 
 try:
@@ -727,7 +787,8 @@ try:
     if GetHoymilesAvailable():
         for i in range(INVERTER_COUNT):
             SetHoymilesPowerStatus(i, True)
-        newLimitSetpoint = GetMaxWattFromAllInverters()
+        GetCheckBattery()
+        newLimitSetpoint = GetMinWattFromAllInverters()
         GetHoymilesActualPower()
         SetLimit(newLimitSetpoint)
     GetPowermeterWatts()
@@ -804,8 +865,7 @@ while True:
             # check for upper and lower limits
             newLimitSetpoint = ApplyLimitsToSetpoint(newLimitSetpoint)
             # set new limit to inverter
-            if newLimitSetpoint != PreviousLimitSetpoint:
-                SetLimit(newLimitSetpoint)
+            SetLimit(newLimitSetpoint)
         else:
             if hasattr(SetLimit, "LastLimit"):
                 SetLimit.LastLimit = -1

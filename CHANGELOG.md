@@ -1,5 +1,30 @@
 # Changelog
 
+## V1.32
+### Script
+* bugfix: cast to int
+
+## V1.31
+### Script
+* support of power-output-factor to compensate some Inverters (e.g. 700W Limit = 800W Output)
+### Config
+* add: `[INVERTER_x]`: `HOY_COMPENSATE_WATT_FACTOR` - enter your Factor here. Eg: if you set a limit of 750W = 850W Output -> enter Factor 0.88
+
+## V1.30
+### Script
+* use different wait time for turning inverter off or on
+* add HOME ASSISTANT support
+### Config
+* add: `[COMMON]`: `SET_POWER_STATUS_DELAY_IN_SECONDS` - delay time after turning the inverter off or on
+* add: `[SELECT_POWERMETER]`: `USE_HOMEASSISTANT`
+* add: section `[HOMEASSISTANT]` + section `[INTERMEDIATE_HOMEASSISTANT]`
+* add: `[SELECT_INTERMEDIATE_METER]`: `USE_HOMEASSISTANT_INTERMEDIATE`
+
+## V1.29
+### Script
+* on Startup: initialize inverter with lowest limit.
+* allow to send same Limits to inverter, use SET_LIMIT_RETRY to limit the repeats
+
 ## V1.28
 ### Script
 * add HOY_BATTERY_NORMAL_WATT: you can further limit the inverter in battery mode. E.g. if you have a 1500W Inverter you can limit the max. output power in battery mode to 750 Watts.
