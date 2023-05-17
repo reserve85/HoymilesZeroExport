@@ -1,5 +1,11 @@
 # Changelog
 
+## V1.33
+### Script
+* new function: CastToInt
+### Config
+* added some more comments
+
 ## V1.32
 ### Script
 * bugfix: cast to int
