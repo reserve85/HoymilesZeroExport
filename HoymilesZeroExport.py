@@ -15,7 +15,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 __author__ = "Tobias Kraft"
-__version__ = "1.32"
+__version__ = "1.33"
 
 import requests
 import time
@@ -64,12 +64,29 @@ if ENABLE_LOG_TO_FILE:
 
 logger.info('Log write to file: %s', ENABLE_LOG_TO_FILE)
 
+def CastToInt(pValueToCast):
+    try:
+        result = int(pValueToCast)
+        return result
+    except:
+        result = 0
+    try:
+        result = int(float(pValueToCast))
+        return result
+    except Exception as e:
+        logger.error("Exception at CastToInt")
+        if hasattr(e, 'message'):
+            logger.error(e.message)
+        else:
+            logger.error(e)
+        raise
+
 def SetLimitOpenDTU(pInverterId, pLimit):
-    relLimit = int(pLimit / HOY_INVERTER_WATT[pInverterId] * 100)
+    relLimit = CastToInt(pLimit / HOY_INVERTER_WATT[pInverterId] * 100)
     url=f"http://{OPENDTU_IP}/api/limit/config"
     data = f'''data={{"serial":"{SERIAL_NUMBER[pInverterId]}", "limit_type":1, "limit_value":{relLimit}}}'''
     headers = {'Content-Type': 'application/x-www-form-urlencoded'}
-    logger.info('OpenDTU: Inverter "%s": setting new limit from %s Watt to %s Watt',NAME[pInverterId],int(CURRENT_LIMIT[pInverterId]),int(pLimit))
+    logger.info('OpenDTU: Inverter "%s": setting new limit from %s Watt to %s Watt',NAME[pInverterId],CastToInt(CURRENT_LIMIT[pInverterId]),CastToInt(pLimit))
     requests.post(url, data=data, auth=HTTPBasicAuth(OPENDTU_USER, OPENDTU_PASS), headers=headers)
     CURRENT_LIMIT[pInverterId] = pLimit
 
@@ -77,7 +94,7 @@ def SetLimitAhoy(pInverterId, pLimit):
     url = f"http://{AHOY_IP}/api/ctrl"
     data = f'''{{"id": {pInverterId}, "cmd": "limit_nonpersistent_absolute", "val": {pLimit}}}'''
     headers = {'Content-type': 'application/json', 'Accept': 'text/plain'}
-    logger.info('Ahoy: Inverter "%s": setting new limit from %s Watt to %s Watt',NAME[pInverterId],int(CURRENT_LIMIT[pInverterId]),int(pLimit))
+    logger.info('Ahoy: Inverter "%s": setting new limit from %s Watt to %s Watt',NAME[pInverterId],CastToInt(CURRENT_LIMIT[pInverterId]),CastToInt(pLimit))
     requests.post(url, data=data, headers=headers)
     CURRENT_LIMIT[pInverterId] = pLimit
 
@@ -85,30 +102,30 @@ def SetLimit(pLimit):
     try:
         if SET_LIMIT_RETRY != -1:
             if not hasattr(SetLimit, "LastLimit"):
-                SetLimit.LastLimit = int(0)
+                SetLimit.LastLimit = CastToInt(0)
             if not hasattr(SetLimit, "SameLimitCnt"):
-                SetLimit.SameLimitCnt = int(0)
+                SetLimit.SameLimitCnt = CastToInt(0)
             if SetLimit.LastLimit == pLimit:
                 SetLimit.SameLimitCnt = SetLimit.SameLimitCnt + 1
             else:
                 SetLimit.LastLimit = pLimit
                 SetLimit.SameLimitCnt = 0
             if SetLimit.SameLimitCnt >= SET_LIMIT_RETRY:
-                logger.info("Retry Counter exceeded: Inverterlimit already at %s Watt",int(pLimit))
+                logger.info("Retry Counter exceeded: Inverterlimit already at %s Watt",CastToInt(pLimit))
                 time.sleep(SET_LIMIT_DELAY_IN_SECONDS)
                 return
-        logger.info("setting new limit to %s Watt",int(pLimit))
+        logger.info("setting new limit to %s Watt",CastToInt(pLimit))
         for i in range(INVERTER_COUNT):
             if (not AVAILABLE[i]) or (not HOY_POWER_STATUS[i]):
                 continue
             if i != 0:
                 time.sleep(SET_LIMIT_DELAY_IN_SECONDS_MULTIPLE_INVERTER)
             Factor = HOY_MAX_WATT[i] / GetMaxWattFromAllInverters()
-            NewLimit = int(pLimit*Factor)
+            NewLimit = CastToInt(pLimit*Factor)
             NewLimit = ApplyLimitsToSetpointInverter(i, NewLimit)
             if HOY_COMPENSATE_WATT_FACTOR[i] != 1:
-                logger.info('Ahoy: Inverter "%s": compensate Limit from %s Watt to %s Watt', NAME[i], int(NewLimit), int(NewLimit*HOY_COMPENSATE_WATT_FACTOR[i]))
-                NewLimit = int(NewLimit * HOY_COMPENSATE_WATT_FACTOR[i])
+                logger.info('Ahoy: Inverter "%s": compensate Limit from %s Watt to %s Watt', NAME[i], CastToInt(NewLimit), CastToInt(NewLimit*HOY_COMPENSATE_WATT_FACTOR[i]))
+                NewLimit = CastToInt(NewLimit * HOY_COMPENSATE_WATT_FACTOR[i])
                 NewLimit = ApplyLimitsToMaxInverterLimits(i, NewLimit)
             if USE_AHOY:
                 SetLimitAhoy(i, NewLimit)
@@ -258,7 +275,7 @@ def GetHoymilesPanelMinVoltage(pInverterId):
 
 def SetHoymilesPowerStatusAhoy(pInverterId, pActive):
     url = f"http://{AHOY_IP}/api/ctrl"
-    data = f'''{{"id": {pInverterId}, "cmd": "power", "val": {int(pActive == True)}}}'''
+    data = f'''{{"id": {pInverterId}, "cmd": "power", "val": {CastToInt(pActive == True)}}}'''
     headers = {'Content-type': 'application/json', 'Accept': 'text/plain'}
     if pActive:
         logger.info('Ahoy: Inverter "%s": Turn on',NAME[pInverterId])
@@ -269,7 +286,7 @@ def SetHoymilesPowerStatusAhoy(pInverterId, pActive):
 
 def SetHoymilesPowerStatusOpenDTU(pInverterId, pActive):
     url=f"http://{OPENDTU_IP}/api/power/config"
-    data = f'''data={{"serial":"{SERIAL_NUMBER[pInverterId]}", "power":{int(pActive == True)}}}'''
+    data = f'''data={{"serial":"{SERIAL_NUMBER[pInverterId]}", "power":{CastToInt(pActive == True)}}}'''
     headers = {'Content-Type': 'application/x-www-form-urlencoded'}
     if pActive:
         logger.info('OpenDTU: Inverter "%s": Turn on',NAME[pInverterId])
@@ -386,16 +403,16 @@ def GetHoymilesTemperature():
 def GetHoymilesActualPowerOpenDTU(pInverterId):
     url = f'http://{OPENDTU_IP}/api/livedata/status/inverters'
     ParsedData = requests.get(url, auth=HTTPBasicAuth(OPENDTU_USER, OPENDTU_PASS)).json()
-    ActualPower = int(ParsedData['inverters'][pInverterId]['AC']['0']['Power']['v'])
+    ActualPower = CastToInt(ParsedData['inverters'][pInverterId]['AC']['0']['Power']['v'])
     logger.info('OpenDTU: Inverter "%s" power producing: %s %s',NAME[pInverterId],ActualPower," Watt")
-    return int(ActualPower)
+    return CastToInt(ActualPower)
 
 def GetHoymilesActualPowerAhoy(pInverterId):
     url = f'http://{AHOY_IP}/api/record/live'
     ParsedData = requests.get(url).json()
-    ActualPower = int(float(next(item for item in ParsedData['inverter'][pInverterId] if item['fld'] == 'P_AC')['val']))
+    ActualPower = CastToInt(float(next(item for item in ParsedData['inverter'][pInverterId] if item['fld'] == 'P_AC')['val']))
     logger.info('Ahoy: Inverter "%s" power producing: %s %s',NAME[pInverterId],ActualPower," Watt")
-    return int(ActualPower)
+    return CastToInt(ActualPower)
 
 def GetHoymilesActualPower():
     try:
@@ -443,106 +460,106 @@ def GetHoymilesActualPower():
 def GetPowermeterWattsTasmota_Intermediate():
     url = f'http://{TASMOTA_IP_INTERMEDIATE}/cm?cmnd=status%2010'
     ParsedData = requests.get(url).json()
-    Watts = int(ParsedData[TASMOTA_JSON_STATUS_INTERMEDIATE][TASMOTA_JSON_PAYLOAD_MQTT_PREFIX_INTERMEDIATE][TASMOTA_JSON_POWER_MQTT_LABEL_INTERMEDIATE])
+    Watts = CastToInt(ParsedData[TASMOTA_JSON_STATUS_INTERMEDIATE][TASMOTA_JSON_PAYLOAD_MQTT_PREFIX_INTERMEDIATE][TASMOTA_JSON_POWER_MQTT_LABEL_INTERMEDIATE])
     logger.info("intermediate meter Tasmota: %s %s",Watts," Watt")
-    return int(Watts)
+    return CastToInt(Watts)
 
 def GetPowermeterWattsShelly1PM_Intermediate():
     url = f'http://{SHELLY_IP_INTERMEDIATE}/status'
     ParsedData = requests.get(url).json()
-    Watts = int(ParsedData['meters'][0]['power'])
+    Watts = CastToInt(ParsedData['meters'][0]['power'])
     logger.info("intermediate meter Shelly 1PM: %s %s",Watts," Watt")
-    return int(Watts)
+    return CastToInt(Watts)
 
 def GetPowermeterWattsShellyPlus1PM_Intermediate():
     url = f'http://{SHELLY_IP_INTERMEDIATE}/rpc/Switch.GetStatus?id=0'
     ParsedData = requests.get(url).json()
-    Watts = int(ParsedData['apower'])
+    Watts = CastToInt(ParsedData['apower'])
     logger.info("intermediate meter Shelly Plus 1PM: %s %s",Watts," Watt")
-    return int(Watts)
+    return CastToInt(Watts)
 
 def GetPowermeterWattsShelly3EM_Intermediate():
     url = f'http://{SHELLY_IP_INTERMEDIATE}/status'
     ParsedData = requests.get(url).json()
-    Watts = int(ParsedData['total_power'])
+    Watts = CastToInt(ParsedData['total_power'])
     logger.info("intermediate meter Shelly 3EM: %s %s",Watts," Watt")
-    return int(Watts)
+    return CastToInt(Watts)
 
 def GetPowermeterWattsShelly3EMPro_Intermediate():
     url = f'http://{SHELLY_IP_INTERMEDIATE}/rpc/EM.GetStatus?id=0'
     ParsedData = requests.get(url).json()
-    Watts = int(ParsedData['total_act_power'])
+    Watts = CastToInt(ParsedData['total_act_power'])
     logger.info("intermediate meter Shelly 3EM Pro: %s %s",Watts," Watt")
-    return int(Watts)
+    return CastToInt(Watts)
 
 def GetPowermeterWattsShrdzm_Intermediate():
     url = f'http://{SHRDZM_IP_INTERMEDIATE}/getLastData?user={SHRDZM_USER_INTERMEDIATE}&password={SHRDZM_PASS_INTERMEDIATE}'
     ParsedData = requests.get(url).json()
-    Watts = int(int(ParsedData['1.7.0']) - int(ParsedData['2.7.0']))
+    Watts = CastToInt(CastToInt(ParsedData['1.7.0']) - CastToInt(ParsedData['2.7.0']))
     logger.info("intermediate meter SHRDZM: %s %s",Watts," Watt")
-    return int(Watts)
+    return CastToInt(Watts)
 
 def GetPowermeterWattsEmlog_Intermediate():
     url = f'http://{EMLOG_IP_INTERMEDIATE}/pages/getinformation.php?heute&meterindex={EMLOG_METERINDEX_INTERMEDIATE}'
     ParsedData = requests.get(url).json()
-    Watts = int(ParsedData['Leistung170'])
+    Watts = CastToInt(ParsedData['Leistung170'])
     logger.info("intermediate meter EMLOG: %s %s",Watts," Watt")
-    return int(Watts)
+    return CastToInt(Watts)
 
 def GetPowermeterWattsIobroker_Intermediate():
     url = f'http://{IOBROKER_IP_INTERMEDIATE}:{IOBROKER_PORT_INTERMEDIATE}/getBulk/{IOBROKER_CURRENT_POWER_ALIAS_INTERMEDIATE}'
     ParsedData = requests.get(url).json()
-    Watts = int(ParsedData[0]['val'])
+    Watts = CastToInt(ParsedData[0]['val'])
     logger.info("intermediate meter IOBROKER: %s %s",Watts," Watt")
-    return int(Watts)
+    return CastToInt(Watts)
 
 def GetPowermeterWattsHomeAssistant_Intermediate():
     url = f"http://{HA_IP_INTERMEDIATE}:{HA_PORT_INTERMEDIATE}/api/states/{HA_CURRENT_POWER_ENTITY_INTERMEDIATE}"
     headers = {"Authorization": "Bearer " + HA_ACCESSTOKEN_INTERMEDIATE, "content-type": "application/json"}
     ParsedData = requests.get(url, headers=headers).json()
-    Watts = int(ParsedData['state'])
+    Watts = CastToInt(ParsedData['state'])
     logger.info("intermediate meter HomeAssistant: %s %s",Watts," Watt")
-    return int(Watts)
+    return CastToInt(Watts)
 
 def GetPowermeterWattsTasmota():
     url = f'http://{TASMOTA_IP}/cm?cmnd=status%2010'
     ParsedData = requests.get(url).json()
     if not TASMOTA_JSON_POWER_CALCULATE:
-        Watts = int(ParsedData[TASMOTA_JSON_STATUS][TASMOTA_JSON_PAYLOAD_MQTT_PREFIX][TASMOTA_JSON_POWER_MQTT_LABEL])
+        Watts = CastToInt(ParsedData[TASMOTA_JSON_STATUS][TASMOTA_JSON_PAYLOAD_MQTT_PREFIX][TASMOTA_JSON_POWER_MQTT_LABEL])
     else:
         input = ParsedData[TASMOTA_JSON_STATUS][TASMOTA_JSON_PAYLOAD_MQTT_PREFIX][TASMOTA_JSON_POWER_INPUT_MQTT_LABEL]
         ouput = ParsedData[TASMOTA_JSON_STATUS][TASMOTA_JSON_PAYLOAD_MQTT_PREFIX][TASMOTA_JSON_POWER_OUTPUT_MQTT_LABEL]
-        Watts = int(input - ouput)
+        Watts = CastToInt(input - ouput)
     logger.info("powermeter Tasmota: %s %s",Watts," Watt")
-    return int(Watts)
+    return CastToInt(Watts)
 
 def GetPowermeterWattsShelly3EM():
     url = f'http://{SHELLY_IP}/status'
     ParsedData = requests.get(url).json()
-    Watts = int(ParsedData['total_power'])
+    Watts = CastToInt(ParsedData['total_power'])
     logger.info("powermeter Shelly 3EM: %s %s",Watts," Watt")
-    return int(Watts)
+    return CastToInt(Watts)
 
 def GetPowermeterWattsShelly3EMPro():
     url = f'http://{SHELLY_IP}/rpc/EM.GetStatus?id=0'
     ParsedData = requests.get(url).json()
-    Watts = int(ParsedData['total_act_power'])
+    Watts = CastToInt(ParsedData['total_act_power'])
     logger.info("powermeter Shelly 3EM Pro: %s %s",Watts," Watt")
-    return int(Watts)
+    return CastToInt(Watts)
 
 def GetPowermeterWattsShrdzm():
     url = f'http://{SHRDZM_IP}/getLastData?user={SHRDZM_USER}&password={SHRDZM_PASS}'
     ParsedData = requests.get(url).json()
-    Watts = int(int(ParsedData['1.7.0']) - int(ParsedData['2.7.0']))
+    Watts = CastToInt(CastToInt(ParsedData['1.7.0']) - CastToInt(ParsedData['2.7.0']))
     logger.info("powermeter SHRDZM: %s %s",Watts," Watt")
-    return int(Watts)
+    return CastToInt(Watts)
 
 def GetPowermeterWattsEmlog():
     url = f'http://{EMLOG_IP}/pages/getinformation.php?heute&meterindex={EMLOG_METERINDEX}'
     ParsedData = requests.get(url).json()
-    Watts = int(int(ParsedData['Leistung170']) - int(ParsedData['Leistung270']))
+    Watts = CastToInt(CastToInt(ParsedData['Leistung170']) - CastToInt(ParsedData['Leistung270']))
     logger.info("powermeter EMLOG: %s %s",Watts," Watt")
-    return int(Watts)
+    return CastToInt(Watts)
 
 def GetPowermeterWattsIobroker():
     if not IOBROKER_POWER_CALCULATE:
@@ -550,38 +567,38 @@ def GetPowermeterWattsIobroker():
         ParsedData = requests.get(url).json()
         for item in ParsedData:
             if item['id'] == IOBROKER_CURRENT_POWER_ALIAS:
-                Watts = int(item['val'])
+                Watts = CastToInt(item['val'])
                 break
     else:
         url = f'http://{IOBROKER_IP}:{IOBROKER_PORT}/getBulk/{IOBROKER_POWER_INPUT_ALIAS},{IOBROKER_POWER_OUTPUT_ALIAS}'
         ParsedData = requests.get(url).json()
         for item in ParsedData:
             if item['id'] == IOBROKER_POWER_INPUT_ALIAS:
-                input = int(item['val'])
+                input = CastToInt(item['val'])
             if item['id'] == IOBROKER_POWER_OUTPUT_ALIAS:
-                output = int(item['val'])
-        Watts = int(input - output)
+                output = CastToInt(item['val'])
+        Watts = CastToInt(input - output)
     logger.info("powermeter IOBROKER: %s %s",Watts," Watt")
-    return int(Watts)
+    return CastToInt(Watts)
 
 def GetPowermeterWattsHomeAssistant():
     if not HA_POWER_CALCULATE:
         url = f"http://{HA_IP}:{HA_PORT}/api/states/{HA_CURRENT_POWER_ENTITY}"
         headers = {"Authorization": "Bearer " + HA_ACCESSTOKEN, "content-type": "application/json"}
         ParsedData = requests.get(url, headers=headers).json()
-        Watts = int(ParsedData['state'])
+        Watts = CastToInt(ParsedData['state'])
     else:
         url = f"http://{HA_IP}:{HA_PORT}/api/states/{HA_POWER_INPUT_ALIAS}"
         headers = {"Authorization": "Bearer " + HA_ACCESSTOKEN, "content-type": "application/json"}
         ParsedData = requests.get(url, headers=headers).json()
-        input = int(ParsedData['state'])
+        input = CastToInt(ParsedData['state'])
         url = f"http://{HA_IP}:{HA_PORT}/api/states/{HA_POWER_OUTPUT_ALIAS}"
         headers = {"Authorization": "Bearer " + HA_ACCESSTOKEN, "content-type": "application/json"}
         ParsedData = requests.get(url, headers=headers).json()
-        output = int(ParsedData['state'])
-        Watts = int(input - output)
+        output = CastToInt(ParsedData['state'])
+        Watts = CastToInt(input - output)
     logger.info("powermeter HomeAssistant: %s %s",Watts," Watt")
-    return int(Watts)
+    return CastToInt(Watts)
 
 def GetPowermeterWatts():
     try:
@@ -614,9 +631,9 @@ def CutLimitToProduction(pSetpoint):
         ActualPower = GetHoymilesActualPower()
         # prevent the setpoint from running away...
         if pSetpoint > ActualPower + (GetMaxWattFromAllInverters() * MAX_DIFFERENCE_BETWEEN_LIMIT_AND_OUTPUTPOWER / 100):
-            pSetpoint = int(ActualPower + (GetMaxWattFromAllInverters() * MAX_DIFFERENCE_BETWEEN_LIMIT_AND_OUTPUTPOWER / 100))
-            logger.info('Cut limit to %s Watt, limit was higher than %s percent of live-production', int(pSetpoint), MAX_DIFFERENCE_BETWEEN_LIMIT_AND_OUTPUTPOWER)
-    return int(pSetpoint)
+            pSetpoint = CastToInt(ActualPower + (GetMaxWattFromAllInverters() * MAX_DIFFERENCE_BETWEEN_LIMIT_AND_OUTPUTPOWER / 100))
+            logger.info('Cut limit to %s Watt, limit was higher than %s percent of live-production', CastToInt(pSetpoint), MAX_DIFFERENCE_BETWEEN_LIMIT_AND_OUTPUTPOWER)
+    return CastToInt(pSetpoint)
 
 def ApplyLimitsToSetpoint(pSetpoint):
     if pSetpoint > GetMaxWattFromAllInverters():
@@ -779,7 +796,7 @@ for i in range(INVERTER_COUNT):
     HOY_BATTERY_THRESHOLD_ON_LIMIT_IN_V.append(config.getfloat('INVERTER_' + str(i + 1), 'HOY_BATTERY_THRESHOLD_ON_LIMIT_IN_V'))
     HOY_POWER_STATUS.append(bool(True))
     HOY_COMPENSATE_WATT_FACTOR.append(config.getfloat('INVERTER_' + str(i + 1), 'HOY_COMPENSATE_WATT_FACTOR'))
-SLOW_APPROX_LIMIT = int(GetMaxWattFromAllInverters() * config.getint('COMMON', 'SLOW_APPROX_LIMIT_IN_PERCENT') / 100)
+SLOW_APPROX_LIMIT = CastToInt(GetMaxWattFromAllInverters() * config.getint('COMMON', 'SLOW_APPROX_LIMIT_IN_PERCENT') / 100)
 
 try:
     logger.info("---Init---")
@@ -807,7 +824,7 @@ while True:
         if GetHoymilesAvailable() and GetCheckBattery():
             if LOG_TEMPERATURE:
                 GetHoymilesTemperature()
-            for x in range(int(LOOP_INTERVAL_IN_SECONDS / POLL_INTERVAL_IN_SECONDS)):
+            for x in range(CastToInt(LOOP_INTERVAL_IN_SECONDS / POLL_INTERVAL_IN_SECONDS)):
                 powermeterWatts = GetPowermeterWatts()
                 if powermeterWatts > POWERMETER_MAX_POINT:
                     if JUMP_TO_MAX_LIMIT_ON_GRID_USAGE:
@@ -816,10 +833,10 @@ while True:
                         newLimitSetpoint = PreviousLimitSetpoint + powermeterWatts - POWERMETER_TARGET_POINT
                     newLimitSetpoint = ApplyLimitsToSetpoint(newLimitSetpoint)
                     SetLimit(newLimitSetpoint)
-                    if int(LOOP_INTERVAL_IN_SECONDS) - SET_LIMIT_DELAY_IN_SECONDS - x * POLL_INTERVAL_IN_SECONDS <= 0:
+                    if CastToInt(LOOP_INTERVAL_IN_SECONDS) - SET_LIMIT_DELAY_IN_SECONDS - x * POLL_INTERVAL_IN_SECONDS <= 0:
                         break
                     else:
-                        time.sleep(int(LOOP_INTERVAL_IN_SECONDS) - SET_LIMIT_DELAY_IN_SECONDS - x * POLL_INTERVAL_IN_SECONDS)
+                        time.sleep(CastToInt(LOOP_INTERVAL_IN_SECONDS) - SET_LIMIT_DELAY_IN_SECONDS - x * POLL_INTERVAL_IN_SECONDS)
                     break
                 else:
                     time.sleep(POLL_INTERVAL_IN_SECONDS)
