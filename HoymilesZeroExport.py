@@ -15,7 +15,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 __author__ = "Tobias Kraft"
-__version__ = "1.33"
+__version__ = "1.34"
 
 import requests
 import time
@@ -466,13 +466,17 @@ def GetPowermeterWattsTasmota_Intermediate():
 
 def GetPowermeterWattsShelly1PM_Intermediate():
     url = f'http://{SHELLY_IP_INTERMEDIATE}/status'
-    ParsedData = requests.get(url).json()
+    headers = {"content-type": "application/json"}
+    ParsedData = requests.get(url, headers=headers, auth=(SHELLY_USER_INTERMEDIATE,SHELLY_PASS_INTERMEDIATE)).json()
     Watts = CastToInt(ParsedData['meters'][0]['power'])
     logger.info("intermediate meter Shelly 1PM: %s %s",Watts," Watt")
     return CastToInt(Watts)
 
 def GetPowermeterWattsShellyPlus1PM_Intermediate():
-    url = f'http://{SHELLY_IP_INTERMEDIATE}/rpc/Switch.GetStatus?id=0'
+    if SHELLY_USER_INTERMEDIATE == "":
+        url = f'http://{SHELLY_IP_INTERMEDIATE}/rpc/Switch.GetStatus?id=0'
+    else:
+        url = f'http://{SHELLY_USER_INTERMEDIATE}:{SHELLY_PASS_INTERMEDIATE}@{SHELLY_IP_INTERMEDIATE}/rpc/Switch.GetStatus?id=0'
     ParsedData = requests.get(url).json()
     Watts = CastToInt(ParsedData['apower'])
     logger.info("intermediate meter Shelly Plus 1PM: %s %s",Watts," Watt")
@@ -480,13 +484,17 @@ def GetPowermeterWattsShellyPlus1PM_Intermediate():
 
 def GetPowermeterWattsShelly3EM_Intermediate():
     url = f'http://{SHELLY_IP_INTERMEDIATE}/status'
-    ParsedData = requests.get(url).json()
+    headers = {"content-type": "application/json"}
+    ParsedData = requests.get(url, headers=headers, auth=(SHELLY_USER_INTERMEDIATE,SHELLY_PASS_INTERMEDIATE)).json()
     Watts = CastToInt(ParsedData['total_power'])
     logger.info("intermediate meter Shelly 3EM: %s %s",Watts," Watt")
     return CastToInt(Watts)
 
 def GetPowermeterWattsShelly3EMPro_Intermediate():
-    url = f'http://{SHELLY_IP_INTERMEDIATE}/rpc/EM.GetStatus?id=0'
+    if SHELLY_USER_INTERMEDIATE == "":
+        url = f'http://{SHELLY_IP_INTERMEDIATE}/rpc/EM.GetStatus?id=0'
+    else:
+        url = f'http://{SHELLY_USER_INTERMEDIATE}:{SHELLY_PASS_INTERMEDIATE}@{SHELLY_IP_INTERMEDIATE}/rpc/EM.GetStatus?id=0'
     ParsedData = requests.get(url).json()
     Watts = CastToInt(ParsedData['total_act_power'])
     logger.info("intermediate meter Shelly 3EM Pro: %s %s",Watts," Watt")
@@ -535,13 +543,17 @@ def GetPowermeterWattsTasmota():
 
 def GetPowermeterWattsShelly3EM():
     url = f'http://{SHELLY_IP}/status'
-    ParsedData = requests.get(url).json()
+    headers = {"content-type": "application/json"}
+    ParsedData = requests.get(url, headers=headers, auth=(SHELLY_USER,SHELLY_PASS)).json()
     Watts = CastToInt(ParsedData['total_power'])
     logger.info("powermeter Shelly 3EM: %s %s",Watts," Watt")
     return CastToInt(Watts)
 
 def GetPowermeterWattsShelly3EMPro():
-    url = f'http://{SHELLY_IP}/rpc/EM.GetStatus?id=0'
+    if SHELLY_USER == "":
+        url = f'http://{SHELLY_IP}/rpc/EM.GetStatus?id=0'
+    else:
+        url = f'http://{SHELLY_USER}:{SHELLY_PASS}@{SHELLY_IP}/rpc/EM.GetStatus?id=0'
     ParsedData = requests.get(url).json()
     Watts = CastToInt(ParsedData['total_act_power'])
     logger.info("powermeter Shelly 3EM Pro: %s %s",Watts," Watt")
@@ -701,6 +713,8 @@ TASMOTA_JSON_POWER_CALCULATE = config.getboolean('TASMOTA', 'TASMOTA_JSON_POWER_
 TASMOTA_JSON_POWER_INPUT_MQTT_LABEL = config.get('TASMOTA', 'TASMOTA_JSON_POWER_INPUT_MQTT_LABEL')
 TASMOTA_JSON_POWER_OUTPUT_MQTT_LABEL = config.get('TASMOTA', 'TASMOTA_JSON_POWER_OUTPUT_MQTT_LABEL')
 SHELLY_IP = config.get('SHELLY_3EM', 'SHELLY_IP')
+SHELLY_USER = config.get('SHELLY_3EM', 'SHELLY_USER')
+SHELLY_PASS = config.get('SHELLY_3EM', 'SHELLY_PASS')
 SHRDZM_IP = config.get('SHRDZM', 'SHRDZM_IP')
 SHRDZM_USER = config.get('SHRDZM', 'SHRDZM_USER')
 SHRDZM_PASS = config.get('SHRDZM', 'SHRDZM_PASS')
@@ -733,6 +747,8 @@ TASMOTA_JSON_STATUS_INTERMEDIATE = config.get('INTERMEDIATE_TASMOTA', 'TASMOTA_J
 TASMOTA_JSON_PAYLOAD_MQTT_PREFIX_INTERMEDIATE = config.get('INTERMEDIATE_TASMOTA', 'TASMOTA_JSON_PAYLOAD_MQTT_PREFIX_INTERMEDIATE')
 TASMOTA_JSON_POWER_MQTT_LABEL_INTERMEDIATE = config.get('INTERMEDIATE_TASMOTA', 'TASMOTA_JSON_POWER_MQTT_LABEL_INTERMEDIATE')
 SHELLY_IP_INTERMEDIATE = config.get('INTERMEDIATE_SHELLY', 'SHELLY_IP_INTERMEDIATE')
+SHELLY_USER_INTERMEDIATE = config.get('INTERMEDIATE_SHELLY', 'SHELLY_USER_INTERMEDIATE')
+SHELLY_PASS_INTERMEDIATE = config.get('INTERMEDIATE_SHELLY', 'SHELLY_PASS_INTERMEDIATE')
 SHRDZM_IP_INTERMEDIATE = config.get('INTERMEDIATE_SHRDZM', 'SHRDZM_IP_INTERMEDIATE')
 SHRDZM_USER_INTERMEDIATE = config.get('INTERMEDIATE_SHRDZM', 'SHRDZM_USER_INTERMEDIATE')
 SHRDZM_PASS_INTERMEDIATE = config.get('INTERMEDIATE_SHRDZM', 'SHRDZM_PASS_INTERMEDIATE')

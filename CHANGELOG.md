@@ -1,5 +1,12 @@
 # Changelog
 
+## V1.34
+### script
+* support user & password for Shelly meters
+### Config
+* add: `[INTERMEDIATE_SHELLY]`: `SHELLY_USER_INTERMEDIATE` + `SHELLY_PASS_INTERMEDIATE`
+* add: `[SHELLY_3EM]`: `SHELLY_USER` + `SHELLY_PASS`
+
 ## V1.33
 ### Script
 * new function: CastToInt
