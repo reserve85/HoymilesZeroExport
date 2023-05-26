@@ -1,5 +1,11 @@
 # Changelog
 
+## V1.35
+### script
+* another try for authentication of Shelly 2. generation
+### Config
+* changed some comments
+
 ## V1.34
 ### script
 * support user & password for Shelly meters

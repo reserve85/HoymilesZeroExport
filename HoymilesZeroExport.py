@@ -15,7 +15,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 __author__ = "Tobias Kraft"
-__version__ = "1.34"
+__version__ = "1.35"
 
 import requests
 import time
@@ -473,11 +473,9 @@ def GetPowermeterWattsShelly1PM_Intermediate():
     return CastToInt(Watts)
 
 def GetPowermeterWattsShellyPlus1PM_Intermediate():
-    if SHELLY_USER_INTERMEDIATE == "":
-        url = f'http://{SHELLY_IP_INTERMEDIATE}/rpc/Switch.GetStatus?id=0'
-    else:
-        url = f'http://{SHELLY_USER_INTERMEDIATE}:{SHELLY_PASS_INTERMEDIATE}@{SHELLY_IP_INTERMEDIATE}/rpc/Switch.GetStatus?id=0'
-    ParsedData = requests.get(url).json()
+    url = f'http://{SHELLY_IP_INTERMEDIATE}/rpc/Switch.GetStatus?id=0'
+    headers = {"content-type": "application/json"}
+    ParsedData = requests.get(url, headers=headers, auth=(SHELLY_USER_INTERMEDIATE,SHELLY_PASS_INTERMEDIATE)).json()
     Watts = CastToInt(ParsedData['apower'])
     logger.info("intermediate meter Shelly Plus 1PM: %s %s",Watts," Watt")
     return CastToInt(Watts)
@@ -491,11 +489,9 @@ def GetPowermeterWattsShelly3EM_Intermediate():
     return CastToInt(Watts)
 
 def GetPowermeterWattsShelly3EMPro_Intermediate():
-    if SHELLY_USER_INTERMEDIATE == "":
-        url = f'http://{SHELLY_IP_INTERMEDIATE}/rpc/EM.GetStatus?id=0'
-    else:
-        url = f'http://{SHELLY_USER_INTERMEDIATE}:{SHELLY_PASS_INTERMEDIATE}@{SHELLY_IP_INTERMEDIATE}/rpc/EM.GetStatus?id=0'
-    ParsedData = requests.get(url).json()
+    url = f'http://{SHELLY_IP_INTERMEDIATE}/rpc/EM.GetStatus?id=0'
+    headers = {"content-type": "application/json"}
+    ParsedData = requests.get(url, headers=headers, auth=(SHELLY_USER_INTERMEDIATE,SHELLY_PASS_INTERMEDIATE)).json()
     Watts = CastToInt(ParsedData['total_act_power'])
     logger.info("intermediate meter Shelly 3EM Pro: %s %s",Watts," Watt")
     return CastToInt(Watts)
@@ -550,11 +546,9 @@ def GetPowermeterWattsShelly3EM():
     return CastToInt(Watts)
 
 def GetPowermeterWattsShelly3EMPro():
-    if SHELLY_USER == "":
-        url = f'http://{SHELLY_IP}/rpc/EM.GetStatus?id=0'
-    else:
-        url = f'http://{SHELLY_USER}:{SHELLY_PASS}@{SHELLY_IP}/rpc/EM.GetStatus?id=0'
-    ParsedData = requests.get(url).json()
+    url = f'http://{SHELLY_IP}/rpc/EM.GetStatus?id=0'
+    headers = {"content-type": "application/json"}
+    ParsedData = requests.get(url, headers=headers, auth=(SHELLY_USER,SHELLY_PASS)).json()
     Watts = CastToInt(ParsedData['total_act_power'])
     logger.info("powermeter Shelly 3EM Pro: %s %s",Watts," Watt")
     return CastToInt(Watts)
