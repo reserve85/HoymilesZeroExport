@@ -20,6 +20,7 @@ __version__ = "1.35"
 import requests
 import time
 from requests.auth import HTTPBasicAuth
+from requests.auth import HTTPDigestAuth
 import os
 import logging
 from logging.handlers import TimedRotatingFileHandler
@@ -467,7 +468,7 @@ def GetPowermeterWattsTasmota_Intermediate():
 def GetPowermeterWattsShelly1PM_Intermediate():
     url = f'http://{SHELLY_IP_INTERMEDIATE}/status'
     headers = {"content-type": "application/json"}
-    ParsedData = requests.get(url, headers=headers, auth=(SHELLY_USER_INTERMEDIATE,SHELLY_PASS_INTERMEDIATE)).json()
+    ParsedData = requests.get(url, headers=headers, auth=HTTPDigestAuth(SHELLY_USER_INTERMEDIATE,SHELLY_PASS_INTERMEDIATE)).json()
     Watts = CastToInt(ParsedData['meters'][0]['power'])
     logger.info("intermediate meter Shelly 1PM: %s %s",Watts," Watt")
     return CastToInt(Watts)
@@ -475,7 +476,7 @@ def GetPowermeterWattsShelly1PM_Intermediate():
 def GetPowermeterWattsShellyPlus1PM_Intermediate():
     url = f'http://{SHELLY_IP_INTERMEDIATE}/rpc/Switch.GetStatus?id=0'
     headers = {"content-type": "application/json"}
-    ParsedData = requests.get(url, headers=headers, auth=(SHELLY_USER_INTERMEDIATE,SHELLY_PASS_INTERMEDIATE)).json()
+    ParsedData = requests.get(url, headers=headers, auth=HTTPDigestAuth(SHELLY_USER_INTERMEDIATE,SHELLY_PASS_INTERMEDIATE)).json()
     Watts = CastToInt(ParsedData['apower'])
     logger.info("intermediate meter Shelly Plus 1PM: %s %s",Watts," Watt")
     return CastToInt(Watts)
@@ -483,7 +484,7 @@ def GetPowermeterWattsShellyPlus1PM_Intermediate():
 def GetPowermeterWattsShelly3EM_Intermediate():
     url = f'http://{SHELLY_IP_INTERMEDIATE}/status'
     headers = {"content-type": "application/json"}
-    ParsedData = requests.get(url, headers=headers, auth=(SHELLY_USER_INTERMEDIATE,SHELLY_PASS_INTERMEDIATE)).json()
+    ParsedData = requests.get(url, headers=headers, auth=HTTPDigestAuth(SHELLY_USER_INTERMEDIATE,SHELLY_PASS_INTERMEDIATE)).json()
     Watts = CastToInt(ParsedData['total_power'])
     logger.info("intermediate meter Shelly 3EM: %s %s",Watts," Watt")
     return CastToInt(Watts)
@@ -491,7 +492,7 @@ def GetPowermeterWattsShelly3EM_Intermediate():
 def GetPowermeterWattsShelly3EMPro_Intermediate():
     url = f'http://{SHELLY_IP_INTERMEDIATE}/rpc/EM.GetStatus?id=0'
     headers = {"content-type": "application/json"}
-    ParsedData = requests.get(url, headers=headers, auth=(SHELLY_USER_INTERMEDIATE,SHELLY_PASS_INTERMEDIATE)).json()
+    ParsedData = requests.get(url, headers=headers, auth=HTTPDigestAuth(SHELLY_USER_INTERMEDIATE,SHELLY_PASS_INTERMEDIATE)).json()
     Watts = CastToInt(ParsedData['total_act_power'])
     logger.info("intermediate meter Shelly 3EM Pro: %s %s",Watts," Watt")
     return CastToInt(Watts)
@@ -540,7 +541,7 @@ def GetPowermeterWattsTasmota():
 def GetPowermeterWattsShelly3EM():
     url = f'http://{SHELLY_IP}/status'
     headers = {"content-type": "application/json"}
-    ParsedData = requests.get(url, headers=headers, auth=(SHELLY_USER,SHELLY_PASS)).json()
+    ParsedData = requests.get(url, headers=headers, auth=HTTPDigestAuth(SHELLY_USER,SHELLY_PASS)).json()
     Watts = CastToInt(ParsedData['total_power'])
     logger.info("powermeter Shelly 3EM: %s %s",Watts," Watt")
     return CastToInt(Watts)
@@ -548,7 +549,7 @@ def GetPowermeterWattsShelly3EM():
 def GetPowermeterWattsShelly3EMPro():
     url = f'http://{SHELLY_IP}/rpc/EM.GetStatus?id=0'
     headers = {"content-type": "application/json"}
-    ParsedData = requests.get(url, headers=headers, auth=(SHELLY_USER,SHELLY_PASS)).json()
+    ParsedData = requests.get(url, headers=headers, auth=HTTPDigestAuth(SHELLY_USER,SHELLY_PASS)).json()
     Watts = CastToInt(ParsedData['total_act_power'])
     logger.info("powermeter Shelly 3EM Pro: %s %s",Watts," Watt")
     return CastToInt(Watts)
