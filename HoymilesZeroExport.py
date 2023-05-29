@@ -468,7 +468,7 @@ def GetPowermeterWattsTasmota_Intermediate():
 def GetPowermeterWattsShelly1PM_Intermediate():
     url = f'http://{SHELLY_IP_INTERMEDIATE}/status'
     headers = {"content-type": "application/json"}
-    ParsedData = requests.get(url, headers=headers, auth=HTTPDigestAuth(SHELLY_USER_INTERMEDIATE,SHELLY_PASS_INTERMEDIATE)).json()
+    ParsedData = requests.get(url, headers=headers, auth=(SHELLY_USER_INTERMEDIATE,SHELLY_PASS_INTERMEDIATE)).json()
     Watts = CastToInt(ParsedData['meters'][0]['power'])
     logger.info("intermediate meter Shelly 1PM: %s %s",Watts," Watt")
     return CastToInt(Watts)
@@ -484,7 +484,7 @@ def GetPowermeterWattsShellyPlus1PM_Intermediate():
 def GetPowermeterWattsShelly3EM_Intermediate():
     url = f'http://{SHELLY_IP_INTERMEDIATE}/status'
     headers = {"content-type": "application/json"}
-    ParsedData = requests.get(url, headers=headers, auth=HTTPDigestAuth(SHELLY_USER_INTERMEDIATE,SHELLY_PASS_INTERMEDIATE)).json()
+    ParsedData = requests.get(url, headers=headers, auth=(SHELLY_USER_INTERMEDIATE,SHELLY_PASS_INTERMEDIATE)).json()
     Watts = CastToInt(ParsedData['total_power'])
     logger.info("intermediate meter Shelly 3EM: %s %s",Watts," Watt")
     return CastToInt(Watts)
@@ -541,7 +541,7 @@ def GetPowermeterWattsTasmota():
 def GetPowermeterWattsShelly3EM():
     url = f'http://{SHELLY_IP}/status'
     headers = {"content-type": "application/json"}
-    ParsedData = requests.get(url, headers=headers, auth=HTTPDigestAuth(SHELLY_USER,SHELLY_PASS)).json()
+    ParsedData = requests.get(url, headers=headers, auth=(SHELLY_USER,SHELLY_PASS)).json()
     Watts = CastToInt(ParsedData['total_power'])
     logger.info("powermeter Shelly 3EM: %s %s",Watts," Watt")
     return CastToInt(Watts)
