@@ -1,5 +1,9 @@
 # Changelog
 
+## V1.36
+### script
+* Authentication fix for Shelly 2nd Gen. Thanks to user delacor
+
 ## V1.35
 ### script
 * another try for authentication of Shelly 2. generation
