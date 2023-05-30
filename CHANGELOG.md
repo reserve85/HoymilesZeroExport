@@ -1,5 +1,22 @@
 # Changelog
 
+## V1.36
+### script
+* Authentication fix for Shelly 2nd Gen. Thanks to user delacor
+
+## V1.35
+### script
+* another try for authentication of Shelly 2. generation
+### Config
+* changed some comments
+
+## V1.34
+### script
+* support user & password for Shelly meters
+### Config
+* add: `[INTERMEDIATE_SHELLY]`: `SHELLY_USER_INTERMEDIATE` + `SHELLY_PASS_INTERMEDIATE`
+* add: `[SHELLY_3EM]`: `SHELLY_USER` + `SHELLY_PASS`
+
 ## V1.33
 ### Script
 * new function: CastToInt
