@@ -15,7 +15,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 __author__ = "Tobias Kraft"
-__version__ = "1.37"
+__version__ = "1.38"
 
 import requests
 import time
@@ -28,6 +28,7 @@ from configparser import ConfigParser
 from pathlib import Path
 from datetime import timedelta
 import datetime
+import sys
 
 logging.basicConfig(
     format='%(asctime)s %(levelname)-8s %(message)s',
@@ -64,6 +65,12 @@ if ENABLE_LOG_TO_FILE:
     logger.addHandler(rotating_file_handler)
 
 logger.info('Log write to file: %s', ENABLE_LOG_TO_FILE)
+logger.info('Python Version: ' + sys.version)
+try:
+    assert sys.version_info >= (3,6)
+except Exception as e:
+    logger.info('Error: your Python version is too old, this script requires version 3.6 or newer. Please update your Python.')
+    sys.exit()
 
 def CastToInt(pValueToCast):
     try:

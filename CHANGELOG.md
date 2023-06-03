@@ -1,5 +1,9 @@
 # Changelog
 
+## V1.38
+### script
+* Log Python Version on startup and check if it is >= V3.6
+
 ## V1.37
 ### script
 * Add ShellyEM support
