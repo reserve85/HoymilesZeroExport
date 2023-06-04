@@ -15,7 +15,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 __author__ = "Tobias Kraft"
-__version__ = "1.36"
+__version__ = "1.38"
 
 import requests
 import time
@@ -28,6 +28,7 @@ from configparser import ConfigParser
 from pathlib import Path
 from datetime import timedelta
 import datetime
+import sys
 
 logging.basicConfig(
     format='%(asctime)s %(levelname)-8s %(message)s',
@@ -64,6 +65,12 @@ if ENABLE_LOG_TO_FILE:
     logger.addHandler(rotating_file_handler)
 
 logger.info('Log write to file: %s', ENABLE_LOG_TO_FILE)
+logger.info('Python Version: ' + sys.version)
+try:
+    assert sys.version_info >= (3,6)
+except Exception as e:
+    logger.info('Error: your Python version is too old, this script requires version 3.6 or newer. Please update your Python.')
+    sys.exit()
 
 def CastToInt(pValueToCast):
     try:
@@ -418,7 +425,9 @@ def GetHoymilesActualPowerAhoy(pInverterId):
 def GetHoymilesActualPower():
     try:
         ActualPower = 0
-        if USE_SHELLY_3EM_INTERMEDIATE:
+        if USE_SHELLY_EM_INTERMEDIATE:
+            return GetPowermeterWattsShellyEM_Intermediate()        
+        elif USE_SHELLY_3EM_INTERMEDIATE:
             return GetPowermeterWattsShelly3EM_Intermediate()
         elif USE_SHELLY_3EM_PRO_INTERMEDIATE:
             return GetPowermeterWattsShelly3EMPro_Intermediate()
@@ -481,6 +490,14 @@ def GetPowermeterWattsShellyPlus1PM_Intermediate():
     logger.info("intermediate meter Shelly Plus 1PM: %s %s",Watts," Watt")
     return CastToInt(Watts)
 
+def GetPowermeterWattsShellyEM_Intermediate():
+    url = f'http://{SHELLY_IP_INTERMEDIATE}/status'
+    headers = {"content-type": "application/json"}
+    ParsedData = requests.get(url, headers=headers, auth=(SHELLY_USER_INTERMEDIATE,SHELLY_PASS_INTERMEDIATE)).json()
+    Watts = sum(CastToInt(emeter['power']) for emeter in ParsedData['emeters'])
+    logger.info("intermediate meter Shelly EM: %s %s",Watts," Watt")
+    return CastToInt(Watts)
+
 def GetPowermeterWattsShelly3EM_Intermediate():
     url = f'http://{SHELLY_IP_INTERMEDIATE}/status'
     headers = {"content-type": "application/json"}
@@ -536,6 +553,14 @@ def GetPowermeterWattsTasmota():
         ouput = ParsedData[TASMOTA_JSON_STATUS][TASMOTA_JSON_PAYLOAD_MQTT_PREFIX][TASMOTA_JSON_POWER_OUTPUT_MQTT_LABEL]
         Watts = CastToInt(input - ouput)
     logger.info("powermeter Tasmota: %s %s",Watts," Watt")
+    return CastToInt(Watts)
+
+def GetPowermeterWattsShellyEM():
+    url = f'http://{SHELLY_IP}/status'
+    headers = {"content-type": "application/json"}
+    ParsedData = requests.get(url, headers=headers, auth=(SHELLY_USER,SHELLY_PASS)).json()
+    Watts = sum(CastToInt(emeter['power']) for emeter in ParsedData['emeters'])
+    logger.info("powermeter Shelly EM: %s %s",Watts," Watt")
     return CastToInt(Watts)
 
 def GetPowermeterWattsShelly3EM():
@@ -609,7 +634,9 @@ def GetPowermeterWattsHomeAssistant():
 
 def GetPowermeterWatts():
     try:
-        if USE_SHELLY_3EM:
+        if USE_SHELLY_EM:
+            return GetPowermeterWattsShellyEM()
+        elif USE_SHELLY_3EM:
             return GetPowermeterWattsShelly3EM()
         elif USE_SHELLY_3EM_PRO:
             return GetPowermeterWattsShelly3EMPro()
@@ -690,6 +717,7 @@ logger.info("Config file V %s", VERSION)
 USE_AHOY = config.getboolean('SELECT_DTU', 'USE_AHOY')
 USE_OPENDTU = config.getboolean('SELECT_DTU', 'USE_OPENDTU')
 USE_TASMOTA = config.getboolean('SELECT_POWERMETER', 'USE_TASMOTA')
+USE_SHELLY_EM = config.getboolean('SELECT_POWERMETER', 'USE_SHELLY_EM')
 USE_SHELLY_3EM = config.getboolean('SELECT_POWERMETER', 'USE_SHELLY_3EM')
 USE_SHELLY_3EM_PRO = config.getboolean('SELECT_POWERMETER', 'USE_SHELLY_3EM_PRO')
 USE_SHRDZM = config.getboolean('SELECT_POWERMETER', 'USE_SHRDZM')
@@ -707,9 +735,9 @@ TASMOTA_JSON_POWER_MQTT_LABEL = config.get('TASMOTA', 'TASMOTA_JSON_POWER_MQTT_L
 TASMOTA_JSON_POWER_CALCULATE = config.getboolean('TASMOTA', 'TASMOTA_JSON_POWER_CALCULATE')
 TASMOTA_JSON_POWER_INPUT_MQTT_LABEL = config.get('TASMOTA', 'TASMOTA_JSON_POWER_INPUT_MQTT_LABEL')
 TASMOTA_JSON_POWER_OUTPUT_MQTT_LABEL = config.get('TASMOTA', 'TASMOTA_JSON_POWER_OUTPUT_MQTT_LABEL')
-SHELLY_IP = config.get('SHELLY_3EM', 'SHELLY_IP')
-SHELLY_USER = config.get('SHELLY_3EM', 'SHELLY_USER')
-SHELLY_PASS = config.get('SHELLY_3EM', 'SHELLY_PASS')
+SHELLY_IP = config.get('SHELLY', 'SHELLY_IP')
+SHELLY_USER = config.get('SHELLY', 'SHELLY_USER')
+SHELLY_PASS = config.get('SHELLY', 'SHELLY_PASS')
 SHRDZM_IP = config.get('SHRDZM', 'SHRDZM_IP')
 SHRDZM_USER = config.get('SHRDZM', 'SHRDZM_USER')
 SHRDZM_PASS = config.get('SHRDZM', 'SHRDZM_PASS')
@@ -729,6 +757,7 @@ HA_POWER_CALCULATE = config.getboolean('HOMEASSISTANT', 'HA_POWER_CALCULATE')
 HA_POWER_INPUT_ALIAS = config.get('HOMEASSISTANT', 'HA_POWER_INPUT_ALIAS')
 HA_POWER_OUTPUT_ALIAS = config.get('HOMEASSISTANT', 'HA_POWER_OUTPUT_ALIAS')
 USE_TASMOTA_INTERMEDIATE = config.getboolean('SELECT_INTERMEDIATE_METER', 'USE_TASMOTA_INTERMEDIATE')
+USE_SHELLY_EM_INTERMEDIATE = config.getboolean('SELECT_INTERMEDIATE_METER', 'USE_SHELLY_EM_INTERMEDIATE')
 USE_SHELLY_3EM_INTERMEDIATE = config.getboolean('SELECT_INTERMEDIATE_METER', 'USE_SHELLY_3EM_INTERMEDIATE')
 USE_SHELLY_3EM_PRO_INTERMEDIATE = config.getboolean('SELECT_INTERMEDIATE_METER', 'USE_SHELLY_3EM_PRO_INTERMEDIATE')
 USE_SHELLY_1PM_INTERMEDIATE = config.getboolean('SELECT_INTERMEDIATE_METER', 'USE_SHELLY_1PM_INTERMEDIATE')

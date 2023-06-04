@@ -10,7 +10,7 @@ This script does not use MQTT, it's based on webapi communication.
 
 ### Supported Smart-Meter Modules:
 - [Tasmota Smart Meter Interface](https://tasmota.github.io/docs/Smart-Meter-Interface/) (e.g. "[Hichi IR Lesekopf](https://www.ebay.de/sch/i.html?_ssn=hicbelm-8)" or equal)
-- [Shelly 3EM](https://www.shelly.cloud/de/products/product-overview/shelly-3em-1)
+- [Shelly EM, Shelly 3EM, Shelly 3EM Pro, Shelly 1PM, Shelly Plus 1PM](https://www.shelly.cloud/de/products/product-overview/shelly-3em-1)
 - [SHRDZM Smartmeter Modul](https://cms.shrdzm.com/produkt/smartmeter-modul/)
 - [Emlog ("electronic meter log")](https://weidmann-elektronik.de/Emlog_Projekt.html)
 - [ioBroker](https://www.iobroker.net/) with [simpleAPI](https://github.com/ioBroker/ioBroker.simple-api)

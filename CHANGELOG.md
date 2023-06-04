@@ -1,5 +1,17 @@
 # Changelog
 
+## V1.38
+### script
+* Log Python Version on startup and check if it is >= V3.6
+
+## V1.37
+### script
+* Add ShellyEM support
+### Config
+* rename section `[SHELLY_3EM]` to `[SHELLY]`
+* add: `[SELECT_POWERMETER]`: `USE_SHELLY_EM`
+* add: `[SELECT_INTERMEDIATE_METER]`: `USE_SHELLY_EM_INTERMEDIATE`
+
 ## V1.36
 ### script
 * Authentication fix for Shelly 2nd Gen. Thanks to user delacor
