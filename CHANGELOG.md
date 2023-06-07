@@ -1,5 +1,11 @@
 # Changelog
 
+## V1.39
+### script
+* add check if POWERMETER_MAX_POINT > (POWERMETER_TOLERANCE + POWERMETER_TARGET_POINT)
+### Config
+* changed comment of POWERMETER_MAX_POINT to make this point clearer
+
 ## V1.38
 ### script
 * Log Python Version on startup and check if it is >= V3.6

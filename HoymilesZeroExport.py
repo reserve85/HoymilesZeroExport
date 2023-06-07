@@ -15,7 +15,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 __author__ = "Tobias Kraft"
-__version__ = "1.38"
+__version__ = "1.39"
 
 import requests
 import time
@@ -799,6 +799,9 @@ LOG_TEMPERATURE = config.getboolean('COMMON', 'LOG_TEMPERATURE')
 POWERMETER_TARGET_POINT = config.getint('CONTROL', 'POWERMETER_TARGET_POINT')
 POWERMETER_TOLERANCE = config.getint('CONTROL', 'POWERMETER_TOLERANCE')
 POWERMETER_MAX_POINT = config.getint('CONTROL', 'POWERMETER_MAX_POINT')
+if POWERMETER_MAX_POINT < (POWERMETER_TARGET_POINT + POWERMETER_TOLERANCE):
+    POWERMETER_MAX_POINT = POWERMETER_TARGET_POINT + POWERMETER_TOLERANCE + 50
+    logger.info('Warning: POWERMETER_MAX_POINT < POWERMETER_TARGET_POINT + POWERMETER_TOLERANCE. Setting POWERMETER_MAX_POINT to ' + str(POWERMETER_MAX_POINT))
 SERIAL_NUMBER = []
 NAME = []
 TEMPERATURE = []
