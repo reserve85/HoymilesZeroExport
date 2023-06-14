@@ -1,5 +1,9 @@
 # Changelog
 
+## V1.41
+### script
+* add timeout = 10 seconds for HTTP Requests
+
 ## V1.40
 ### script
 * bugfix: lowest panel voltage "inf" (battery mode)

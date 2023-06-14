@@ -15,7 +15,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 __author__ = "Tobias Kraft"
-__version__ = "1.40"
+__version__ = "1.41"
 
 import requests
 import time
@@ -144,14 +144,14 @@ def SetLimit(pLimit):
 
 def GetHoymilesAvailableOpenDTU(pInverterId):
     url = f'http://{OPENDTU_IP}/api/livedata/status/inverters'
-    ParsedData = requests.get(url, auth=HTTPBasicAuth(OPENDTU_USER, OPENDTU_PASS)).json()
+    ParsedData = requests.get(url, auth=HTTPBasicAuth(OPENDTU_USER, OPENDTU_PASS), timeout=10).json()
     Reachable = bool(ParsedData["inverters"][pInverterId]["reachable"])
     logger.info('OpenDTU: Inverter "%s" reachable: %s',NAME[pInverterId],Reachable)
     return Reachable
 
 def GetHoymilesAvailableAhoy(pInverterId):
     url = f'http://{AHOY_IP}/api/index'
-    ParsedData = requests.get(url).json()
+    ParsedData = requests.get(url, timeout=10).json()
     Reachable = bool(ParsedData["inverter"][pInverterId]["is_avail"])
     logger.info('Ahoy: Inverter "%s" reachable: %s',NAME[pInverterId],Reachable)
     return Reachable
@@ -186,7 +186,7 @@ def GetHoymilesAvailable():
 
 def GetHoymilesInfoOpenDTU(pInverterId):
     url = f'http://{OPENDTU_IP}/api/livedata/status/inverters'
-    ParsedData = requests.get(url, auth=HTTPBasicAuth(OPENDTU_USER, OPENDTU_PASS)).json()
+    ParsedData = requests.get(url, auth=HTTPBasicAuth(OPENDTU_USER, OPENDTU_PASS, timeout=10)).json()
     SERIAL_NUMBER[pInverterId] = str(ParsedData['inverters'][pInverterId]['serial'])
     TEMPERATURE[pInverterId] = str(round(float((ParsedData['inverters'][pInverterId]['INV']['0']['Temperature']['v'])),1)) + ' degC'
     NAME[pInverterId] = str(ParsedData['inverters'][pInverterId]['name'])
@@ -194,11 +194,11 @@ def GetHoymilesInfoOpenDTU(pInverterId):
 
 def GetHoymilesInfoAhoy(pInverterId):
     url = f'http://{AHOY_IP}/api/record/live'
-    ParsedData = requests.get(url).json()
+    ParsedData = requests.get(url, timeout=10).json()
     TEMPERATURE[pInverterId] = str(round(float(next(item for item in ParsedData['inverter'][pInverterId] if item['fld'] == 'Temp')['val']),1)) + ' degC'
 
     url = f'http://{AHOY_IP}/api/inverter/list'
-    ParsedData = requests.get(url).json()
+    ParsedData = requests.get(url, timeout=10).json()
     SERIAL_NUMBER[pInverterId] = str(ParsedData['inverter'][pInverterId]['serial'])
     NAME[pInverterId] = str(ParsedData['inverter'][pInverterId]['name'])
     logger.info('Ahoy: Inverter "%s" / serial number "%s" / temperature %s',NAME[pInverterId],SERIAL_NUMBER[pInverterId],TEMPERATURE[pInverterId])
@@ -227,7 +227,7 @@ def GetHoymilesInfo():
 
 def GetHoymilesPanelMinVoltageAhoy(pInverterId):
     url = f'http://{AHOY_IP}/api/record/live'
-    ParsedData = requests.get(url).json()
+    ParsedData = requests.get(url, timeout=10).json()
     PanelVDC = []
     for item in ParsedData['inverter'][pInverterId]:
         if item['fld'] == 'U_DC':
@@ -243,7 +243,7 @@ def GetHoymilesPanelMinVoltageAhoy(pInverterId):
 
 def GetHoymilesPanelMinVoltageOpenDTU(pInverterId):
     url = f'http://{OPENDTU_IP}/api/livedata/status/inverters'
-    ParsedData = requests.get(url, auth=HTTPBasicAuth(OPENDTU_USER, OPENDTU_PASS)).json()
+    ParsedData = requests.get(url, auth=HTTPBasicAuth(OPENDTU_USER, OPENDTU_PASS), timeout=10).json()
     PanelVDC = []
     for i in range(len(ParsedData['inverters'][pInverterId]['DC'])):
         PanelVDC.append(float(ParsedData['inverters'][pInverterId]['DC'][str(i)]['Voltage']['v']))
@@ -360,13 +360,13 @@ def GetCheckBattery():
 
 def GetHoymilesTemperatureOpenDTU(pInverterId):
     url = f'http://{OPENDTU_IP}/api/livedata/status/inverters'
-    ParsedData = requests.get(url, auth=HTTPBasicAuth(OPENDTU_USER, OPENDTU_PASS)).json()
+    ParsedData = requests.get(url, auth=HTTPBasicAuth(OPENDTU_USER, OPENDTU_PASS), timeout=10).json()
     TEMPERATURE[pInverterId] = str(round(float((ParsedData['inverters'][pInverterId]['INV']['0']['Temperature']['v'])),1)) + ' degC'
     logger.info('OpenDTU: Inverter "%s" temperature: %s',NAME[pInverterId],TEMPERATURE[pInverterId])
 
 def GetHoymilesTemperatureAhoy(pInverterId):
     url = f'http://{AHOY_IP}/api/record/live'
-    ParsedData = requests.get(url).json()
+    ParsedData = requests.get(url, timeout=10).json()
     TEMPERATURE[pInverterId] = str(round(float(next(item for item in ParsedData['inverter'][pInverterId] if item['fld'] == 'Temp')['val']),1)) + ' degC'
     logger.info('Ahoy: Inverter "%s" temperature: %s',NAME[pInverterId],TEMPERATURE[pInverterId])
 
@@ -390,14 +390,14 @@ def GetHoymilesTemperature():
 
 def GetHoymilesActualPowerOpenDTU(pInverterId):
     url = f'http://{OPENDTU_IP}/api/livedata/status/inverters'
-    ParsedData = requests.get(url, auth=HTTPBasicAuth(OPENDTU_USER, OPENDTU_PASS)).json()
+    ParsedData = requests.get(url, auth=HTTPBasicAuth(OPENDTU_USER, OPENDTU_PASS), timeout=10).json()
     ActualPower = CastToInt(ParsedData['inverters'][pInverterId]['AC']['0']['Power']['v'])
     logger.info('OpenDTU: Inverter "%s" power producing: %s %s',NAME[pInverterId],ActualPower," Watt")
     return CastToInt(ActualPower)
 
 def GetHoymilesActualPowerAhoy(pInverterId):
     url = f'http://{AHOY_IP}/api/record/live'
-    ParsedData = requests.get(url).json()
+    ParsedData = requests.get(url, timeout=10).json()
     ActualPower = CastToInt(float(next(item for item in ParsedData['inverter'][pInverterId] if item['fld'] == 'P_AC')['val']))
     logger.info('Ahoy: Inverter "%s" power producing: %s %s',NAME[pInverterId],ActualPower," Watt")
     return CastToInt(ActualPower)
@@ -445,7 +445,7 @@ def GetHoymilesActualPower():
 
 def GetPowermeterWattsTasmota_Intermediate():
     url = f'http://{TASMOTA_IP_INTERMEDIATE}/cm?cmnd=status%2010'
-    ParsedData = requests.get(url).json()
+    ParsedData = requests.get(url, timeout=10).json()
     Watts = CastToInt(ParsedData[TASMOTA_JSON_STATUS_INTERMEDIATE][TASMOTA_JSON_PAYLOAD_MQTT_PREFIX_INTERMEDIATE][TASMOTA_JSON_POWER_MQTT_LABEL_INTERMEDIATE])
     logger.info("intermediate meter Tasmota: %s %s",Watts," Watt")
     return CastToInt(Watts)
@@ -453,7 +453,7 @@ def GetPowermeterWattsTasmota_Intermediate():
 def GetPowermeterWattsShelly1PM_Intermediate():
     url = f'http://{SHELLY_IP_INTERMEDIATE}/status'
     headers = {"content-type": "application/json"}
-    ParsedData = requests.get(url, headers=headers, auth=(SHELLY_USER_INTERMEDIATE,SHELLY_PASS_INTERMEDIATE)).json()
+    ParsedData = requests.get(url, headers=headers, auth=(SHELLY_USER_INTERMEDIATE,SHELLY_PASS_INTERMEDIATE), timeout=10).json()
     Watts = CastToInt(ParsedData['meters'][0]['power'])
     logger.info("intermediate meter Shelly 1PM: %s %s",Watts," Watt")
     return CastToInt(Watts)
@@ -461,7 +461,7 @@ def GetPowermeterWattsShelly1PM_Intermediate():
 def GetPowermeterWattsShellyPlus1PM_Intermediate():
     url = f'http://{SHELLY_IP_INTERMEDIATE}/rpc/Switch.GetStatus?id=0'
     headers = {"content-type": "application/json"}
-    ParsedData = requests.get(url, headers=headers, auth=HTTPDigestAuth(SHELLY_USER_INTERMEDIATE,SHELLY_PASS_INTERMEDIATE)).json()
+    ParsedData = requests.get(url, headers=headers, auth=HTTPDigestAuth(SHELLY_USER_INTERMEDIATE,SHELLY_PASS_INTERMEDIATE), timeout=10).json()
     Watts = CastToInt(ParsedData['apower'])
     logger.info("intermediate meter Shelly Plus 1PM: %s %s",Watts," Watt")
     return CastToInt(Watts)
@@ -469,7 +469,7 @@ def GetPowermeterWattsShellyPlus1PM_Intermediate():
 def GetPowermeterWattsShellyEM_Intermediate():
     url = f'http://{SHELLY_IP_INTERMEDIATE}/status'
     headers = {"content-type": "application/json"}
-    ParsedData = requests.get(url, headers=headers, auth=(SHELLY_USER_INTERMEDIATE,SHELLY_PASS_INTERMEDIATE)).json()
+    ParsedData = requests.get(url, headers=headers, auth=(SHELLY_USER_INTERMEDIATE,SHELLY_PASS_INTERMEDIATE), timeout=10).json()
     Watts = sum(CastToInt(emeter['power']) for emeter in ParsedData['emeters'])
     logger.info("intermediate meter Shelly EM: %s %s",Watts," Watt")
     return CastToInt(Watts)
@@ -477,7 +477,7 @@ def GetPowermeterWattsShellyEM_Intermediate():
 def GetPowermeterWattsShelly3EM_Intermediate():
     url = f'http://{SHELLY_IP_INTERMEDIATE}/status'
     headers = {"content-type": "application/json"}
-    ParsedData = requests.get(url, headers=headers, auth=(SHELLY_USER_INTERMEDIATE,SHELLY_PASS_INTERMEDIATE)).json()
+    ParsedData = requests.get(url, headers=headers, auth=(SHELLY_USER_INTERMEDIATE,SHELLY_PASS_INTERMEDIATE), timeout=10).json()
     Watts = CastToInt(ParsedData['total_power'])
     logger.info("intermediate meter Shelly 3EM: %s %s",Watts," Watt")
     return CastToInt(Watts)
@@ -485,28 +485,28 @@ def GetPowermeterWattsShelly3EM_Intermediate():
 def GetPowermeterWattsShelly3EMPro_Intermediate():
     url = f'http://{SHELLY_IP_INTERMEDIATE}/rpc/EM.GetStatus?id=0'
     headers = {"content-type": "application/json"}
-    ParsedData = requests.get(url, headers=headers, auth=HTTPDigestAuth(SHELLY_USER_INTERMEDIATE,SHELLY_PASS_INTERMEDIATE)).json()
+    ParsedData = requests.get(url, headers=headers, auth=HTTPDigestAuth(SHELLY_USER_INTERMEDIATE,SHELLY_PASS_INTERMEDIATE), timeout=10).json()
     Watts = CastToInt(ParsedData['total_act_power'])
     logger.info("intermediate meter Shelly 3EM Pro: %s %s",Watts," Watt")
     return CastToInt(Watts)
 
 def GetPowermeterWattsShrdzm_Intermediate():
     url = f'http://{SHRDZM_IP_INTERMEDIATE}/getLastData?user={SHRDZM_USER_INTERMEDIATE}&password={SHRDZM_PASS_INTERMEDIATE}'
-    ParsedData = requests.get(url).json()
+    ParsedData = requests.get(url, timeout=10).json()
     Watts = CastToInt(CastToInt(ParsedData['1.7.0']) - CastToInt(ParsedData['2.7.0']))
     logger.info("intermediate meter SHRDZM: %s %s",Watts," Watt")
     return CastToInt(Watts)
 
 def GetPowermeterWattsEmlog_Intermediate():
     url = f'http://{EMLOG_IP_INTERMEDIATE}/pages/getinformation.php?heute&meterindex={EMLOG_METERINDEX_INTERMEDIATE}'
-    ParsedData = requests.get(url).json()
+    ParsedData = requests.get(url, timeout=10).json()
     Watts = CastToInt(ParsedData['Leistung170'])
     logger.info("intermediate meter EMLOG: %s %s",Watts," Watt")
     return CastToInt(Watts)
 
 def GetPowermeterWattsIobroker_Intermediate():
     url = f'http://{IOBROKER_IP_INTERMEDIATE}:{IOBROKER_PORT_INTERMEDIATE}/getBulk/{IOBROKER_CURRENT_POWER_ALIAS_INTERMEDIATE}'
-    ParsedData = requests.get(url).json()
+    ParsedData = requests.get(url, timeout=10).json()
     Watts = CastToInt(ParsedData[0]['val'])
     logger.info("intermediate meter IOBROKER: %s %s",Watts," Watt")
     return CastToInt(Watts)
@@ -514,14 +514,14 @@ def GetPowermeterWattsIobroker_Intermediate():
 def GetPowermeterWattsHomeAssistant_Intermediate():
     url = f"http://{HA_IP_INTERMEDIATE}:{HA_PORT_INTERMEDIATE}/api/states/{HA_CURRENT_POWER_ENTITY_INTERMEDIATE}"
     headers = {"Authorization": "Bearer " + HA_ACCESSTOKEN_INTERMEDIATE, "content-type": "application/json"}
-    ParsedData = requests.get(url, headers=headers).json()
+    ParsedData = requests.get(url, headers=headers, timeout=10).json()
     Watts = CastToInt(ParsedData['state'])
     logger.info("intermediate meter HomeAssistant: %s %s",Watts," Watt")
     return CastToInt(Watts)
 
 def GetPowermeterWattsTasmota():
     url = f'http://{TASMOTA_IP}/cm?cmnd=status%2010'
-    ParsedData = requests.get(url).json()
+    ParsedData = requests.get(url, timeout=10).json()
     if not TASMOTA_JSON_POWER_CALCULATE:
         Watts = CastToInt(ParsedData[TASMOTA_JSON_STATUS][TASMOTA_JSON_PAYLOAD_MQTT_PREFIX][TASMOTA_JSON_POWER_MQTT_LABEL])
     else:
@@ -534,7 +534,7 @@ def GetPowermeterWattsTasmota():
 def GetPowermeterWattsShellyEM():
     url = f'http://{SHELLY_IP}/status'
     headers = {"content-type": "application/json"}
-    ParsedData = requests.get(url, headers=headers, auth=(SHELLY_USER,SHELLY_PASS)).json()
+    ParsedData = requests.get(url, headers=headers, auth=(SHELLY_USER,SHELLY_PASS), timeout=10).json()
     Watts = sum(CastToInt(emeter['power']) for emeter in ParsedData['emeters'])
     logger.info("powermeter Shelly EM: %s %s",Watts," Watt")
     return CastToInt(Watts)
@@ -542,7 +542,7 @@ def GetPowermeterWattsShellyEM():
 def GetPowermeterWattsShelly3EM():
     url = f'http://{SHELLY_IP}/status'
     headers = {"content-type": "application/json"}
-    ParsedData = requests.get(url, headers=headers, auth=(SHELLY_USER,SHELLY_PASS)).json()
+    ParsedData = requests.get(url, headers=headers, auth=(SHELLY_USER,SHELLY_PASS), timeout=10).json()
     Watts = CastToInt(ParsedData['total_power'])
     logger.info("powermeter Shelly 3EM: %s %s",Watts," Watt")
     return CastToInt(Watts)
@@ -550,21 +550,21 @@ def GetPowermeterWattsShelly3EM():
 def GetPowermeterWattsShelly3EMPro():
     url = f'http://{SHELLY_IP}/rpc/EM.GetStatus?id=0'
     headers = {"content-type": "application/json"}
-    ParsedData = requests.get(url, headers=headers, auth=HTTPDigestAuth(SHELLY_USER,SHELLY_PASS)).json()
+    ParsedData = requests.get(url, headers=headers, auth=HTTPDigestAuth(SHELLY_USER,SHELLY_PASS), timeout=10).json()
     Watts = CastToInt(ParsedData['total_act_power'])
     logger.info("powermeter Shelly 3EM Pro: %s %s",Watts," Watt")
     return CastToInt(Watts)
 
 def GetPowermeterWattsShrdzm():
     url = f'http://{SHRDZM_IP}/getLastData?user={SHRDZM_USER}&password={SHRDZM_PASS}'
-    ParsedData = requests.get(url).json()
+    ParsedData = requests.get(url, timeout=10).json()
     Watts = CastToInt(CastToInt(ParsedData['1.7.0']) - CastToInt(ParsedData['2.7.0']))
     logger.info("powermeter SHRDZM: %s %s",Watts," Watt")
     return CastToInt(Watts)
 
 def GetPowermeterWattsEmlog():
     url = f'http://{EMLOG_IP}/pages/getinformation.php?heute&meterindex={EMLOG_METERINDEX}'
-    ParsedData = requests.get(url).json()
+    ParsedData = requests.get(url, timeout=10).json()
     Watts = CastToInt(CastToInt(ParsedData['Leistung170']) - CastToInt(ParsedData['Leistung270']))
     logger.info("powermeter EMLOG: %s %s",Watts," Watt")
     return CastToInt(Watts)
@@ -572,14 +572,14 @@ def GetPowermeterWattsEmlog():
 def GetPowermeterWattsIobroker():
     if not IOBROKER_POWER_CALCULATE:
         url = f'http://{IOBROKER_IP}:{IOBROKER_PORT}/getBulk/{IOBROKER_CURRENT_POWER_ALIAS}'
-        ParsedData = requests.get(url).json()
+        ParsedData = requests.get(url, timeout=10).json()
         for item in ParsedData:
             if item['id'] == IOBROKER_CURRENT_POWER_ALIAS:
                 Watts = CastToInt(item['val'])
                 break
     else:
         url = f'http://{IOBROKER_IP}:{IOBROKER_PORT}/getBulk/{IOBROKER_POWER_INPUT_ALIAS},{IOBROKER_POWER_OUTPUT_ALIAS}'
-        ParsedData = requests.get(url).json()
+        ParsedData = requests.get(url, timeout=10).json()
         for item in ParsedData:
             if item['id'] == IOBROKER_POWER_INPUT_ALIAS:
                 input = CastToInt(item['val'])
@@ -593,16 +593,16 @@ def GetPowermeterWattsHomeAssistant():
     if not HA_POWER_CALCULATE:
         url = f"http://{HA_IP}:{HA_PORT}/api/states/{HA_CURRENT_POWER_ENTITY}"
         headers = {"Authorization": "Bearer " + HA_ACCESSTOKEN, "content-type": "application/json"}
-        ParsedData = requests.get(url, headers=headers).json()
+        ParsedData = requests.get(url, headers=headers, timeout=10).json()
         Watts = CastToInt(ParsedData['state'])
     else:
         url = f"http://{HA_IP}:{HA_PORT}/api/states/{HA_POWER_INPUT_ALIAS}"
         headers = {"Authorization": "Bearer " + HA_ACCESSTOKEN, "content-type": "application/json"}
-        ParsedData = requests.get(url, headers=headers).json()
+        ParsedData = requests.get(url, headers=headers, timeout=10).json()
         input = CastToInt(ParsedData['state'])
         url = f"http://{HA_IP}:{HA_PORT}/api/states/{HA_POWER_OUTPUT_ALIAS}"
         headers = {"Authorization": "Bearer " + HA_ACCESSTOKEN, "content-type": "application/json"}
-        ParsedData = requests.get(url, headers=headers).json()
+        ParsedData = requests.get(url, headers=headers, timeout=10).json()
         output = CastToInt(ParsedData['state'])
         Watts = CastToInt(input - output)
     logger.info("powermeter HomeAssistant: %s %s",Watts," Watt")
