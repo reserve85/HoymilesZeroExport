@@ -15,7 +15,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 __author__ = "Tobias Kraft"
-__version__ = "1.39"
+__version__ = "1.40"
 
 import requests
 import time
@@ -68,7 +68,7 @@ logger.info('Log write to file: %s', ENABLE_LOG_TO_FILE)
 logger.info('Python Version: ' + sys.version)
 try:
     assert sys.version_info >= (3,6)
-except Exception as e:
+except:
     logger.info('Error: your Python version is too old, this script requires version 3.6 or newer. Please update your Python.')
     sys.exit()
 
@@ -81,12 +81,8 @@ def CastToInt(pValueToCast):
     try:
         result = int(float(pValueToCast))
         return result
-    except Exception as e:
+    except:
         logger.error("Exception at CastToInt")
-        if hasattr(e, 'message'):
-            logger.error(e.message)
-        else:
-            logger.error(e)
         raise
 
 def SetLimitOpenDTU(pInverterId, pLimit):
@@ -142,12 +138,8 @@ def SetLimit(pLimit):
             else:
                 raise Exception("Error: DTU Type not defined")
         time.sleep(SET_LIMIT_DELAY_IN_SECONDS)
-    except Exception as e:
+    except:
         logger.error("Exception at SetLimit")
-        if hasattr(e, 'message'):
-            logger.error(e.message)
-        else:
-            logger.error(e)
         raise
 
 def GetHoymilesAvailableOpenDTU(pInverterId):
@@ -180,16 +172,16 @@ def GetHoymilesAvailable():
                     GetHoymilesAvailable = True
                     if not WasAvail:
                         GetHoymilesInfo()
-            except:
+            except Exception as e:
                 AVAILABLE[i] = False
                 logger.error("Exception at GetHoymilesAvailable, Inverter %s (%s) not reachable", i, NAME[i])
+                if hasattr(e, 'message'):
+                    logger.error(e.message)
+                else:
+                    logger.error(e)
         return GetHoymilesAvailable
-    except Exception as e:
+    except:
         logger.error('Exception at GetHoymilesAvailable')
-        if hasattr(e, 'message'):
-            logger.error(e.message)
-        else:
-            logger.error(e)
         raise
 
 def GetHoymilesInfoOpenDTU(pInverterId):
@@ -223,14 +215,14 @@ def GetHoymilesInfo():
                     GetHoymilesInfoOpenDTU(i)
                 else:
                     raise Exception("Error: DTU Type not defined")
-            except:
+            except Exception as e:
                 logger.error("Exception at GetHoymilesInfo, Inverter %s not reachable", i)
-    except Exception as e:
+                if hasattr(e, 'message'):
+                    logger.error(e.message)
+                else:
+                    logger.error(e)
+    except:
         logger.error("Exception at GetHoymilesInfo")
-        if hasattr(e, 'message'):
-            logger.error(e.message)
-        else:
-            logger.error(e)
         raise
 
 def GetHoymilesPanelMinVoltageAhoy(pInverterId):
@@ -244,6 +236,8 @@ def GetHoymilesPanelMinVoltageAhoy(pInverterId):
     for i in range(len(PanelVDC)):
         if (minVdc > PanelVDC[i]) and (PanelVDC[i] > 5):
             minVdc = PanelVDC[i]
+    if minVdc == float('inf'):
+        minVdc = 0
     logger.info("Lowest panel voltage: %s Volt",minVdc)
     return minVdc
 
@@ -257,6 +251,8 @@ def GetHoymilesPanelMinVoltageOpenDTU(pInverterId):
     for i in range(len(PanelVDC)):
         if (minVdc > PanelVDC[i]) and (PanelVDC[i] > 5):
             minVdc = PanelVDC[i]
+    if minVdc == float('inf'):
+        minVdc = 0
     logger.info("Lowest panelvoltage: %s Volt",minVdc)
     return minVdc
 
@@ -273,12 +269,8 @@ def GetHoymilesPanelMinVoltage(pInverterId):
                 raise Exception("Error: DTU Type not defined")
         except:
             logger.error("Exception at GetHoymilesPanelMinVoltage, Inverter %s not reachable", pInverterId)
-    except Exception as e:
+    except:
         logger.error("Exception at GetHoymilesPanelMinVoltage")
-        if hasattr(e, 'message'):
-            logger.error(e.message)
-        else:
-            logger.error(e)
         raise
 
 def SetHoymilesPowerStatusAhoy(pInverterId, pActive):
@@ -332,12 +324,8 @@ def SetHoymilesPowerStatus(pInverterId, pActive):
         else:
             raise Exception("Error: DTU Type not defined")
         time.sleep(SET_POWER_STATUS_DELAY_IN_SECONDS)
-    except Exception as e:
+    except:
         logger.error("Exception at SetHoymilesPowerStatus")
-        if hasattr(e, 'message'):
-            logger.error(e.message)
-        else:
-            logger.error(e)
         raise
 
 def GetCheckBattery():
@@ -366,12 +354,8 @@ def GetCheckBattery():
             except:
                 logger.error("Exception at CheckBattery, Inverter %s not reachable", i)
         return result
-    except Exception as e:
+    except:
         logger.error("Exception at CheckBattery")
-        if hasattr(e, 'message'):
-            logger.error(e.message)
-        else:
-            logger.error(e)
         raise
 
 def GetHoymilesTemperatureOpenDTU(pInverterId):
@@ -400,12 +384,8 @@ def GetHoymilesTemperature():
                     raise Exception("Error: DTU Type not defined")
             except:
                 logger.error("Exception at GetHoymilesTemperature, Inverter %s not reachable", i)
-    except Exception as e:
+    except:
         logger.error("Exception at GetHoymilesTemperature")
-        if hasattr(e, 'message'):
-            logger.error(e.message)
-        else:
-            logger.error(e)
         raise
 
 def GetHoymilesActualPowerOpenDTU(pInverterId):
@@ -459,12 +439,8 @@ def GetHoymilesActualPower():
             return ActualPower
         else:
             raise Exception("Error: DTU Type not defined")
-    except Exception as e:
+    except:
         logger.error("Exception at GetHoymilesActualPower")
-        if hasattr(e, 'message'):
-            logger.error(e.message)
-        else:
-            logger.error(e)
         raise
 
 def GetPowermeterWattsTasmota_Intermediate():
@@ -652,12 +628,8 @@ def GetPowermeterWatts():
             return GetPowermeterWattsHomeAssistant()
         else:
             raise Exception("Error: no powermeter defined!")
-    except Exception as e:
+    except:
         logger.error("Exception at GetPowermeterWatts")
-        if hasattr(e, 'message'):
-            logger.error(e.message)
-        else:
-            logger.error(e)
         raise
 
 def CutLimitToProduction(pSetpoint):

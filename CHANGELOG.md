@@ -1,5 +1,12 @@
 # Changelog
 
+## V1.40
+### script
+* bugfix: lowest panel voltage "inf" (battery mode)
+* chanegd some error messages
+### Config
+* changed comment of JUMP_TO_MAX_LIMIT_ON_GRID_USAGE to make this point clearer
+
 ## V1.39
 ### script
 * add check if POWERMETER_MAX_POINT > (POWERMETER_TOLERANCE + POWERMETER_TARGET_POINT)
