@@ -1,5 +1,20 @@
 # Changelog
 
+## V1.42
+### script
+* AHOY API Update: changed to new functions, see https://github.com/lumapu/ahoy/issues/993
+
+## V1.41
+### script
+* add timeout = 10 seconds for HTTP Requests
+
+## V1.40
+### script
+* bugfix: lowest panel voltage "inf" (battery mode)
+* chanegd some error messages
+### Config
+* changed comment of JUMP_TO_MAX_LIMIT_ON_GRID_USAGE to make this point clearer
+
 ## V1.39
 ### script
 * add check if POWERMETER_MAX_POINT > (POWERMETER_TOLERANCE + POWERMETER_TARGET_POINT)
