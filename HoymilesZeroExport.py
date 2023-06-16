@@ -15,7 +15,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 __author__ = "Tobias Kraft"
-__version__ = "1.41"
+__version__ = "1.42"
 
 import requests
 import time
@@ -193,14 +193,15 @@ def GetHoymilesInfoOpenDTU(pInverterId):
     logger.info('OpenDTU: Inverter "%s" / serial number "%s" / temperature %s',NAME[pInverterId],SERIAL_NUMBER[pInverterId],TEMPERATURE[pInverterId])
 
 def GetHoymilesInfoAhoy(pInverterId):
-    url = f'http://{AHOY_IP}/api/record/live'
+    url = f'http://{AHOY_IP}/api/live'
     ParsedData = requests.get(url, timeout=10).json()
-    TEMPERATURE[pInverterId] = str(round(float(next(item for item in ParsedData['inverter'][pInverterId] if item['fld'] == 'Temp')['val']),1)) + ' degC'
-
-    url = f'http://{AHOY_IP}/api/inverter/list'
+    temp_index = ParsedData["ch0_fld_names"].index("Temp")
+    
+    url = f'http://{AHOY_IP}/api/inverter/id/{pInverterId}'
     ParsedData = requests.get(url, timeout=10).json()
-    SERIAL_NUMBER[pInverterId] = str(ParsedData['inverter'][pInverterId]['serial'])
-    NAME[pInverterId] = str(ParsedData['inverter'][pInverterId]['name'])
+    SERIAL_NUMBER[pInverterId] = str(ParsedData['serial'])
+    NAME[pInverterId] = str(ParsedData['name'])
+    TEMPERATURE[pInverterId] = str(ParsedData["ch"][0][temp_index]) + ' degC'
     logger.info('Ahoy: Inverter "%s" / serial number "%s" / temperature %s',NAME[pInverterId],SERIAL_NUMBER[pInverterId],TEMPERATURE[pInverterId])
 
 def GetHoymilesInfo():
@@ -226,12 +227,15 @@ def GetHoymilesInfo():
         raise
 
 def GetHoymilesPanelMinVoltageAhoy(pInverterId):
-    url = f'http://{AHOY_IP}/api/record/live'
+    url = f'http://{AHOY_IP}/api/live'
+    ParsedData = requests.get(url, timeout=10).json()
+    PanelVDC_index = ParsedData["fld_names"].index("U_DC")
+
+    url = f'http://{AHOY_IP}/api/inverter/id/{pInverterId}'
     ParsedData = requests.get(url, timeout=10).json()
     PanelVDC = []
-    for item in ParsedData['inverter'][pInverterId]:
-        if item['fld'] == 'U_DC':
-            PanelVDC.append(float(item['val']))
+    for i in range(1, len(ParsedData['ch']), 1):
+        PanelVDC.append(float(ParsedData['ch'][i][PanelVDC_index]))
     minVdc = float('inf')
     for i in range(len(PanelVDC)):
         if (minVdc > PanelVDC[i]) and (PanelVDC[i] > 5):
@@ -365,9 +369,12 @@ def GetHoymilesTemperatureOpenDTU(pInverterId):
     logger.info('OpenDTU: Inverter "%s" temperature: %s',NAME[pInverterId],TEMPERATURE[pInverterId])
 
 def GetHoymilesTemperatureAhoy(pInverterId):
-    url = f'http://{AHOY_IP}/api/record/live'
+    url = f'http://{AHOY_IP}/api/live'
     ParsedData = requests.get(url, timeout=10).json()
-    TEMPERATURE[pInverterId] = str(round(float(next(item for item in ParsedData['inverter'][pInverterId] if item['fld'] == 'Temp')['val']),1)) + ' degC'
+    temp_index = ParsedData["ch0_fld_names"].index("Temp")
+    url = f'http://{AHOY_IP}/api/inverter/id/{pInverterId}'
+    ParsedData = requests.get(url, timeout=10).json()
+    TEMPERATURE[pInverterId] = str(ParsedData["ch"][0][temp_index]) + ' degC'
     logger.info('Ahoy: Inverter "%s" temperature: %s',NAME[pInverterId],TEMPERATURE[pInverterId])
 
 def GetHoymilesTemperature():
@@ -396,9 +403,12 @@ def GetHoymilesActualPowerOpenDTU(pInverterId):
     return CastToInt(ActualPower)
 
 def GetHoymilesActualPowerAhoy(pInverterId):
-    url = f'http://{AHOY_IP}/api/record/live'
+    url = f'http://{AHOY_IP}/api/live'
     ParsedData = requests.get(url, timeout=10).json()
-    ActualPower = CastToInt(float(next(item for item in ParsedData['inverter'][pInverterId] if item['fld'] == 'P_AC')['val']))
+    ActualPower_index = ParsedData["ch0_fld_names"].index("P_AC")
+    url = f'http://{AHOY_IP}/api/inverter/id/{pInverterId}'
+    ParsedData = requests.get(url, timeout=10).json()
+    ActualPower = CastToInt(ParsedData["ch"][0][ActualPower_index])
     logger.info('Ahoy: Inverter "%s" power producing: %s %s',NAME[pInverterId],ActualPower," Watt")
     return CastToInt(ActualPower)
 

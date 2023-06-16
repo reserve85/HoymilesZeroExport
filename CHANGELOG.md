@@ -1,5 +1,9 @@
 # Changelog
 
+## V1.42
+### script
+* AHOY API Update: changed to new functions, see https://github.com/lumapu/ahoy/issues/993
+
 ## V1.41
 ### script
 * add timeout = 10 seconds for HTTP Requests
