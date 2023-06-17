@@ -1,5 +1,9 @@
 # Changelog
 
+## V1.43
+### script
+* Bugfix: timeout OpenDTU
+
 ## V1.42
 ### script
 * AHOY API Update: changed to new functions, see https://github.com/lumapu/ahoy/issues/993

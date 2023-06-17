@@ -15,7 +15,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 __author__ = "Tobias Kraft"
-__version__ = "1.42"
+__version__ = "1.43"
 
 import requests
 import time
@@ -186,7 +186,7 @@ def GetHoymilesAvailable():
 
 def GetHoymilesInfoOpenDTU(pInverterId):
     url = f'http://{OPENDTU_IP}/api/livedata/status/inverters'
-    ParsedData = requests.get(url, auth=HTTPBasicAuth(OPENDTU_USER, OPENDTU_PASS, timeout=10)).json()
+    ParsedData = requests.get(url, auth=HTTPBasicAuth(OPENDTU_USER, OPENDTU_PASS), timeout=10).json()
     SERIAL_NUMBER[pInverterId] = str(ParsedData['inverters'][pInverterId]['serial'])
     TEMPERATURE[pInverterId] = str(round(float((ParsedData['inverters'][pInverterId]['INV']['0']['Temperature']['v'])),1)) + ' degC'
     NAME[pInverterId] = str(ParsedData['inverters'][pInverterId]['name'])
