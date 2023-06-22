@@ -15,7 +15,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 __author__ = "Tobias Kraft"
-__version__ = "1.43"
+__version__ = "1.44"
 
 import requests
 import time
@@ -672,12 +672,22 @@ def ApplyLimitsToMaxInverterLimits(pInverter, pSetpoint):
         pSetpoint = HOY_MIN_WATT[pInverter]
     return pSetpoint
 
+# Max possible Watts, can be reduced on battery mode
 def GetMaxWattFromAllInverters():
     maxWatt = 0
     for i in range(INVERTER_COUNT):
         if (not AVAILABLE[i]) or (not HOY_POWER_STATUS[i]):
             continue
         maxWatt = maxWatt + HOY_MAX_WATT[i]
+    return maxWatt
+
+# Max possible Watts (physically) - Inverter Specification!
+def GetMaxInverterWattFromAllInverters():
+    maxWatt = 0
+    for i in range(INVERTER_COUNT):
+        if (not AVAILABLE[i]) or (not HOY_POWER_STATUS[i]):
+            continue
+        maxWatt = maxWatt + HOY_INVERTER_WATT[i]
     return maxWatt
 
 def GetMinWattFromAllInverters():
@@ -773,7 +783,7 @@ SET_LIMIT_DELAY_IN_SECONDS = config.getint('COMMON', 'SET_LIMIT_DELAY_IN_SECONDS
 SET_LIMIT_DELAY_IN_SECONDS_MULTIPLE_INVERTER = config.getint('COMMON', 'SET_LIMIT_DELAY_IN_SECONDS_MULTIPLE_INVERTER')
 SET_POWER_STATUS_DELAY_IN_SECONDS = config.getint('COMMON', 'SET_POWER_STATUS_DELAY_IN_SECONDS')
 POLL_INTERVAL_IN_SECONDS = config.getint('COMMON', 'POLL_INTERVAL_IN_SECONDS')
-JUMP_TO_MAX_LIMIT_ON_GRID_USAGE = config.getboolean('COMMON', 'JUMP_TO_MAX_LIMIT_ON_GRID_USAGE')
+ON_GRID_USAGE_JUMP_TO_LIMIT_PERCENT = config.getint('COMMON', 'ON_GRID_USAGE_JUMP_TO_LIMIT_PERCENT')
 MAX_DIFFERENCE_BETWEEN_LIMIT_AND_OUTPUTPOWER = config.getint('COMMON', 'MAX_DIFFERENCE_BETWEEN_LIMIT_AND_OUTPUTPOWER')
 SET_LIMIT_RETRY = config.getint('COMMON', 'SET_LIMIT_RETRY')
 SLOW_APPROX_FACTOR_IN_PERCENT = config.getint('COMMON', 'SLOW_APPROX_FACTOR_IN_PERCENT')
@@ -852,8 +862,8 @@ while True:
             for x in range(CastToInt(LOOP_INTERVAL_IN_SECONDS / POLL_INTERVAL_IN_SECONDS)):
                 powermeterWatts = GetPowermeterWatts()
                 if powermeterWatts > POWERMETER_MAX_POINT:
-                    if JUMP_TO_MAX_LIMIT_ON_GRID_USAGE:
-                        newLimitSetpoint = GetMaxWattFromAllInverters()
+                    if ON_GRID_USAGE_JUMP_TO_LIMIT_PERCENT > 0:
+                        newLimitSetpoint = CastToInt(GetMaxInverterWattFromAllInverters() * ON_GRID_USAGE_JUMP_TO_LIMIT_PERCENT / 100)
                     else:
                         newLimitSetpoint = PreviousLimitSetpoint + powermeterWatts - POWERMETER_TARGET_POINT
                     newLimitSetpoint = ApplyLimitsToSetpoint(newLimitSetpoint)
