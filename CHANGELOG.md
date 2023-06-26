@@ -1,5 +1,9 @@
 # Changelog
 
+## V1.45
+### script
+* BatteryMode: save latest five PanelMinVoltages and return the highest value of them. This ignores temporarly DTU-Errors (e.g. reset values at midnight) for maximum of five iterations.
+
 ## V1.44
 ### script
 * replaced the feature "jump to max limit" to "jump to defined limit"

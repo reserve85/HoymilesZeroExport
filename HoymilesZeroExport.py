@@ -15,7 +15,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 __author__ = "Tobias Kraft"
-__version__ = "1.44"
+__version__ = "1.45"
 
 import requests
 import time
@@ -227,6 +227,8 @@ def GetHoymilesInfo():
         raise
 
 def GetHoymilesPanelMinVoltageAhoy(pInverterId):
+    if not hasattr(GetHoymilesPanelMinVoltageAhoy, "VoltageList"):
+        GetHoymilesPanelMinVoltageAhoy.VoltageList = []
     url = f'http://{AHOY_IP}/api/live'
     ParsedData = requests.get(url, timeout=10).json()
     PanelVDC_index = ParsedData["fld_names"].index("U_DC")
@@ -242,10 +244,22 @@ def GetHoymilesPanelMinVoltageAhoy(pInverterId):
             minVdc = PanelVDC[i]
     if minVdc == float('inf'):
         minVdc = 0
-    logger.info("Lowest panel voltage: %s Volt",minVdc)
+
+    # save last 5 min-values in list and return the "highest" value.
+    GetHoymilesPanelMinVoltageAhoy.VoltageList.append(minVdc)
+    if len(GetHoymilesPanelMinVoltageAhoy.VoltageList) > 5:
+        GetHoymilesPanelMinVoltageAhoy.VoltageList.pop(0)
+    max_value = None
+    for num in GetHoymilesPanelMinVoltageAhoy.VoltageList:
+        if (max_value is None or num > max_value):
+            max_value = num
+
+    logger.info("Lowest panel voltage: %s Volt",max_value)
     return minVdc
 
 def GetHoymilesPanelMinVoltageOpenDTU(pInverterId):
+    if not hasattr(GetHoymilesPanelMinVoltageOpenDTU, "VoltageList"):
+        GetHoymilesPanelMinVoltageOpenDTU.VoltageList = []
     url = f'http://{OPENDTU_IP}/api/livedata/status/inverters'
     ParsedData = requests.get(url, auth=HTTPBasicAuth(OPENDTU_USER, OPENDTU_PASS), timeout=10).json()
     PanelVDC = []
@@ -257,7 +271,17 @@ def GetHoymilesPanelMinVoltageOpenDTU(pInverterId):
             minVdc = PanelVDC[i]
     if minVdc == float('inf'):
         minVdc = 0
-    logger.info("Lowest panelvoltage: %s Volt",minVdc)
+
+    # save last 5 min-values in list and return the "highest" value.
+    GetHoymilesPanelMinVoltageOpenDTU.VoltageList.append(minVdc)
+    if len(GetHoymilesPanelMinVoltageOpenDTU.VoltageList) > 5:
+        GetHoymilesPanelMinVoltageOpenDTU.VoltageList.pop(0)
+    max_value = None
+    for num in GetHoymilesPanelMinVoltageOpenDTU.VoltageList:
+        if (max_value is None or num > max_value):
+            max_value = num
+
+    logger.info("Lowest panel voltage: %s Volt",max_value)
     return minVdc
 
 def GetHoymilesPanelMinVoltage(pInverterId):
