@@ -3,6 +3,8 @@
 ## V1.46
 ### script
 * Bugfix: jump to defined limit never increased if < 100%
+### Config
+* just added some comments, nothing productive ( thnx @Ollipop030 )
 
 ## V1.45
 ### script
