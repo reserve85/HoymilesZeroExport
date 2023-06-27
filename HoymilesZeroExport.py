@@ -15,7 +15,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 __author__ = "Tobias Kraft"
-__version__ = "1.45"
+__version__ = "1.46"
 
 import requests
 import time
@@ -888,6 +888,8 @@ while True:
                 if powermeterWatts > POWERMETER_MAX_POINT:
                     if ON_GRID_USAGE_JUMP_TO_LIMIT_PERCENT > 0:
                         newLimitSetpoint = CastToInt(GetMaxInverterWattFromAllInverters() * ON_GRID_USAGE_JUMP_TO_LIMIT_PERCENT / 100)
+                        if (newLimitSetpoint <= PreviousLimitSetpoint) and (ON_GRID_USAGE_JUMP_TO_LIMIT_PERCENT != 100):
+                            newLimitSetpoint = PreviousLimitSetpoint + powermeterWatts - POWERMETER_TARGET_POINT
                     else:
                         newLimitSetpoint = PreviousLimitSetpoint + powermeterWatts - POWERMETER_TARGET_POINT
                     newLimitSetpoint = ApplyLimitsToSetpoint(newLimitSetpoint)
