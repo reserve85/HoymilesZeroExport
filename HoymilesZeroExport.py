@@ -15,7 +15,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 __author__ = "Tobias Kraft"
-__version__ = "1.46"
+__version__ = "1.47"
 
 import requests
 import time
@@ -459,6 +459,8 @@ def GetHoymilesActualPower():
             return GetPowermeterWattsIobroker_Intermediate()
         elif USE_HOMEASSISTANT_INTERMEDIATE:
             return GetPowermeterWattsHomeAssistant_Intermediate()
+        elif USE_VZLOGGER_INTERMEDIATE:
+            return GetPowermeterWattsVZLogger_Intermediate()
         elif USE_AHOY:
             for i in range(INVERTER_COUNT):
                 if (not AVAILABLE[i]) or (not HOY_POWER_STATUS[i]):
@@ -553,6 +555,13 @@ def GetPowermeterWattsHomeAssistant_Intermediate():
     logger.info("intermediate meter HomeAssistant: %s %s",Watts," Watt")
     return CastToInt(Watts)
 
+def GetPowermeterWattsVZLogger_Intermediate():
+    url = f"http://{VZL_IP_INTERMEDIATE}:{VZL_PORT_INTERMEDIATE}/{VZL_UUID_INTERMEDIATE}"
+    ParsedData = requests.get(url, timeout=10).json()
+    Watts = CastToInt(ParsedData['data'][0]['tuples'][0][1])
+    logger.info("powermeter VZLogger: %s %s",Watts," Watt")
+    return CastToInt(Watts)
+
 def GetPowermeterWattsTasmota():
     url = f'http://{TASMOTA_IP}/cm?cmnd=status%2010'
     ParsedData = requests.get(url, timeout=10).json()
@@ -642,6 +651,13 @@ def GetPowermeterWattsHomeAssistant():
     logger.info("powermeter HomeAssistant: %s %s",Watts," Watt")
     return CastToInt(Watts)
 
+def GetPowermeterWattsVZLogger():
+    url = f"http://{VZL_IP}:{VZL_PORT}/{VZL_UUID}"
+    ParsedData = requests.get(url, timeout=10).json()
+    Watts = CastToInt(ParsedData['data'][0]['tuples'][0][1])
+    logger.info("powermeter VZLogger: %s %s",Watts," Watt")
+    return CastToInt(Watts)
+
 def GetPowermeterWatts():
     try:
         if USE_SHELLY_EM:
@@ -660,6 +676,8 @@ def GetPowermeterWatts():
             return GetPowermeterWattsIobroker()
         elif USE_HOMEASSISTANT:
             return GetPowermeterWattsHomeAssistant()
+        elif USE_VZLOGGER:
+            return GetPowermeterWattsVZLogger()
         else:
             raise Exception("Error: no powermeter defined!")
     except:
@@ -740,6 +758,7 @@ USE_SHRDZM = config.getboolean('SELECT_POWERMETER', 'USE_SHRDZM')
 USE_EMLOG = config.getboolean('SELECT_POWERMETER', 'USE_EMLOG')
 USE_IOBROKER = config.getboolean('SELECT_POWERMETER', 'USE_IOBROKER')
 USE_HOMEASSISTANT = config.getboolean('SELECT_POWERMETER', 'USE_HOMEASSISTANT')
+USE_VZLOGGER = config.getboolean('SELECT_POWERMETER', 'USE_VZLOGGER')
 AHOY_IP = config.get('AHOY_DTU', 'AHOY_IP')
 OPENDTU_IP = config.get('OPEN_DTU', 'OPENDTU_IP')
 OPENDTU_USER = config.get('OPEN_DTU', 'OPENDTU_USER')
@@ -772,6 +791,9 @@ HA_CURRENT_POWER_ENTITY = config.get('HOMEASSISTANT', 'HA_CURRENT_POWER_ENTITY')
 HA_POWER_CALCULATE = config.getboolean('HOMEASSISTANT', 'HA_POWER_CALCULATE')
 HA_POWER_INPUT_ALIAS = config.get('HOMEASSISTANT', 'HA_POWER_INPUT_ALIAS')
 HA_POWER_OUTPUT_ALIAS = config.get('HOMEASSISTANT', 'HA_POWER_OUTPUT_ALIAS')
+VZL_IP = config.get('VZLOGGER', 'VZL_IP')
+VZL_PORT = config.get('VZLOGGER', 'VZL_PORT')
+VZL_UUID = config.get('VZLOGGER', 'VZL_UUID')
 USE_TASMOTA_INTERMEDIATE = config.getboolean('SELECT_INTERMEDIATE_METER', 'USE_TASMOTA_INTERMEDIATE')
 USE_SHELLY_EM_INTERMEDIATE = config.getboolean('SELECT_INTERMEDIATE_METER', 'USE_SHELLY_EM_INTERMEDIATE')
 USE_SHELLY_3EM_INTERMEDIATE = config.getboolean('SELECT_INTERMEDIATE_METER', 'USE_SHELLY_3EM_INTERMEDIATE')
@@ -782,6 +804,7 @@ USE_SHRDZM_INTERMEDIATE = config.getboolean('SELECT_INTERMEDIATE_METER', 'USE_SH
 USE_EMLOG_INTERMEDIATE = config.getboolean('SELECT_INTERMEDIATE_METER', 'USE_EMLOG_INTERMEDIATE')
 USE_IOBROKER_INTERMEDIATE = config.getboolean('SELECT_INTERMEDIATE_METER', 'USE_IOBROKER_INTERMEDIATE')
 USE_HOMEASSISTANT_INTERMEDIATE = config.getboolean('SELECT_INTERMEDIATE_METER', 'USE_HOMEASSISTANT_INTERMEDIATE')
+USE_VZLOGGER_INTERMEDIATE = config.getboolean('SELECT_INTERMEDIATE_METER', 'USE_VZLOGGER_INTERMEDIATE')
 TASMOTA_IP_INTERMEDIATE = config.get('INTERMEDIATE_TASMOTA', 'TASMOTA_IP_INTERMEDIATE')
 TASMOTA_JSON_STATUS_INTERMEDIATE = config.get('INTERMEDIATE_TASMOTA', 'TASMOTA_JSON_STATUS_INTERMEDIATE')
 TASMOTA_JSON_PAYLOAD_MQTT_PREFIX_INTERMEDIATE = config.get('INTERMEDIATE_TASMOTA', 'TASMOTA_JSON_PAYLOAD_MQTT_PREFIX_INTERMEDIATE')
@@ -801,6 +824,9 @@ HA_IP_INTERMEDIATE = config.get('INTERMEDIATE_HOMEASSISTANT', 'HA_IP_INTERMEDIAT
 HA_PORT_INTERMEDIATE = config.get('INTERMEDIATE_HOMEASSISTANT', 'HA_PORT_INTERMEDIATE')
 HA_ACCESSTOKEN_INTERMEDIATE = config.get('INTERMEDIATE_HOMEASSISTANT', 'HA_ACCESSTOKEN_INTERMEDIATE')
 HA_CURRENT_POWER_ENTITY_INTERMEDIATE = config.get('INTERMEDIATE_HOMEASSISTANT', 'HA_CURRENT_POWER_ENTITY_INTERMEDIATE')
+VZL_IP_INTERMEDIATE = config.get('INTERMEDIATE_VZLOGGER', 'VZL_IP_INTERMEDIATE')
+VZL_PORT_INTERMEDIATE = config.get('INTERMEDIATE_VZLOGGER', 'VZL_PORT_INTERMEDIATE')
+VZL_UUID_INTERMEDIATE = config.get('INTERMEDIATE_VZLOGGER', 'VZL_UUID_INTERMEDIATE')
 INVERTER_COUNT = config.getint('COMMON', 'INVERTER_COUNT')
 LOOP_INTERVAL_IN_SECONDS = config.getint('COMMON', 'LOOP_INTERVAL_IN_SECONDS')
 SET_LIMIT_DELAY_IN_SECONDS = config.getint('COMMON', 'SET_LIMIT_DELAY_IN_SECONDS')
