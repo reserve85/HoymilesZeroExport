@@ -559,7 +559,7 @@ def GetPowermeterWattsVZLogger_Intermediate():
     url = f"http://{VZL_IP_INTERMEDIATE}:{VZL_PORT_INTERMEDIATE}/{VZL_UUID_INTERMEDIATE}"
     ParsedData = requests.get(url, timeout=10).json()
     Watts = CastToInt(ParsedData['data'][0]['tuples'][0][1])
-    logger.info("powermeter VZLogger: %s %s",Watts," Watt")
+    logger.info("intermediate meter VZLogger: %s %s",Watts," Watt")
     return CastToInt(Watts)
 
 def GetPowermeterWattsTasmota():
