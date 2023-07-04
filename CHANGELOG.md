@@ -1,5 +1,18 @@
 # Changelog
 
+## V1.47
+### script
+* Add VZLogger local http api support (https://wiki.volkszaehler.org/software/controller/vzlogger/vzlogger_conf_parameter#local)
+### Config
+* add: `[SELECT_POWERMETER]`: `USE_VZLOGGER`
+* add: `[SELECT_INTERMEDIATE_METER]`: `USE_VZLOGGER_INTERMEDIATE`
+* add: `[VZLOGGER]`: `VZL_IP`
+* add: `[VZLOGGER]`: `VZL_PORT`
+* add: `[VZLOGGER]`: `VZL_UUID`
+* add: `[INTERMEDIATE_VZLOGGER]`: `VZL_IP_INTERMEDIATE`
+* add: `[INTERMEDIATE_VZLOGGER]`: `VZL_PORT_INTERMEDIATE`
+* add: `[INTERMEDIATE_VZLOGGER]`: `VZL_UUID_INTERMEDIATE`
+
 ## V1.46
 ### script
 * Bugfix: jump to defined limit never increased if < 100%
