@@ -15,6 +15,7 @@ This script does not use MQTT, it's based on webapi communication.
 - [Emlog ("electronic meter log")](https://weidmann-elektronik.de/Emlog_Projekt.html)
 - [ioBroker](https://www.iobroker.net/) with [simpleAPI](https://github.com/ioBroker/ioBroker.simple-api)
 - [HomeAssistant](https://www.home-assistant.io/)
+- [Volkszaehler (VZLogger)](https://volkszaehler.org/)
 - easy to implement new smart meter modules supporting WebAPI / JSON
 
 ### Supported DTU and Inverters
