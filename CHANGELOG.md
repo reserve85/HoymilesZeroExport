@@ -1,5 +1,11 @@
 # Changelog
 
+## V1.48
+### script
+* add a feature to ignore specific panel voltages in battery mode
+### Config
+* add: `INVERTER_x`: `HOY_BATTERY_IGNORE_PANELS`
+
 ## V1.47
 ### script
 * Add VZLogger local http api support (https://wiki.volkszaehler.org/software/controller/vzlogger/vzlogger_conf_parameter#local)

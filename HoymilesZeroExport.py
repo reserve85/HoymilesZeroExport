@@ -15,7 +15,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 __author__ = "Tobias Kraft"
-__version__ = "1.47"
+__version__ = "1.48"
 
 import requests
 import time
@@ -236,8 +236,10 @@ def GetHoymilesPanelMinVoltageAhoy(pInverterId):
     url = f'http://{AHOY_IP}/api/inverter/id/{pInverterId}'
     ParsedData = requests.get(url, timeout=10).json()
     PanelVDC = []
+    ExcludedPanels = GetNumberArray(HOY_BATTERY_IGNORE_PANELS[pInverterId])
     for i in range(1, len(ParsedData['ch']), 1):
-        PanelVDC.append(float(ParsedData['ch'][i][PanelVDC_index]))
+        if i not in ExcludedPanels:
+            PanelVDC.append(float(ParsedData['ch'][i][PanelVDC_index]))
     minVdc = float('inf')
     for i in range(len(PanelVDC)):
         if (minVdc > PanelVDC[i]) and (PanelVDC[i] > 5):
@@ -355,6 +357,14 @@ def SetHoymilesPowerStatus(pInverterId, pActive):
     except:
         logger.error("Exception at SetHoymilesPowerStatus")
         raise
+    
+def GetNumberArray(pExcludedPanels):
+    lclExcludedPanelsList = pExcludedPanels.split(',')
+    result = []
+    for number_str in lclExcludedPanelsList:
+        number = int(number_str.strip())
+        result.append(number)
+    return result
 
 def GetCheckBattery():
     try:
@@ -861,6 +871,7 @@ HOY_BATTERY_NORMAL_WATT = []
 HOY_BATTERY_REDUCE_WATT = []
 HOY_BATTERY_THRESHOLD_ON_LIMIT_IN_V = []
 HOY_POWER_STATUS = []
+HOY_BATTERY_IGNORE_PANELS = []
 for i in range(INVERTER_COUNT):
     SERIAL_NUMBER.append(str('yet unknown'))
     NAME.append(str('yet unknown'))
@@ -881,6 +892,7 @@ for i in range(INVERTER_COUNT):
     HOY_BATTERY_THRESHOLD_ON_LIMIT_IN_V.append(config.getfloat('INVERTER_' + str(i + 1), 'HOY_BATTERY_THRESHOLD_ON_LIMIT_IN_V'))
     HOY_POWER_STATUS.append(bool(True))
     HOY_COMPENSATE_WATT_FACTOR.append(config.getfloat('INVERTER_' + str(i + 1), 'HOY_COMPENSATE_WATT_FACTOR'))
+    HOY_BATTERY_IGNORE_PANELS.append(config.get('INVERTER_' + str(i + 1), 'HOY_BATTERY_IGNORE_PANELS'))
 SLOW_APPROX_LIMIT = CastToInt(GetMaxWattFromAllInverters() * config.getint('COMMON', 'SLOW_APPROX_LIMIT_IN_PERCENT') / 100)
 
 try:
