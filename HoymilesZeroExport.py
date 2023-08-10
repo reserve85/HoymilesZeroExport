@@ -115,7 +115,7 @@ def WaitForAckAhoy(pInverterId, pTimeoutInS):
     if ack:
         logger.info('Ahoy: Inverter "%s": Limit acknowledged', NAME[pInverterId])
     else:
-        logger.info('Ahoy: Inverter "%s": Limit timeout!')
+        logger.info('Ahoy: Inverter "%s": Limit timeout!', NAME[pInverterId])
     return ack
 
 def SetLimit(pLimit):
