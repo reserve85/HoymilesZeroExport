@@ -1,5 +1,10 @@
 # Changelog
 
+## V1.49
+### script
+* AHOY: Wait for Acknowledge after SetLimit, see https://github.com/lumapu/ahoy/issues/1072
+* Warning: if you use AHOY-DTU then you must update your DTU to Version >= 0.7.29 -> https://github.com/lumapu/ahoy/actions
+
 ## V1.48
 ### script
 * add a feature to ignore specific panel voltages in battery mode

@@ -15,7 +15,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 __author__ = "Tobias Kraft"
-__version__ = "1.48"
+__version__ = "1.49"
 
 import requests
 import time
@@ -102,6 +102,22 @@ def SetLimitAhoy(pInverterId, pLimit):
     requests.post(url, data=data, headers=headers)
     CURRENT_LIMIT[pInverterId] = pLimit
 
+def WaitForAckAhoy(pInverterId, pTimeoutInS):
+    url = f'http://{AHOY_IP}/api/inverter/id/{pInverterId}'
+    timeout = pTimeoutInS
+    timeout_start = time.time()
+    while time.time() < timeout_start + timeout:
+        time.sleep(0.5)
+        ParsedData = requests.get(url, timeout=pTimeoutInS).json()
+        ack = bool(ParsedData['power_limit_ack'])
+        if ack:
+            break
+    if ack:
+        logger.info('Ahoy: Inverter "%s": Limit acknowledged', NAME[pInverterId])
+    else:
+        logger.info('Ahoy: Inverter "%s": Limit timeout!')
+    return ack
+
 def SetLimit(pLimit):
     try:
         if SET_LIMIT_RETRY != -1:
@@ -122,8 +138,9 @@ def SetLimit(pLimit):
         for i in range(INVERTER_COUNT):
             if (not AVAILABLE[i]) or (not HOY_POWER_STATUS[i]):
                 continue
-            if i != 0:
-                time.sleep(SET_LIMIT_DELAY_IN_SECONDS_MULTIPLE_INVERTER)
+            if not USE_AHOY:
+                if i != 0:
+                    time.sleep(SET_LIMIT_DELAY_IN_SECONDS_MULTIPLE_INVERTER)
             Factor = HOY_MAX_WATT[i] / GetMaxWattFromAllInverters()
             NewLimit = CastToInt(pLimit*Factor)
             NewLimit = ApplyLimitsToSetpointInverter(i, NewLimit)
@@ -133,11 +150,12 @@ def SetLimit(pLimit):
                 NewLimit = ApplyLimitsToMaxInverterLimits(i, NewLimit)
             if USE_AHOY:
                 SetLimitAhoy(i, NewLimit)
+                WaitForAckAhoy(i, SET_LIMIT_DELAY_IN_SECONDS)
             elif USE_OPENDTU:
                 SetLimitOpenDTU(i, NewLimit)
+                time.sleep(SET_LIMIT_DELAY_IN_SECONDS)
             else:
                 raise Exception("Error: DTU Type not defined")
-        time.sleep(SET_LIMIT_DELAY_IN_SECONDS)
     except:
         logger.error("Exception at SetLimit")
         raise
