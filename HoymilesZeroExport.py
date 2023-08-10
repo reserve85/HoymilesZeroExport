@@ -15,7 +15,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 __author__ = "Tobias Kraft"
-__version__ = "1.49"
+__version__ = "1.50"
 
 import requests
 import time
@@ -150,7 +150,7 @@ def SetLimit(pLimit):
                 NewLimit = ApplyLimitsToMaxInverterLimits(i, NewLimit)
             if USE_AHOY:
                 SetLimitAhoy(i, NewLimit)
-                WaitForAckAhoy(i, SET_LIMIT_DELAY_IN_SECONDS)
+                WaitForAckAhoy(i, SET_LIMIT_TIMEOUT_SECONDS)
             elif USE_OPENDTU:
                 SetLimitOpenDTU(i, NewLimit)
                 time.sleep(SET_LIMIT_DELAY_IN_SECONDS)
@@ -858,6 +858,7 @@ VZL_UUID_INTERMEDIATE = config.get('INTERMEDIATE_VZLOGGER', 'VZL_UUID_INTERMEDIA
 INVERTER_COUNT = config.getint('COMMON', 'INVERTER_COUNT')
 LOOP_INTERVAL_IN_SECONDS = config.getint('COMMON', 'LOOP_INTERVAL_IN_SECONDS')
 SET_LIMIT_DELAY_IN_SECONDS = config.getint('COMMON', 'SET_LIMIT_DELAY_IN_SECONDS')
+SET_LIMIT_TIMEOUT_SECONDS = config.getint('COMMON', 'SET_LIMIT_TIMEOUT_SECONDS')
 SET_LIMIT_DELAY_IN_SECONDS_MULTIPLE_INVERTER = config.getint('COMMON', 'SET_LIMIT_DELAY_IN_SECONDS_MULTIPLE_INVERTER')
 SET_POWER_STATUS_DELAY_IN_SECONDS = config.getint('COMMON', 'SET_POWER_STATUS_DELAY_IN_SECONDS')
 POLL_INTERVAL_IN_SECONDS = config.getint('COMMON', 'POLL_INTERVAL_IN_SECONDS')

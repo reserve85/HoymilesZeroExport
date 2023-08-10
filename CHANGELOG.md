@@ -1,5 +1,11 @@
 # Changelog
 
+## V1.50
+### script
+* use SET_LIMIT_TIMEOUT_SECONDS to wait for acknowledge
+### Config
+* add: `COMMON`: `SET_LIMIT_TIMEOUT_SECONDS`
+
 ## V1.49
 ### script
 * AHOY: Wait for Acknowledge after SetLimit, see https://github.com/lumapu/ahoy/issues/1072
