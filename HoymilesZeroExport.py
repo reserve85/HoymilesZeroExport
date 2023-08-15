@@ -15,7 +15,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 __author__ = "Tobias Kraft"
-__version__ = "1.50"
+__version__ = "1.51"
 
 import requests
 import time
@@ -125,7 +125,12 @@ def SetLimit(pLimit):
                 SetLimit.LastLimit = CastToInt(0)
             if not hasattr(SetLimit, "SameLimitCnt"):
                 SetLimit.SameLimitCnt = CastToInt(0)
-            if SetLimit.LastLimit == pLimit:
+            if not hasattr(SetLimit, "LastLimitAck"):
+                SetLimit.LastLimitAck = bool(False)
+            if (SetLimit.LastLimit == pLimit) and USE_AHOY and SetLimit.LastLimitAck:
+                logger.info("Inverterlimit already at %s Watt",CastToInt(pLimit))
+                return
+            if (SetLimit.LastLimit == pLimit):
                 SetLimit.SameLimitCnt = SetLimit.SameLimitCnt + 1
             else:
                 SetLimit.LastLimit = pLimit
@@ -135,6 +140,7 @@ def SetLimit(pLimit):
                 time.sleep(SET_LIMIT_DELAY_IN_SECONDS)
                 return
         logger.info("setting new limit to %s Watt",CastToInt(pLimit))
+        SetLimit.LastLimitAck = True
         for i in range(INVERTER_COUNT):
             if (not AVAILABLE[i]) or (not HOY_POWER_STATUS[i]):
                 continue
@@ -150,7 +156,8 @@ def SetLimit(pLimit):
                 NewLimit = ApplyLimitsToMaxInverterLimits(i, NewLimit)
             if USE_AHOY:
                 SetLimitAhoy(i, NewLimit)
-                WaitForAckAhoy(i, SET_LIMIT_TIMEOUT_SECONDS)
+                if not WaitForAckAhoy(i, SET_LIMIT_TIMEOUT_SECONDS):
+                    SetLimit.LastLimitAck = False
             elif USE_OPENDTU:
                 SetLimitOpenDTU(i, NewLimit)
                 time.sleep(SET_LIMIT_DELAY_IN_SECONDS)
@@ -158,6 +165,7 @@ def SetLimit(pLimit):
                 raise Exception("Error: DTU Type not defined")
     except:
         logger.error("Exception at SetLimit")
+        SetLimit.LastLimitAck = False
         raise
 
 def GetHoymilesAvailableOpenDTU(pInverterId):

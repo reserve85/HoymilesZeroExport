@@ -1,5 +1,9 @@
 # Changelog
 
+## V1.51
+### script
+* Ahoy: removed limit-retries when SetLimit was acknowledged
+
 ## V1.50
 ### script
 * use SET_LIMIT_TIMEOUT_SECONDS to wait for acknowledge
