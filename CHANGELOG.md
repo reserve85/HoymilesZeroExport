@@ -1,5 +1,10 @@
 # Changelog
 
+## V1.52
+### script
+* OpenDTU: Wait for Acknowledge after SetLimit
+* OpenDTU: Removed limit-retries when SetLimit was acknowledged
+
 ## V1.51
 ### script
 * Ahoy: removed limit-retries when SetLimit was acknowledged

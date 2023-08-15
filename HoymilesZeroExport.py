@@ -15,7 +15,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 __author__ = "Tobias Kraft"
-__version__ = "1.51"
+__version__ = "1.52"
 
 import requests
 import time
@@ -118,6 +118,22 @@ def WaitForAckAhoy(pInverterId, pTimeoutInS):
         logger.info('Ahoy: Inverter "%s": Limit timeout!', NAME[pInverterId])
     return ack
 
+def WaitForAckOpenDTU(pInverterId, pTimeoutInS):
+    url = f'http://{OPENDTU_IP}/api/limit/status'
+    timeout = pTimeoutInS
+    timeout_start = time.time()
+    while time.time() < timeout_start + timeout:
+        time.sleep(0.5)
+        ParsedData = requests.get(url, auth=HTTPBasicAuth(OPENDTU_USER, OPENDTU_PASS), timeout=10).json()
+        ack = (ParsedData[SERIAL_NUMBER[pInverterId]]['limit_set_status'] == 'Ok')
+        if ack:
+            break
+    if ack:
+        logger.info('OpenDTU: Inverter "%s": Limit acknowledged', NAME[pInverterId])
+    else:
+        logger.info('OpenDTU: Inverter "%s": Limit timeout!', NAME[pInverterId])
+    return ack
+
 def SetLimit(pLimit):
     try:
         if SET_LIMIT_RETRY != -1:
@@ -127,7 +143,7 @@ def SetLimit(pLimit):
                 SetLimit.SameLimitCnt = CastToInt(0)
             if not hasattr(SetLimit, "LastLimitAck"):
                 SetLimit.LastLimitAck = bool(False)
-            if (SetLimit.LastLimit == pLimit) and USE_AHOY and SetLimit.LastLimitAck:
+            if (SetLimit.LastLimit == pLimit) and SetLimit.LastLimitAck:
                 logger.info("Inverterlimit already at %s Watt",CastToInt(pLimit))
                 return
             if (SetLimit.LastLimit == pLimit):
@@ -144,9 +160,6 @@ def SetLimit(pLimit):
         for i in range(INVERTER_COUNT):
             if (not AVAILABLE[i]) or (not HOY_POWER_STATUS[i]):
                 continue
-            if not USE_AHOY:
-                if i != 0:
-                    time.sleep(SET_LIMIT_DELAY_IN_SECONDS_MULTIPLE_INVERTER)
             Factor = HOY_MAX_WATT[i] / GetMaxWattFromAllInverters()
             NewLimit = CastToInt(pLimit*Factor)
             NewLimit = ApplyLimitsToSetpointInverter(i, NewLimit)
@@ -160,7 +173,8 @@ def SetLimit(pLimit):
                     SetLimit.LastLimitAck = False
             elif USE_OPENDTU:
                 SetLimitOpenDTU(i, NewLimit)
-                time.sleep(SET_LIMIT_DELAY_IN_SECONDS)
+                if not WaitForAckOpenDTU(i, SET_LIMIT_TIMEOUT_SECONDS):
+                    SetLimit.LastLimitAck = False
             else:
                 raise Exception("Error: DTU Type not defined")
     except:
