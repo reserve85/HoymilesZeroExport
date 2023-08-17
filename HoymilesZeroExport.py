@@ -15,7 +15,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 __author__ = "Tobias Kraft"
-__version__ = "1.52"
+__version__ = "1.53"
 
 import requests
 import time
@@ -29,6 +29,7 @@ from pathlib import Path
 from datetime import timedelta
 import datetime
 import sys
+from packaging import version
 
 logging.basicConfig(
     format='%(asctime)s %(levelname)-8s %(message)s',
@@ -223,6 +224,16 @@ def GetHoymilesAvailable():
     except:
         logger.error('Exception at GetHoymilesAvailable')
         raise
+    
+def CheckAhoyVersion():
+    MinVersion = '0.7.29'
+    url = f'http://{AHOY_IP}/api/system'
+    ParsedData = requests.get(url, timeout=10).json()
+    AhoyVersion = str((ParsedData["version"]))
+    logger.info('Ahoy: Current Version: %s',AhoyVersion)
+    if version.parse(AhoyVersion) < version.parse(MinVersion):
+        logger.error('Error: Your AHOY Version is too old! Please update at least to Version %s - you can find the newest dev-releases here: https://github.com/lumapu/ahoy/actions',MinVersion)
+        quit()
 
 def GetHoymilesInfoOpenDTU(pInverterId):
     url = f'http://{OPENDTU_IP}/api/livedata/status/inverters'
@@ -939,6 +950,8 @@ SLOW_APPROX_LIMIT = CastToInt(GetMaxWattFromAllInverters() * config.getint('COMM
 try:
     logger.info("---Init---")
     newLimitSetpoint = 0
+    if USE_AHOY:
+        CheckAhoyVersion()    
     if GetHoymilesAvailable():
         for i in range(INVERTER_COUNT):
             SetHoymilesPowerStatus(i, True)

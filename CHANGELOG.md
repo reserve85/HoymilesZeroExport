@@ -1,5 +1,12 @@
 # Changelog
 
+## V1.53
+### script
+* Check if AHOY Version is at least V0.7.29. 
+* ATTENTION: You need to install the Package "Packaging" -> to do so type "sudo pip3 install packaging" in your terminal (Linux) or "pip3 install packaging" in your cmd (Windows)
+* Update install.sh script to install additional package "packaging"
+* Update Readme.md to install additional package "packaging"
+
 ## V1.52
 ### script
 * OpenDTU: Wait for Acknowledge after SetLimit

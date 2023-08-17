@@ -77,9 +77,10 @@ sudo ./uninstall_service.sh
 ```
 
 ## Windows installation
-Get Python 3 (download is available at https://www.python.org/) and then install the module "requests":
+Get Python 3 (download is available at https://www.python.org/) and then install the module "requests" and "packaging":
 ```sh
 pip3 install requests
+pip3 install packaging
 ```
 Now you can execute the script with python.
 
