@@ -1,5 +1,38 @@
 # Changelog
 
+## V1.53
+### script
+* Check if AHOY Version is at least V0.7.29. 
+* ATTENTION: You need to install the Package "Packaging" -> to do so type "sudo pip3 install packaging" in your terminal (Linux) or "pip3 install packaging" in your cmd (Windows)
+* Update install.sh script to install additional package "packaging"
+* Update Readme.md to install additional package "packaging"
+
+## V1.52
+### script
+* OpenDTU: Wait for Acknowledge after SetLimit
+* OpenDTU: Removed limit-retries when SetLimit was acknowledged
+
+## V1.51
+### script
+* Ahoy: removed limit-retries when SetLimit was acknowledged
+
+## V1.50
+### script
+* use SET_LIMIT_TIMEOUT_SECONDS to wait for acknowledge
+### Config
+* add: `COMMON`: `SET_LIMIT_TIMEOUT_SECONDS`
+
+## V1.49
+### script
+* AHOY: Wait for Acknowledge after SetLimit, see https://github.com/lumapu/ahoy/issues/1072
+* Warning: if you use AHOY-DTU then you must update your DTU to Version >= 0.7.29 -> https://github.com/lumapu/ahoy/actions
+
+## V1.48
+### script
+* add a feature to ignore specific panel voltages in battery mode
+### Config
+* add: `INVERTER_x`: `HOY_BATTERY_IGNORE_PANELS`
+
 ## V1.47
 ### script
 * Add VZLogger local http api support (https://wiki.volkszaehler.org/software/controller/vzlogger/vzlogger_conf_parameter#local)

@@ -15,7 +15,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 __author__ = "Tobias Kraft"
-__version__ = "1.47"
+__version__ = "1.53"
 
 import requests
 import time
@@ -29,6 +29,7 @@ from pathlib import Path
 from datetime import timedelta
 import datetime
 import sys
+from packaging import version
 
 logging.basicConfig(
     format='%(asctime)s %(levelname)-8s %(message)s',
@@ -102,6 +103,38 @@ def SetLimitAhoy(pInverterId, pLimit):
     requests.post(url, data=data, headers=headers)
     CURRENT_LIMIT[pInverterId] = pLimit
 
+def WaitForAckAhoy(pInverterId, pTimeoutInS):
+    url = f'http://{AHOY_IP}/api/inverter/id/{pInverterId}'
+    timeout = pTimeoutInS
+    timeout_start = time.time()
+    while time.time() < timeout_start + timeout:
+        time.sleep(0.5)
+        ParsedData = requests.get(url, timeout=pTimeoutInS).json()
+        ack = bool(ParsedData['power_limit_ack'])
+        if ack:
+            break
+    if ack:
+        logger.info('Ahoy: Inverter "%s": Limit acknowledged', NAME[pInverterId])
+    else:
+        logger.info('Ahoy: Inverter "%s": Limit timeout!', NAME[pInverterId])
+    return ack
+
+def WaitForAckOpenDTU(pInverterId, pTimeoutInS):
+    url = f'http://{OPENDTU_IP}/api/limit/status'
+    timeout = pTimeoutInS
+    timeout_start = time.time()
+    while time.time() < timeout_start + timeout:
+        time.sleep(0.5)
+        ParsedData = requests.get(url, auth=HTTPBasicAuth(OPENDTU_USER, OPENDTU_PASS), timeout=10).json()
+        ack = (ParsedData[SERIAL_NUMBER[pInverterId]]['limit_set_status'] == 'Ok')
+        if ack:
+            break
+    if ack:
+        logger.info('OpenDTU: Inverter "%s": Limit acknowledged', NAME[pInverterId])
+    else:
+        logger.info('OpenDTU: Inverter "%s": Limit timeout!', NAME[pInverterId])
+    return ack
+
 def SetLimit(pLimit):
     try:
         if SET_LIMIT_RETRY != -1:
@@ -109,7 +142,12 @@ def SetLimit(pLimit):
                 SetLimit.LastLimit = CastToInt(0)
             if not hasattr(SetLimit, "SameLimitCnt"):
                 SetLimit.SameLimitCnt = CastToInt(0)
-            if SetLimit.LastLimit == pLimit:
+            if not hasattr(SetLimit, "LastLimitAck"):
+                SetLimit.LastLimitAck = bool(False)
+            if (SetLimit.LastLimit == pLimit) and SetLimit.LastLimitAck:
+                logger.info("Inverterlimit already at %s Watt",CastToInt(pLimit))
+                return
+            if (SetLimit.LastLimit == pLimit):
                 SetLimit.SameLimitCnt = SetLimit.SameLimitCnt + 1
             else:
                 SetLimit.LastLimit = pLimit
@@ -119,11 +157,10 @@ def SetLimit(pLimit):
                 time.sleep(SET_LIMIT_DELAY_IN_SECONDS)
                 return
         logger.info("setting new limit to %s Watt",CastToInt(pLimit))
+        SetLimit.LastLimitAck = True
         for i in range(INVERTER_COUNT):
             if (not AVAILABLE[i]) or (not HOY_POWER_STATUS[i]):
                 continue
-            if i != 0:
-                time.sleep(SET_LIMIT_DELAY_IN_SECONDS_MULTIPLE_INVERTER)
             Factor = HOY_MAX_WATT[i] / GetMaxWattFromAllInverters()
             NewLimit = CastToInt(pLimit*Factor)
             NewLimit = ApplyLimitsToSetpointInverter(i, NewLimit)
@@ -133,13 +170,17 @@ def SetLimit(pLimit):
                 NewLimit = ApplyLimitsToMaxInverterLimits(i, NewLimit)
             if USE_AHOY:
                 SetLimitAhoy(i, NewLimit)
+                if not WaitForAckAhoy(i, SET_LIMIT_TIMEOUT_SECONDS):
+                    SetLimit.LastLimitAck = False
             elif USE_OPENDTU:
                 SetLimitOpenDTU(i, NewLimit)
+                if not WaitForAckOpenDTU(i, SET_LIMIT_TIMEOUT_SECONDS):
+                    SetLimit.LastLimitAck = False
             else:
                 raise Exception("Error: DTU Type not defined")
-        time.sleep(SET_LIMIT_DELAY_IN_SECONDS)
     except:
         logger.error("Exception at SetLimit")
+        SetLimit.LastLimitAck = False
         raise
 
 def GetHoymilesAvailableOpenDTU(pInverterId):
@@ -183,6 +224,16 @@ def GetHoymilesAvailable():
     except:
         logger.error('Exception at GetHoymilesAvailable')
         raise
+    
+def CheckAhoyVersion():
+    MinVersion = '0.7.29'
+    url = f'http://{AHOY_IP}/api/system'
+    ParsedData = requests.get(url, timeout=10).json()
+    AhoyVersion = str((ParsedData["version"]))
+    logger.info('Ahoy: Current Version: %s',AhoyVersion)
+    if version.parse(AhoyVersion) < version.parse(MinVersion):
+        logger.error('Error: Your AHOY Version is too old! Please update at least to Version %s - you can find the newest dev-releases here: https://github.com/lumapu/ahoy/actions',MinVersion)
+        quit()
 
 def GetHoymilesInfoOpenDTU(pInverterId):
     url = f'http://{OPENDTU_IP}/api/livedata/status/inverters'
@@ -236,8 +287,10 @@ def GetHoymilesPanelMinVoltageAhoy(pInverterId):
     url = f'http://{AHOY_IP}/api/inverter/id/{pInverterId}'
     ParsedData = requests.get(url, timeout=10).json()
     PanelVDC = []
+    ExcludedPanels = GetNumberArray(HOY_BATTERY_IGNORE_PANELS[pInverterId])
     for i in range(1, len(ParsedData['ch']), 1):
-        PanelVDC.append(float(ParsedData['ch'][i][PanelVDC_index]))
+        if i not in ExcludedPanels:
+            PanelVDC.append(float(ParsedData['ch'][i][PanelVDC_index]))
     minVdc = float('inf')
     for i in range(len(PanelVDC)):
         if (minVdc > PanelVDC[i]) and (PanelVDC[i] > 5):
@@ -355,6 +408,14 @@ def SetHoymilesPowerStatus(pInverterId, pActive):
     except:
         logger.error("Exception at SetHoymilesPowerStatus")
         raise
+    
+def GetNumberArray(pExcludedPanels):
+    lclExcludedPanelsList = pExcludedPanels.split(',')
+    result = []
+    for number_str in lclExcludedPanelsList:
+        number = int(number_str.strip())
+        result.append(number)
+    return result
 
 def GetCheckBattery():
     try:
@@ -830,6 +891,7 @@ VZL_UUID_INTERMEDIATE = config.get('INTERMEDIATE_VZLOGGER', 'VZL_UUID_INTERMEDIA
 INVERTER_COUNT = config.getint('COMMON', 'INVERTER_COUNT')
 LOOP_INTERVAL_IN_SECONDS = config.getint('COMMON', 'LOOP_INTERVAL_IN_SECONDS')
 SET_LIMIT_DELAY_IN_SECONDS = config.getint('COMMON', 'SET_LIMIT_DELAY_IN_SECONDS')
+SET_LIMIT_TIMEOUT_SECONDS = config.getint('COMMON', 'SET_LIMIT_TIMEOUT_SECONDS')
 SET_LIMIT_DELAY_IN_SECONDS_MULTIPLE_INVERTER = config.getint('COMMON', 'SET_LIMIT_DELAY_IN_SECONDS_MULTIPLE_INVERTER')
 SET_POWER_STATUS_DELAY_IN_SECONDS = config.getint('COMMON', 'SET_POWER_STATUS_DELAY_IN_SECONDS')
 POLL_INTERVAL_IN_SECONDS = config.getint('COMMON', 'POLL_INTERVAL_IN_SECONDS')
@@ -861,6 +923,7 @@ HOY_BATTERY_NORMAL_WATT = []
 HOY_BATTERY_REDUCE_WATT = []
 HOY_BATTERY_THRESHOLD_ON_LIMIT_IN_V = []
 HOY_POWER_STATUS = []
+HOY_BATTERY_IGNORE_PANELS = []
 for i in range(INVERTER_COUNT):
     SERIAL_NUMBER.append(str('yet unknown'))
     NAME.append(str('yet unknown'))
@@ -881,11 +944,14 @@ for i in range(INVERTER_COUNT):
     HOY_BATTERY_THRESHOLD_ON_LIMIT_IN_V.append(config.getfloat('INVERTER_' + str(i + 1), 'HOY_BATTERY_THRESHOLD_ON_LIMIT_IN_V'))
     HOY_POWER_STATUS.append(bool(True))
     HOY_COMPENSATE_WATT_FACTOR.append(config.getfloat('INVERTER_' + str(i + 1), 'HOY_COMPENSATE_WATT_FACTOR'))
+    HOY_BATTERY_IGNORE_PANELS.append(config.get('INVERTER_' + str(i + 1), 'HOY_BATTERY_IGNORE_PANELS'))
 SLOW_APPROX_LIMIT = CastToInt(GetMaxWattFromAllInverters() * config.getint('COMMON', 'SLOW_APPROX_LIMIT_IN_PERCENT') / 100)
 
 try:
     logger.info("---Init---")
     newLimitSetpoint = 0
+    if USE_AHOY:
+        CheckAhoyVersion()    
     if GetHoymilesAvailable():
         for i in range(INVERTER_COUNT):
             SetHoymilesPowerStatus(i, True)
