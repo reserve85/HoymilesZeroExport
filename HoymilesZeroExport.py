@@ -15,7 +15,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 __author__ = "Tobias Kraft"
-__version__ = "1.53"
+__version__ = "1.54"
 
 import requests
 import time
@@ -283,7 +283,6 @@ def GetHoymilesPanelMinVoltageAhoy(pInverterId):
     url = f'http://{AHOY_IP}/api/live'
     ParsedData = requests.get(url, timeout=10).json()
     PanelVDC_index = ParsedData["fld_names"].index("U_DC")
-
     url = f'http://{AHOY_IP}/api/inverter/id/{pInverterId}'
     ParsedData = requests.get(url, timeout=10).json()
     PanelVDC = []
@@ -316,8 +315,10 @@ def GetHoymilesPanelMinVoltageOpenDTU(pInverterId):
     url = f'http://{OPENDTU_IP}/api/livedata/status/inverters'
     ParsedData = requests.get(url, auth=HTTPBasicAuth(OPENDTU_USER, OPENDTU_PASS), timeout=10).json()
     PanelVDC = []
+    ExcludedPanels = GetNumberArray(HOY_BATTERY_IGNORE_PANELS[pInverterId])
     for i in range(len(ParsedData['inverters'][pInverterId]['DC'])):
-        PanelVDC.append(float(ParsedData['inverters'][pInverterId]['DC'][str(i)]['Voltage']['v']))
+        if i not in ExcludedPanels:
+            PanelVDC.append(float(ParsedData['inverters'][pInverterId]['DC'][str(i)]['Voltage']['v']))
     minVdc = float('inf')
     for i in range(len(PanelVDC)):
         if (minVdc > PanelVDC[i]) and (PanelVDC[i] > 5):
@@ -413,6 +414,8 @@ def GetNumberArray(pExcludedPanels):
     lclExcludedPanelsList = pExcludedPanels.split(',')
     result = []
     for number_str in lclExcludedPanelsList:
+        if number_str == '':
+            continue
         number = int(number_str.strip())
         result.append(number)
     return result

@@ -1,5 +1,10 @@
 # Changelog
 
+## V1.54
+### script
+* Bugfix at GetNumberArray https://github.com/reserve85/HoymilesZeroExport/issues/96
+* add feature to ignore specific panel voltages in battery mode with opendtu
+
 ## V1.53
 ### script
 * Check if AHOY Version is at least V0.7.29. 
