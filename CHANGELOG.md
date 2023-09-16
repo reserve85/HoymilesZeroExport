@@ -1,5 +1,12 @@
 # Changelog
 
+## V1.56
+### script
+* supports custom inverter priorities, for battery powered inverters only! UNTESTED!
+* related: https://github.com/reserve85/HoymilesZeroExport/issues/95
+### Config
+* add: `INVERTER_x`: `HOY_BATTERY_PRIORITY`
+
 ## V1.55
 ### script
 * Bugfix Get Lowest panel voltage with more than one inverter.
