@@ -1,5 +1,9 @@
 # Changelog
 
+## V1.55
+### script
+* Bugfix Get Lowest panel voltage with more than one inverter.
+
 ## V1.54
 ### script
 * Bugfix at GetNumberArray https://github.com/reserve85/HoymilesZeroExport/issues/96

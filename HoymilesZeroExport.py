@@ -15,7 +15,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 __author__ = "Tobias Kraft"
-__version__ = "1.54"
+__version__ = "1.55"
 
 import requests
 import time
@@ -278,8 +278,6 @@ def GetHoymilesInfo():
         raise
 
 def GetHoymilesPanelMinVoltageAhoy(pInverterId):
-    if not hasattr(GetHoymilesPanelMinVoltageAhoy, "VoltageList"):
-        GetHoymilesPanelMinVoltageAhoy.VoltageList = []
     url = f'http://{AHOY_IP}/api/live'
     ParsedData = requests.get(url, timeout=10).json()
     PanelVDC_index = ParsedData["fld_names"].index("U_DC")
@@ -298,11 +296,11 @@ def GetHoymilesPanelMinVoltageAhoy(pInverterId):
         minVdc = 0
 
     # save last 5 min-values in list and return the "highest" value.
-    GetHoymilesPanelMinVoltageAhoy.VoltageList.append(minVdc)
-    if len(GetHoymilesPanelMinVoltageAhoy.VoltageList) > 5:
-        GetHoymilesPanelMinVoltageAhoy.VoltageList.pop(0)
+    HOY_PANEL_VOLTAGE_LIST[pInverterId].append(minVdc)
+    if len(HOY_PANEL_VOLTAGE_LIST[pInverterId]) > 5:
+        HOY_PANEL_VOLTAGE_LIST[pInverterId].pop(0)
     max_value = None
-    for num in GetHoymilesPanelMinVoltageAhoy.VoltageList:
+    for num in HOY_PANEL_VOLTAGE_LIST[pInverterId]:
         if (max_value is None or num > max_value):
             max_value = num
 
@@ -310,8 +308,6 @@ def GetHoymilesPanelMinVoltageAhoy(pInverterId):
     return minVdc
 
 def GetHoymilesPanelMinVoltageOpenDTU(pInverterId):
-    if not hasattr(GetHoymilesPanelMinVoltageOpenDTU, "VoltageList"):
-        GetHoymilesPanelMinVoltageOpenDTU.VoltageList = []
     url = f'http://{OPENDTU_IP}/api/livedata/status/inverters'
     ParsedData = requests.get(url, auth=HTTPBasicAuth(OPENDTU_USER, OPENDTU_PASS), timeout=10).json()
     PanelVDC = []
@@ -327,11 +323,11 @@ def GetHoymilesPanelMinVoltageOpenDTU(pInverterId):
         minVdc = 0
 
     # save last 5 min-values in list and return the "highest" value.
-    GetHoymilesPanelMinVoltageOpenDTU.VoltageList.append(minVdc)
-    if len(GetHoymilesPanelMinVoltageOpenDTU.VoltageList) > 5:
-        GetHoymilesPanelMinVoltageOpenDTU.VoltageList.pop(0)
+    HOY_PANEL_VOLTAGE_LIST[pInverterId].append(minVdc)
+    if len(HOY_PANEL_VOLTAGE_LIST[pInverterId]) > 5:
+        HOY_PANEL_VOLTAGE_LIST[pInverterId].pop(0)
     max_value = None
-    for num in GetHoymilesPanelMinVoltageOpenDTU.VoltageList:
+    for num in HOY_PANEL_VOLTAGE_LIST[pInverterId]:
         if (max_value is None or num > max_value):
             max_value = num
 
@@ -927,6 +923,7 @@ HOY_BATTERY_REDUCE_WATT = []
 HOY_BATTERY_THRESHOLD_ON_LIMIT_IN_V = []
 HOY_POWER_STATUS = []
 HOY_BATTERY_IGNORE_PANELS = []
+HOY_PANEL_VOLTAGE_LIST = []
 for i in range(INVERTER_COUNT):
     SERIAL_NUMBER.append(str('yet unknown'))
     NAME.append(str('yet unknown'))
@@ -948,13 +945,14 @@ for i in range(INVERTER_COUNT):
     HOY_POWER_STATUS.append(bool(True))
     HOY_COMPENSATE_WATT_FACTOR.append(config.getfloat('INVERTER_' + str(i + 1), 'HOY_COMPENSATE_WATT_FACTOR'))
     HOY_BATTERY_IGNORE_PANELS.append(config.get('INVERTER_' + str(i + 1), 'HOY_BATTERY_IGNORE_PANELS'))
+    HOY_PANEL_VOLTAGE_LIST.append([])
 SLOW_APPROX_LIMIT = CastToInt(GetMaxWattFromAllInverters() * config.getint('COMMON', 'SLOW_APPROX_LIMIT_IN_PERCENT') / 100)
 
 try:
     logger.info("---Init---")
     newLimitSetpoint = 0
     if USE_AHOY:
-        CheckAhoyVersion()    
+        CheckAhoyVersion()
     if GetHoymilesAvailable():
         for i in range(INVERTER_COUNT):
             SetHoymilesPowerStatus(i, True)
