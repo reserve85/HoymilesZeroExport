@@ -1,5 +1,10 @@
 # Changelog
 
+## V1.56
+### script
+* Bugfix Get lowest panel voltage: return correct value, rel https://github.com/reserve85/HoymilesZeroExport/issues/99
+* On Inverter-Power-On: set inverter to HOY_MIN_WATT, rel https://github.com/reserve85/HoymilesZeroExport/issues/100
+
 ## V1.55
 ### script
 * Bugfix Get Lowest panel voltage with more than one inverter.

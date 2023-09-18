@@ -15,7 +15,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 __author__ = "Tobias Kraft"
-__version__ = "1.55"
+__version__ = "1.56"
 
 import requests
 import time
@@ -268,7 +268,7 @@ def GetHoymilesInfo():
                 else:
                     raise Exception("Error: DTU Type not defined")
             except Exception as e:
-                logger.error("Exception at GetHoymilesInfo, Inverter %s not reachable", i)
+                logger.error('Exception at GetHoymilesInfo, Inverter "%s" not reachable', NAME[i])
                 if hasattr(e, 'message'):
                     logger.error(e.message)
                 else:
@@ -304,8 +304,8 @@ def GetHoymilesPanelMinVoltageAhoy(pInverterId):
         if (max_value is None or num > max_value):
             max_value = num
 
-    logger.info("Lowest panel voltage: %s Volt",max_value)
-    return minVdc
+    logger.info('Lowest panel voltage inverter "%s": %s Volt',NAME[pInverterId],max_value)
+    return max_value
 
 def GetHoymilesPanelMinVoltageOpenDTU(pInverterId):
     url = f'http://{OPENDTU_IP}/api/livedata/status/inverters'
@@ -331,24 +331,21 @@ def GetHoymilesPanelMinVoltageOpenDTU(pInverterId):
         if (max_value is None or num > max_value):
             max_value = num
 
-    logger.info("Lowest panel voltage: %s Volt",max_value)
-    return minVdc
+    logger.info('Lowest panel voltage inverter "%s": %s Volt',NAME[pInverterId],max_value)
+    return max_value
 
 def GetHoymilesPanelMinVoltage(pInverterId):
     try:
-        try:
-            if not AVAILABLE[pInverterId]:
-                return 0
-            if USE_AHOY:
-                return GetHoymilesPanelMinVoltageAhoy(pInverterId)
-            elif USE_OPENDTU:
-                return GetHoymilesPanelMinVoltageOpenDTU(pInverterId)
-            else:
-                raise Exception("Error: DTU Type not defined")
-        except:
-            logger.error("Exception at GetHoymilesPanelMinVoltage, Inverter %s not reachable", pInverterId)
+        if not AVAILABLE[pInverterId]:
+            return 0
+        if USE_AHOY:
+            return GetHoymilesPanelMinVoltageAhoy(pInverterId)
+        elif USE_OPENDTU:
+            return GetHoymilesPanelMinVoltageOpenDTU(pInverterId)
+        else:
+            raise Exception("Error: DTU Type not defined")
     except:
-        logger.error("Exception at GetHoymilesPanelMinVoltage")
+        logger.error("Exception at GetHoymilesPanelMinVoltage, Inverter %s not reachable", pInverterId)
         raise
 
 def SetHoymilesPowerStatusAhoy(pInverterId, pActive):
@@ -435,6 +432,12 @@ def GetCheckBattery():
                 elif minVoltage >= HOY_BATTERY_THRESHOLD_ON_LIMIT_IN_V[i]:
                     SetHoymilesPowerStatus(i, True)
                     HOY_MAX_WATT[i] = HOY_BATTERY_NORMAL_WATT[i]
+                    if USE_AHOY:
+                        SetLimitAhoy(i, HOY_MIN_WATT[i])
+                        WaitForAckAhoy(i, SET_LIMIT_TIMEOUT_SECONDS)
+                    else:
+                        SetLimitOpenDTU(i, HOY_MIN_WATT[i])
+                        WaitForAckOpenDTU(i, SET_LIMIT_TIMEOUT_SECONDS)
                 elif minVoltage >= HOY_BATTERY_THRESHOLD_NORMAL_LIMIT_IN_V[i]:
                     HOY_MAX_WATT[i] = HOY_BATTERY_NORMAL_WATT[i]
                 if HOY_POWER_STATUS[i]:
