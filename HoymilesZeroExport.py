@@ -15,7 +15,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 __author__ = "Tobias Kraft"
-__version__ = "1.56"
+__version__ = "1.61"
 
 import requests
 import time
@@ -135,8 +135,75 @@ def WaitForAckOpenDTU(pInverterId, pTimeoutInS):
         logger.info('OpenDTU: Inverter "%s": Limit timeout!', NAME[pInverterId])
     return ack
 
+def SetLimitWithPriority(pLimit):
+    try:
+        if SET_LIMIT_RETRY != -1:
+            if not hasattr(SetLimitWithPriority, "LastLimit"):
+                SetLimitWithPriority.LastLimit = CastToInt(0)
+            if not hasattr(SetLimitWithPriority, "SameLimitCnt"):
+                SetLimitWithPriority.SameLimitCnt = CastToInt(0)
+            if not hasattr(SetLimitWithPriority, "LastLimitAck"):
+                SetLimitWithPriority.LastLimitAck = bool(False)
+            if (SetLimitWithPriority.LastLimit == pLimit) and SetLimitWithPriority.LastLimitAck:
+                logger.info("Inverterlimit already at %s Watt",CastToInt(pLimit))
+                return
+            if (SetLimitWithPriority.LastLimit == pLimit):
+                SetLimitWithPriority.SameLimitCnt = SetLimitWithPriority.SameLimitCnt + 1
+            else:
+                SetLimitWithPriority.LastLimit = pLimit
+                SetLimitWithPriority.SameLimitCnt = 0
+            if SetLimitWithPriority.SameLimitCnt >= SET_LIMIT_RETRY:
+                logger.info("Retry Counter exceeded: Inverterlimit already at %s Watt",CastToInt(pLimit))
+                time.sleep(SET_LIMIT_DELAY_IN_SECONDS)
+                return
+        logger.info("setting new limit to %s Watt",CastToInt(pLimit))
+        SetLimitWithPriority.LastLimitAck = True
+        if (pLimit <= GetMinWattFromAllInverters()):
+            pLimit = 0 # set only minWatt for every inv.
+        RemainingLimit = pLimit
+        for j in range (1,6):
+            if GetMaxWattFromAllInvertersSamePrio(j) <= 0:
+                continue
+            if RemainingLimit >= GetMaxWattFromAllInvertersSamePrio(j):
+                LimitPrio = GetMaxWattFromAllInvertersSamePrio(j)
+            else:
+                LimitPrio = RemainingLimit    
+            RemainingLimit = RemainingLimit - LimitPrio            
+                       
+            for i in range(INVERTER_COUNT):
+                if (not AVAILABLE[i]) or (not HOY_BATTERY_GOOD_VOLTAGE[i]):
+                    continue
+                if HOY_BATTERY_PRIORITY[i] != j:
+                    continue
+                Factor = HOY_MAX_WATT[i] / GetMaxWattFromAllInvertersSamePrio(j)
+                
+                NewLimit = CastToInt(LimitPrio*Factor)
+                NewLimit = ApplyLimitsToSetpointInverter(i, NewLimit)
+                if HOY_COMPENSATE_WATT_FACTOR[i] != 1:
+                    logger.info('Ahoy: Inverter "%s": compensate Limit from %s Watt to %s Watt', NAME[i], CastToInt(NewLimit), CastToInt(NewLimit*HOY_COMPENSATE_WATT_FACTOR[i]))
+                    NewLimit = CastToInt(NewLimit * HOY_COMPENSATE_WATT_FACTOR[i])
+                    NewLimit = ApplyLimitsToMaxInverterLimits(i, NewLimit)
+                if USE_AHOY:
+                    SetLimitAhoy(i, NewLimit)
+                    if not WaitForAckAhoy(i, SET_LIMIT_TIMEOUT_SECONDS):
+                        SetLimitWithPriority.LastLimitAck = False
+                elif USE_OPENDTU:
+                    SetLimitOpenDTU(i, NewLimit)
+                    if not WaitForAckOpenDTU(i, SET_LIMIT_TIMEOUT_SECONDS):
+                        SetLimitWithPriority.LastLimitAck = False
+                else:
+                    raise Exception("Error: DTU Type not defined")
+    except:
+        logger.error("Exception at SetLimitWithPriority")
+        SetLimitWithPriority.LastLimitAck = False
+        raise
+
 def SetLimit(pLimit):
     try:
+        if not GetMixedMode() and GetBatteryMode() and GetPriorityMode():
+            SetLimitWithPriority(pLimit)
+            return
+
         if SET_LIMIT_RETRY != -1:
             if not hasattr(SetLimit, "LastLimit"):
                 SetLimit.LastLimit = CastToInt(0)
@@ -158,8 +225,10 @@ def SetLimit(pLimit):
                 return
         logger.info("setting new limit to %s Watt",CastToInt(pLimit))
         SetLimit.LastLimitAck = True
+        if (pLimit <= GetMinWattFromAllInverters()):
+            pLimit = 0 # set only minWatt for every inv.
         for i in range(INVERTER_COUNT):
-            if (not AVAILABLE[i]) or (not HOY_POWER_STATUS[i]):
+            if (not AVAILABLE[i]) or (not HOY_BATTERY_GOOD_VOLTAGE[i]):
                 continue
             Factor = HOY_MAX_WATT[i] / GetMaxWattFromAllInverters()
             NewLimit = CastToInt(pLimit*Factor)
@@ -357,7 +426,6 @@ def SetHoymilesPowerStatusAhoy(pInverterId, pActive):
     else:
         logger.info('Ahoy: Inverter "%s": Turn off',NAME[pInverterId])
     requests.post(url, data=data, headers=headers)
-    HOY_POWER_STATUS[pInverterId] = pActive
 
 def SetHoymilesPowerStatusOpenDTU(pInverterId, pActive):
     url=f"http://{OPENDTU_IP}/api/power/config"
@@ -368,25 +436,24 @@ def SetHoymilesPowerStatusOpenDTU(pInverterId, pActive):
     else:
         logger.info('OpenDTU: Inverter "%s": Turn off',NAME[pInverterId])
     a = requests.post(url, data=data, auth=HTTPBasicAuth(OPENDTU_USER, OPENDTU_PASS), headers=headers)
-    HOY_POWER_STATUS[pInverterId] = pActive
 
 def SetHoymilesPowerStatus(pInverterId, pActive):
     try:
         if not AVAILABLE[pInverterId]:
             return
         if SET_LIMIT_RETRY != -1:
-            if not hasattr(SetLimit, "LastPowerStatus"):
-                SetLimit.LastPowerStatus = []
-                SetLimit.LastPowerStatus = [False for i in range(INVERTER_COUNT)]
-            if not hasattr(SetLimit, "SamePowerStatusCnt"):
-                SetLimit.SamePowerStatusCnt = []
-                SetLimit.SamePowerStatusCnt = [0 for i in range(INVERTER_COUNT)]
-            if SetLimit.LastPowerStatus[pInverterId] == pActive:
-                SetLimit.SamePowerStatusCnt[pInverterId] = SetLimit.SamePowerStatusCnt[pInverterId] + 1
+            if not hasattr(SetHoymilesPowerStatus, "LastPowerStatus"):
+                SetHoymilesPowerStatus.LastPowerStatus = []
+                SetHoymilesPowerStatus.LastPowerStatus = [False for i in range(INVERTER_COUNT)]
+            if not hasattr(SetHoymilesPowerStatus, "SamePowerStatusCnt"):
+                SetHoymilesPowerStatus.SamePowerStatusCnt = []
+                SetHoymilesPowerStatus.SamePowerStatusCnt = [0 for i in range(INVERTER_COUNT)]
+            if SetHoymilesPowerStatus.LastPowerStatus[pInverterId] == pActive:
+                SetHoymilesPowerStatus.SamePowerStatusCnt[pInverterId] = SetHoymilesPowerStatus.SamePowerStatusCnt[pInverterId] + 1
             else:
-                SetLimit.LastPowerStatus[pInverterId] = pActive
-                SetLimit.SamePowerStatusCnt[pInverterId] = 0
-            if SetLimit.SamePowerStatusCnt[pInverterId] >= SET_LIMIT_RETRY:
+                SetHoymilesPowerStatus.LastPowerStatus[pInverterId] = pActive
+                SetHoymilesPowerStatus.SamePowerStatusCnt[pInverterId] = 0
+            if SetHoymilesPowerStatus.SamePowerStatusCnt[pInverterId] >= SET_LIMIT_RETRY:
                 if pActive:
                     logger.info("Retry Counter exceeded: Inverter PowerStatus already ON")
                 else:
@@ -424,23 +491,36 @@ def GetCheckBattery():
                     result = True
                     continue
                 minVoltage = GetHoymilesPanelMinVoltage(i)
+
                 if minVoltage <= HOY_BATTERY_THRESHOLD_OFF_LIMIT_IN_V[i]:
                     SetHoymilesPowerStatus(i, False)
+                    HOY_BATTERY_GOOD_VOLTAGE[i] = False
                     HOY_MAX_WATT[i] = HOY_BATTERY_REDUCE_WATT[i]
+
                 elif minVoltage <= HOY_BATTERY_THRESHOLD_REDUCE_LIMIT_IN_V[i]:
-                    HOY_MAX_WATT[i] = HOY_BATTERY_REDUCE_WATT[i]
+                    if HOY_MAX_WATT[i] != HOY_BATTERY_REDUCE_WATT[i]:
+                        HOY_MAX_WATT[i] = HOY_BATTERY_REDUCE_WATT[i]
+                        SetLimit.LastLimit = -1
+
                 elif minVoltage >= HOY_BATTERY_THRESHOLD_ON_LIMIT_IN_V[i]:
                     SetHoymilesPowerStatus(i, True)
+                    if not HOY_BATTERY_GOOD_VOLTAGE[i]:
+                        if USE_AHOY:
+                            SetLimitAhoy(i, HOY_MIN_WATT[i])
+                            WaitForAckAhoy(i, SET_LIMIT_TIMEOUT_SECONDS)
+                        else:
+                            SetLimitOpenDTU(i, HOY_MIN_WATT[i])
+                            WaitForAckOpenDTU(i, SET_LIMIT_TIMEOUT_SECONDS)
+                        SetLimit.LastLimit = -1
+                    HOY_BATTERY_GOOD_VOLTAGE[i] = True
                     HOY_MAX_WATT[i] = HOY_BATTERY_NORMAL_WATT[i]
-                    if USE_AHOY:
-                        SetLimitAhoy(i, HOY_MIN_WATT[i])
-                        WaitForAckAhoy(i, SET_LIMIT_TIMEOUT_SECONDS)
-                    else:
-                        SetLimitOpenDTU(i, HOY_MIN_WATT[i])
-                        WaitForAckOpenDTU(i, SET_LIMIT_TIMEOUT_SECONDS)
+
                 elif minVoltage >= HOY_BATTERY_THRESHOLD_NORMAL_LIMIT_IN_V[i]:
-                    HOY_MAX_WATT[i] = HOY_BATTERY_NORMAL_WATT[i]
-                if HOY_POWER_STATUS[i]:
+                    if HOY_MAX_WATT[i] != HOY_BATTERY_NORMAL_WATT[i]:
+                        HOY_MAX_WATT[i] = HOY_BATTERY_NORMAL_WATT[i]
+                        SetLimit.LastLimit = -1
+
+                if HOY_BATTERY_GOOD_VOLTAGE[i]:
                     result = True
             except:
                 logger.error("Exception at CheckBattery, Inverter %s not reachable", i)
@@ -526,13 +606,13 @@ def GetHoymilesActualPower():
             return GetPowermeterWattsVZLogger_Intermediate()
         elif USE_AHOY:
             for i in range(INVERTER_COUNT):
-                if (not AVAILABLE[i]) or (not HOY_POWER_STATUS[i]):
+                if (not AVAILABLE[i]) or (not HOY_BATTERY_GOOD_VOLTAGE[i]):
                     continue
                 ActualPower = ActualPower + GetHoymilesActualPowerAhoy(i)
             return ActualPower
         elif USE_OPENDTU:
             for i in range(INVERTER_COUNT):
-                if (not AVAILABLE[i]) or (not HOY_POWER_STATUS[i]):
+                if (not AVAILABLE[i]) or (not HOY_BATTERY_GOOD_VOLTAGE[i]):
                     continue
                 ActualPower = ActualPower + GetHoymilesActualPowerOpenDTU(i)
             return ActualPower
@@ -781,16 +861,26 @@ def ApplyLimitsToMaxInverterLimits(pInverter, pSetpoint):
 def GetMaxWattFromAllInverters():
     maxWatt = 0
     for i in range(INVERTER_COUNT):
-        if (not AVAILABLE[i]) or (not HOY_POWER_STATUS[i]):
+        if (not AVAILABLE[i]) or (not HOY_BATTERY_GOOD_VOLTAGE[i]):
             continue
         maxWatt = maxWatt + HOY_MAX_WATT[i]
+    return maxWatt
+
+# Max possible Watts, can be reduced on battery mode
+def GetMaxWattFromAllInvertersSamePrio(pPriority):
+    maxWatt = 0
+    for i in range(INVERTER_COUNT):
+        if (not AVAILABLE[i]) or (not HOY_BATTERY_GOOD_VOLTAGE[i]):
+            continue
+        if HOY_BATTERY_PRIORITY[i] == pPriority:
+            maxWatt = maxWatt + HOY_MAX_WATT[i]
     return maxWatt
 
 # Max possible Watts (physically) - Inverter Specification!
 def GetMaxInverterWattFromAllInverters():
     maxWatt = 0
     for i in range(INVERTER_COUNT):
-        if (not AVAILABLE[i]) or (not HOY_POWER_STATUS[i]):
+        if (not AVAILABLE[i]) or (not HOY_BATTERY_GOOD_VOLTAGE[i]):
             continue
         maxWatt = maxWatt + HOY_INVERTER_WATT[i]
     return maxWatt
@@ -798,10 +888,31 @@ def GetMaxInverterWattFromAllInverters():
 def GetMinWattFromAllInverters():
     minWatt = 0
     for i in range(INVERTER_COUNT):
-        if (not AVAILABLE[i]) or (not HOY_POWER_STATUS[i]):
+        if (not AVAILABLE[i]) or (not HOY_BATTERY_GOOD_VOLTAGE[i]):
             continue
         minWatt = minWatt + HOY_MIN_WATT[i]
     return minWatt
+
+def GetMixedMode():
+    #if battery mode and custom priority use SetLimitWithPriority
+    for i in range(INVERTER_COUNT):
+        for j in range(INVERTER_COUNT):
+            if (HOY_BATTERY_MODE[i] != HOY_BATTERY_MODE[j]):
+                return True
+    return False
+
+def GetBatteryMode():
+    for i in range(INVERTER_COUNT):
+        if HOY_BATTERY_MODE[i]:
+            return True
+    return False
+
+def GetPriorityMode():
+    for i in range(INVERTER_COUNT):
+        for j in range(INVERTER_COUNT):
+            if HOY_BATTERY_PRIORITY[i] != HOY_BATTERY_PRIORITY[j]:
+                return True
+    return False
 
 # ----- START -----
 
@@ -916,6 +1027,7 @@ HOY_INVERTER_WATT = []
 HOY_MIN_WATT = []
 CURRENT_LIMIT = []
 AVAILABLE = []
+HOY_BATTERY_GOOD_VOLTAGE = []
 HOY_COMPENSATE_WATT_FACTOR = []
 HOY_BATTERY_MODE = []
 HOY_BATTERY_THRESHOLD_OFF_LIMIT_IN_V = []
@@ -924,8 +1036,8 @@ HOY_BATTERY_THRESHOLD_NORMAL_LIMIT_IN_V = []
 HOY_BATTERY_NORMAL_WATT = []
 HOY_BATTERY_REDUCE_WATT = []
 HOY_BATTERY_THRESHOLD_ON_LIMIT_IN_V = []
-HOY_POWER_STATUS = []
 HOY_BATTERY_IGNORE_PANELS = []
+HOY_BATTERY_PRIORITY = []
 HOY_PANEL_VOLTAGE_LIST = []
 for i in range(INVERTER_COUNT):
     SERIAL_NUMBER.append(str('yet unknown'))
@@ -936,6 +1048,7 @@ for i in range(INVERTER_COUNT):
     HOY_MIN_WATT.append(int(HOY_MAX_WATT[i] * config.getint('INVERTER_' + str(i + 1), 'HOY_MIN_WATT_IN_PERCENT') / 100))
     CURRENT_LIMIT.append(int(0))
     AVAILABLE.append(bool(False))
+    HOY_BATTERY_GOOD_VOLTAGE.append(bool(True))
     HOY_BATTERY_MODE.append(config.getboolean('INVERTER_' + str(i + 1), 'HOY_BATTERY_MODE'))
     HOY_BATTERY_THRESHOLD_OFF_LIMIT_IN_V.append(config.getfloat('INVERTER_' + str(i + 1), 'HOY_BATTERY_THRESHOLD_OFF_LIMIT_IN_V'))
     HOY_BATTERY_THRESHOLD_REDUCE_LIMIT_IN_V.append(config.getfloat('INVERTER_' + str(i + 1), 'HOY_BATTERY_THRESHOLD_REDUCE_LIMIT_IN_V'))
@@ -945,9 +1058,9 @@ for i in range(INVERTER_COUNT):
         HOY_BATTERY_NORMAL_WATT[i] = HOY_MAX_WATT[i]
     HOY_BATTERY_REDUCE_WATT.append(config.getint('INVERTER_' + str(i + 1), 'HOY_BATTERY_REDUCE_WATT'))
     HOY_BATTERY_THRESHOLD_ON_LIMIT_IN_V.append(config.getfloat('INVERTER_' + str(i + 1), 'HOY_BATTERY_THRESHOLD_ON_LIMIT_IN_V'))
-    HOY_POWER_STATUS.append(bool(True))
     HOY_COMPENSATE_WATT_FACTOR.append(config.getfloat('INVERTER_' + str(i + 1), 'HOY_COMPENSATE_WATT_FACTOR'))
     HOY_BATTERY_IGNORE_PANELS.append(config.get('INVERTER_' + str(i + 1), 'HOY_BATTERY_IGNORE_PANELS'))
+    HOY_BATTERY_PRIORITY.append(config.getint('INVERTER_' + str(i + 1), 'HOY_BATTERY_PRIORITY'))
     HOY_PANEL_VOLTAGE_LIST.append([])
 SLOW_APPROX_LIMIT = CastToInt(GetMaxWattFromAllInverters() * config.getint('COMMON', 'SLOW_APPROX_LIMIT_IN_PERCENT') / 100)
 
@@ -959,10 +1072,9 @@ try:
     if GetHoymilesAvailable():
         for i in range(INVERTER_COUNT):
             SetHoymilesPowerStatus(i, True)
-        GetCheckBattery()
-        newLimitSetpoint = GetMinWattFromAllInverters()
+        SetLimit(GetMinWattFromAllInverters())
         GetHoymilesActualPower()
-        SetLimit(newLimitSetpoint)
+        GetCheckBattery()
     GetPowermeterWatts()
     time.sleep(SET_LIMIT_DELAY_IN_SECONDS)
 except Exception as e:

@@ -1,5 +1,31 @@
 # Changelog
 
+## V1.61
+### script
+* Bugfix HOY_MIN_WATT_IN_PERCENT: set minWatt for each inverter
+
+## V1.60
+### script
+* optimized init procedure
+* improved some code snippets
+### Config
+* modified some comments
+
+## V1.59
+### script
+* force setlimit after BATTERY_THRESHOLD was changed
+
+## V1.58
+### script
+* bugfix: added index to HOY_BATTERY_PRIORITY
+
+## V1.57
+### script
+* supports custom inverter priorities, for battery powered inverters only! UNTESTED!
+* related: https://github.com/reserve85/HoymilesZeroExport/issues/95
+### Config
+* add: `INVERTER_x`: `HOY_BATTERY_PRIORITY`
+
 ## V1.56
 ### script
 * Bugfix Get lowest panel voltage: return correct value, rel https://github.com/reserve85/HoymilesZeroExport/issues/99
