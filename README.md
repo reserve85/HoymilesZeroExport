@@ -79,10 +79,44 @@ sudo ./uninstall_service.sh
 ## Windows installation
 Get Python 3 (download is available at https://www.python.org/) and then install the module "requests" and "packaging":
 ```sh
-pip3 install requests
-pip3 install packaging
+pip3 install -r requirements.txt
 ```
 Now you can execute the script with python.
+
+## Docker
+
+By default the Docker image uses a base configuration in `HoymilesZeroExport_Config.ini`. You need to provide a configuration where you override individual values that. To do that, create a new `config.ini` and set the configuration values from `HoymilesZeroExport_Config.ini` you'd like to override. The minimum config file for using AhoyDTU with a Tasmota powermeter looks like this:
+```
+[SELECT_DTU]
+USE_AHOY = true
+
+[SELECT_POWERMETER]
+USE_TASMOTA = true
+
+[AHOY_DTU]
+AHOY_IP = 192.168.10.57
+
+[TASMOTA]
+TASMOTA_IP = 192.168.10.90
+```
+
+Then run the Docker image:
+```sh
+docker run -d --name hoymileszeroexport \
+    -v ${PWD}/config.ini:/app/config.ini \
+    ghcr.io/reserve85/hoymileszeroexport:main -c ./config.ini
+```
+
+Using docker-compose:
+```yaml
+version: '3.3'
+services:
+  hoymileszeroexport:
+    image: ghcr.io/reserve85/hoymileszeroexport:main
+    volumes:
+      - ./config.ini:/app/config.ini
+    command: -c ./config.ini
+```
 
 ## Special thanks to:
 - https://github.com/lumapu/ahoy

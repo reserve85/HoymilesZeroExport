@@ -30,6 +30,7 @@ from datetime import timedelta
 import datetime
 import sys
 from packaging import version
+import argparse 
 
 logging.basicConfig(
     format='%(asctime)s %(levelname)-8s %(message)s',
@@ -37,9 +38,19 @@ logging.basicConfig(
     datefmt='%Y-%m-%d %H:%M:%S')
 logger = logging.getLogger()
 
+parser = argparse.ArgumentParser()
+parser.add_argument('-c', '--config', help='Override configuration file path')
+args = parser.parse_args()
+
 try:
     config = ConfigParser()
-    config.read(str(Path.joinpath(Path(__file__).parent.resolve(), "HoymilesZeroExport_Config.ini")))
+    
+    baseconfig = str(Path.joinpath(Path(__file__).parent.resolve(), "HoymilesZeroExport_Config.ini"))
+    if args.config:
+        config.read([baseconfig, args.config])
+    else:
+        config.read(baseconfig)
+
     ENABLE_LOG_TO_FILE = config.getboolean('COMMON', 'ENABLE_LOG_TO_FILE')
     LOG_BACKUP_COUNT = config.getint('COMMON', 'LOG_BACKUP_COUNT')
 except Exception as e:
@@ -920,6 +931,9 @@ logger.info("Author: %s / Script Version: %s",__author__, __version__)
 
 # read config:
 logger.info("read config file: " + str(Path.joinpath(Path(__file__).parent.resolve(), "HoymilesZeroExport_Config.ini")))
+if args.config:
+    logger.info("read additional config file: " + args.config)
+
 VERSION = config.get('VERSION', 'VERSION')
 logger.info("Config file V %s", VERSION)
 USE_AHOY = config.getboolean('SELECT_DTU', 'USE_AHOY')
