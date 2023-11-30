@@ -27,7 +27,7 @@ fi
 
 if [ ! -f "${SCRIPT_DIR}/HoymilesZeroExport_Config_Override.ini" ]; then
     touch "${SCRIPT_DIR}/HoymilesZeroExport_Config_Override.ini"
-	chmod +rw "$SCRIPT_DIR/HoymilesZeroExport_Config_Override.ini"
+	chmod u=rw,g=rw,o=rw "$SCRIPT_DIR/HoymilesZeroExport_Config_Override.ini"
 fi
 
 cat << EOF | tee /etc/systemd/system/HoymilesZeroExport.service
