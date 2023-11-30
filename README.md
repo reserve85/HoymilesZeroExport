@@ -55,11 +55,39 @@ Launch installscript to create zero export service
 sudo chmod +x install.sh
 sudo ./install.sh
 ```
+#### Configuration Variant A: 
+Define your configuration:
+edit `HoymilesZeroExport_Config_Override.ini`. 
+You need to provide a configuration where you override individual values. 
+To do that edit `HoymilesZeroExport_Config_Override.ini` and set the configuration values from `HoymilesZeroExport_Config.ini` you'd like to override. 
+```sh
+sudo nano HoymilesZeroExport_Config_Override.ini
+```
+The minimum content for using AhoyDTU with a Tasmota powermeter looks like this:
+```
+[SELECT_DTU]
+USE_AHOY = true
 
-Edit your configuration, save with ctrl + s, exit with ctrl + x
+[SELECT_POWERMETER]
+USE_TASMOTA = true
+
+[AHOY_DTU]
+AHOY_IP = 192.168.10.57
+
+[TASMOTA]
+TASMOTA_IP = 192.168.10.90
+...
+```
+Save with ctrl + s, exit with ctrl + x
+
+#### Configuration Variant B: 
+
+You can also edit the default configuration, but i recommend the procedure described above (Configuration Variant A:)
+
 ```sh
 sudo nano HoymilesZeroExport_Config.ini
 ```
+save with ctrl + s, exit with ctrl + x
 
 Restart the service after modified configuration or script
 ```sh
@@ -84,8 +112,7 @@ pip3 install -r requirements.txt
 Now you can execute the script with python.
 
 ## Docker
-
-By default the Docker image uses a base configuration in `HoymilesZeroExport_Config.ini`. You need to provide a configuration where you override individual values that. To do that, create a new `config.ini` and set the configuration values from `HoymilesZeroExport_Config.ini` you'd like to override. The minimum config file for using AhoyDTU with a Tasmota powermeter looks like this:
+By default the Docker image uses a base configuration in `HoymilesZeroExport_Config.ini`. You need to provide a configuration where you override individual values. To do that, create a new `HoymilesZeroExport_Config_Override.ini` and set the configuration values from `HoymilesZeroExport_Config.ini` you'd like to override. The minimum config file for using AhoyDTU with a Tasmota powermeter looks like this:
 ```
 [SELECT_DTU]
 USE_AHOY = true
@@ -103,8 +130,8 @@ TASMOTA_IP = 192.168.10.90
 Then run the Docker image:
 ```sh
 docker run -d --name hoymileszeroexport \
-    -v ${PWD}/config.ini:/app/config.ini \
-    ghcr.io/reserve85/hoymileszeroexport:main -c ./config.ini
+    -v ${PWD}/HoymilesZeroExport_Config_Override.ini:/app/HoymilesZeroExport_Config_Override.ini \
+    ghcr.io/reserve85/hoymileszeroexport:main -c ./HoymilesZeroExport_Config_Override.ini
 ```
 
 Using docker-compose:
@@ -114,8 +141,8 @@ services:
   hoymileszeroexport:
     image: ghcr.io/reserve85/hoymileszeroexport:main
     volumes:
-      - ./config.ini:/app/config.ini
-    command: -c ./config.ini
+      - ./HoymilesZeroExport_Config_Override.ini:/app/config.ini
+    command: -c ./HoymilesZeroExport_Config_Override.ini
 ```
 
 ## Special thanks to:
@@ -125,7 +152,7 @@ services:
 - https://ottelo.jimdofree.com/stromz%C3%A4hler-auslesen-tasmota/
 - https://hessburg.de/tasmota-wifi-smartmeter-konfigurieren/
 
-## Donate
+## Donate and become a Sponsor
 [![paypal](https://www.paypalobjects.com/en_US/i/btn/btn_donate_LG.gif)](https://paypal.me/TobiasWKraft/5)
 
 Please support me if you like this project by spending me a coffee instead of giving away your electricity.

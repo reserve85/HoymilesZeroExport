@@ -1,5 +1,12 @@
 # Changelog
 
+## V1.62
+### script
+* added package argparse, install it with "pip3 install argparse" or "pip3 install -r requirements.txt"
+* add support of docker (thnx to @tomquist)
+* add support of a user specific ini (HoymilesZeroExport_Config_Override.ini) where you can define your specific default values. it will not be overritten when you install an update.
+* modified install.sh script
+
 ## V1.61
 ### script
 * Bugfix HOY_MIN_WATT_IN_PERCENT: set minWatt for each inverter
