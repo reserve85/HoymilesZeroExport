@@ -15,7 +15,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 __author__ = "Tobias Kraft"
-__version__ = "1.62"
+__version__ = "1.63"
 
 import requests
 import time
@@ -108,7 +108,7 @@ def SetLimitOpenDTU(pInverterId, pLimit):
 
 def SetLimitAhoy(pInverterId, pLimit):
     url = f"http://{AHOY_IP}/api/ctrl"
-    data = f'''{{"id": {pInverterId}, "cmd": "limit_nonpersistent_absolute", "val": {pLimit}}}'''
+    data = f'''{{"id": {pInverterId}, "cmd": "limit_nonpersistent_absolute", "val": {pLimit*AHOY_FACTOR}}}'''
     headers = {'Content-type': 'application/json', 'Accept': 'text/plain'}
     logger.info('Ahoy: Inverter "%s": setting new limit from %s Watt to %s Watt',NAME[pInverterId],CastToInt(CURRENT_LIMIT[pInverterId]),CastToInt(pLimit))
     requests.post(url, data=data, headers=headers)
@@ -314,6 +314,16 @@ def CheckAhoyVersion():
     if version.parse(AhoyVersion) < version.parse(MinVersion):
         logger.error('Error: Your AHOY Version is too old! Please update at least to Version %s - you can find the newest dev-releases here: https://github.com/lumapu/ahoy/actions',MinVersion)
         quit()
+
+def GetAhoyLimitFactor():
+    Version = '0.8.39'
+    url = f'http://{AHOY_IP}/api/system'
+    ParsedData = requests.get(url, timeout=10).json()
+    AhoyVersion = str((ParsedData["version"]))
+    if version.parse(AhoyVersion) < version.parse(Version):
+        return 1
+    else:
+        return 10
 
 def GetHoymilesInfoOpenDTU(pInverterId):
     url = f'http://{OPENDTU_IP}/api/livedata/status/inverters'
@@ -1083,6 +1093,7 @@ try:
     newLimitSetpoint = 0
     if USE_AHOY:
         CheckAhoyVersion()
+        AHOY_FACTOR = GetAhoyLimitFactor()
     if GetHoymilesAvailable():
         for i in range(INVERTER_COUNT):
             SetHoymilesPowerStatus(i, True)

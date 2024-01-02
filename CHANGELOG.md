@@ -1,5 +1,9 @@
 # Changelog
 
+## V1.63
+### script
+* support Ahoy Versions >= V 0.8.39 ( https://github.com/reserve85/HoymilesZeroExport/issues/116 )
+
 ## V1.62
 ### script
 * added package argparse, install it with "pip3 install argparse" or "pip3 install -r requirements.txt"
