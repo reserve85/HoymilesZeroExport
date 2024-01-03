@@ -142,7 +142,7 @@ services:
     image: ghcr.io/reserve85/hoymileszeroexport:main
     volumes:
       - ./HoymilesZeroExport_Config_Override.ini:/app/config.ini
-    command: -c ./HoymilesZeroExport_Config_Override.ini
+    command: -c /app/config.ini
 ```
 
 ## Special thanks to:
