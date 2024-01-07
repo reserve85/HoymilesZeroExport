@@ -1,5 +1,9 @@
 # Changelog
 
+## V1.64
+### Config
+* added up to 16 inverters in default config. This is needed for the override config.
+
 ## V1.63
 ### script
 * support Ahoy Versions >= V 0.8.39 ( https://github.com/reserve85/HoymilesZeroExport/issues/116 )
