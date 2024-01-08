@@ -15,7 +15,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 __author__ = "Tobias Kraft"
-__version__ = "1.63"
+__version__ = "1.65"
 
 import requests
 import time
@@ -155,13 +155,13 @@ def SetLimitWithPriority(pLimit):
                 SetLimitWithPriority.SameLimitCnt = CastToInt(0)
             if not hasattr(SetLimitWithPriority, "LastLimitAck"):
                 SetLimitWithPriority.LastLimitAck = bool(False)
-            if (SetLimitWithPriority.LastLimit == pLimit) and SetLimitWithPriority.LastLimitAck:
+            if (SetLimitWithPriority.LastLimit == CastToInt(pLimit)) and SetLimitWithPriority.LastLimitAck:
                 logger.info("Inverterlimit already at %s Watt",CastToInt(pLimit))
                 return
-            if (SetLimitWithPriority.LastLimit == pLimit):
+            if (SetLimitWithPriority.LastLimit == CastToInt(pLimit)):
                 SetLimitWithPriority.SameLimitCnt = SetLimitWithPriority.SameLimitCnt + 1
             else:
-                SetLimitWithPriority.LastLimit = pLimit
+                SetLimitWithPriority.LastLimit = CastToInt(pLimit)
                 SetLimitWithPriority.SameLimitCnt = 0
             if SetLimitWithPriority.SameLimitCnt >= SET_LIMIT_RETRY:
                 logger.info("Retry Counter exceeded: Inverterlimit already at %s Watt",CastToInt(pLimit))
@@ -169,9 +169,9 @@ def SetLimitWithPriority(pLimit):
                 return
         logger.info("setting new limit to %s Watt",CastToInt(pLimit))
         SetLimitWithPriority.LastLimitAck = True
-        if (pLimit <= GetMinWattFromAllInverters()):
+        if (CastToInt(pLimit) <= GetMinWattFromAllInverters()):
             pLimit = 0 # set only minWatt for every inv.
-        RemainingLimit = pLimit
+        RemainingLimit = CastToInt(pLimit)
         for j in range (1,6):
             if GetMaxWattFromAllInvertersSamePrio(j) <= 0:
                 continue
@@ -212,7 +212,7 @@ def SetLimitWithPriority(pLimit):
 def SetLimit(pLimit):
     try:
         if not GetMixedMode() and GetBatteryMode() and GetPriorityMode():
-            SetLimitWithPriority(pLimit)
+            SetLimitWithPriority(CastToInt(pLimit))
             return
 
         if SET_LIMIT_RETRY != -1:
@@ -222,13 +222,13 @@ def SetLimit(pLimit):
                 SetLimit.SameLimitCnt = CastToInt(0)
             if not hasattr(SetLimit, "LastLimitAck"):
                 SetLimit.LastLimitAck = bool(False)
-            if (SetLimit.LastLimit == pLimit) and SetLimit.LastLimitAck:
+            if (SetLimit.LastLimit == CastToInt(pLimit)) and SetLimit.LastLimitAck:
                 logger.info("Inverterlimit already at %s Watt",CastToInt(pLimit))
                 return
-            if (SetLimit.LastLimit == pLimit):
+            if (SetLimit.LastLimit == CastToInt(pLimit)):
                 SetLimit.SameLimitCnt = SetLimit.SameLimitCnt + 1
             else:
-                SetLimit.LastLimit = pLimit
+                SetLimit.LastLimit = CastToInt(pLimit)
                 SetLimit.SameLimitCnt = 0
             if SetLimit.SameLimitCnt >= SET_LIMIT_RETRY:
                 logger.info("Retry Counter exceeded: Inverterlimit already at %s Watt",CastToInt(pLimit))
@@ -236,7 +236,7 @@ def SetLimit(pLimit):
                 return
         logger.info("setting new limit to %s Watt",CastToInt(pLimit))
         SetLimit.LastLimitAck = True
-        if (pLimit <= GetMinWattFromAllInverters()):
+        if (CastToInt(pLimit) <= GetMinWattFromAllInverters()):
             pLimit = 0 # set only minWatt for every inv.
         for i in range(INVERTER_COUNT):
             if (not AVAILABLE[i]) or (not HOY_BATTERY_GOOD_VOLTAGE[i]):

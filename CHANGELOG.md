@@ -1,5 +1,9 @@
 # Changelog
 
+## V1.65
+### script
+* bugfix set limit retry
+
 ## V1.64
 ### Config
 * added up to 16 inverters in default config. This is needed for the override config.
