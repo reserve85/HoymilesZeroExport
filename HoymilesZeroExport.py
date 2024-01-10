@@ -15,7 +15,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 __author__ = "Tobias Kraft"
-__version__ = "1.65"
+__version__ = "1.66"
 
 import requests
 import time
@@ -425,15 +425,23 @@ def GetHoymilesPanelMinVoltageOpenDTU(pInverterId):
     return max_value
 
 def GetHoymilesPanelMinVoltage(pInverterId):
+    if not hasattr(GetHoymilesPanelMinVoltage, "HoymilesPanelMinVoltageArray"):
+        GetHoymilesPanelMinVoltage.HoymilesPanelMinVoltageArray = [] 
     try:
         if not AVAILABLE[pInverterId]:
             return 0
         if USE_AHOY:
-            return GetHoymilesPanelMinVoltageAhoy(pInverterId)
+            HOY_PANEL_MIN_VOLTAGE_HISTORY_LIST[pInverterId].append(GetHoymilesPanelMinVoltageAhoy(pInverterId))
         elif USE_OPENDTU:
-            return GetHoymilesPanelMinVoltageOpenDTU(pInverterId)
+            HOY_PANEL_MIN_VOLTAGE_HISTORY_LIST[pInverterId].append(GetHoymilesPanelMinVoltageOpenDTU(pInverterId))
         else:
             raise Exception("Error: DTU Type not defined")
+        
+        # calculate mean over last x values
+        if len(HOY_PANEL_MIN_VOLTAGE_HISTORY_LIST[pInverterId]) > 5:
+            HOY_PANEL_MIN_VOLTAGE_HISTORY_LIST[pInverterId].pop(0)
+        from statistics import mean
+        return mean(HOY_PANEL_MIN_VOLTAGE_HISTORY_LIST[pInverterId])
     except:
         logger.error("Exception at GetHoymilesPanelMinVoltage, Inverter %s not reachable", pInverterId)
         raise
@@ -1063,6 +1071,8 @@ HOY_BATTERY_THRESHOLD_ON_LIMIT_IN_V = []
 HOY_BATTERY_IGNORE_PANELS = []
 HOY_BATTERY_PRIORITY = []
 HOY_PANEL_VOLTAGE_LIST = []
+HOY_PANEL_MIN_VOLTAGE_HISTORY_LIST = []
+HOY_BATTERY_AVERAGE_CNT = []
 for i in range(INVERTER_COUNT):
     SERIAL_NUMBER.append(str('yet unknown'))
     NAME.append(str('yet unknown'))
@@ -1086,11 +1096,17 @@ for i in range(INVERTER_COUNT):
     HOY_BATTERY_IGNORE_PANELS.append(config.get('INVERTER_' + str(i + 1), 'HOY_BATTERY_IGNORE_PANELS'))
     HOY_BATTERY_PRIORITY.append(config.getint('INVERTER_' + str(i + 1), 'HOY_BATTERY_PRIORITY'))
     HOY_PANEL_VOLTAGE_LIST.append([])
+    HOY_PANEL_MIN_VOLTAGE_HISTORY_LIST.append([])
+    HOY_BATTERY_AVERAGE_CNT.append(config.getint('INVERTER_' + str(i + 1), 'HOY_BATTERY_AVERAGE_CNT'))
 SLOW_APPROX_LIMIT = CastToInt(GetMaxWattFromAllInverters() * config.getint('COMMON', 'SLOW_APPROX_LIMIT_IN_PERCENT') / 100)
 
 try:
     logger.info("---Init---")
     newLimitSetpoint = 0
+    
+    GetHoymilesPanelMinVoltage(0)
+    
+    
     if USE_AHOY:
         CheckAhoyVersion()
         AHOY_FACTOR = GetAhoyLimitFactor()
