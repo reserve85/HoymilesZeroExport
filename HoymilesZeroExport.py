@@ -421,7 +421,6 @@ def GetHoymilesPanelMinVoltageOpenDTU(pInverterId):
         if (max_value is None or num > max_value):
             max_value = num
 
-    logger.info('Lowest panel voltage inverter "%s": %s Volt',NAME[pInverterId],max_value)
     return max_value
 
 def GetHoymilesPanelMinVoltage(pInverterId):
@@ -441,6 +440,8 @@ def GetHoymilesPanelMinVoltage(pInverterId):
         if len(HOY_PANEL_MIN_VOLTAGE_HISTORY_LIST[pInverterId]) > 5:
             HOY_PANEL_MIN_VOLTAGE_HISTORY_LIST[pInverterId].pop(0)
         from statistics import mean
+        
+        logger.info('Average min-panel voltage, inverter "%s": %s Volt',NAME[pInverterId], mean(HOY_PANEL_MIN_VOLTAGE_HISTORY_LIST[pInverterId]))
         return mean(HOY_PANEL_MIN_VOLTAGE_HISTORY_LIST[pInverterId])
     except:
         logger.error("Exception at GetHoymilesPanelMinVoltage, Inverter %s not reachable", pInverterId)
