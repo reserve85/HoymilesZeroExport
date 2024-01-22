@@ -15,7 +15,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 __author__ = "Tobias Kraft"
-__version__ = "1.66"
+__version__ = "1.67"
 
 import requests
 import time
@@ -115,59 +115,61 @@ def SetLimitAhoy(pInverterId, pLimit):
     CURRENT_LIMIT[pInverterId] = pLimit
 
 def WaitForAckAhoy(pInverterId, pTimeoutInS):
-    url = f'http://{AHOY_IP}/api/inverter/id/{pInverterId}'
-    timeout = pTimeoutInS
-    timeout_start = time.time()
-    while time.time() < timeout_start + timeout:
-        time.sleep(0.5)
-        ParsedData = requests.get(url, timeout=pTimeoutInS).json()
-        ack = bool(ParsedData['power_limit_ack'])
+    try:
+        url = f'http://{AHOY_IP}/api/inverter/id/{pInverterId}'
+        timeout = pTimeoutInS
+        timeout_start = time.time()
+        while time.time() < timeout_start + timeout:
+            time.sleep(0.5)
+            ParsedData = requests.get(url, timeout=pTimeoutInS).json()
+            ack = bool(ParsedData['power_limit_ack'])
+            if ack:
+                break
         if ack:
-            break
-    if ack:
-        logger.info('Ahoy: Inverter "%s": Limit acknowledged', NAME[pInverterId])
-    else:
+            logger.info('Ahoy: Inverter "%s": Limit acknowledged', NAME[pInverterId])
+        else:
+            logger.info('Ahoy: Inverter "%s": Limit timeout!', NAME[pInverterId])
+        return ack
+    except:
         logger.info('Ahoy: Inverter "%s": Limit timeout!', NAME[pInverterId])
-    return ack
+        return False
 
 def WaitForAckOpenDTU(pInverterId, pTimeoutInS):
-    url = f'http://{OPENDTU_IP}/api/limit/status'
-    timeout = pTimeoutInS
-    timeout_start = time.time()
-    while time.time() < timeout_start + timeout:
-        time.sleep(0.5)
-        ParsedData = requests.get(url, auth=HTTPBasicAuth(OPENDTU_USER, OPENDTU_PASS), timeout=10).json()
-        ack = (ParsedData[SERIAL_NUMBER[pInverterId]]['limit_set_status'] == 'Ok')
+    try:
+        url = f'http://{OPENDTU_IP}/api/limit/status'
+        timeout = pTimeoutInS
+        timeout_start = time.time()
+        while time.time() < timeout_start + timeout:
+            time.sleep(0.5)
+            ParsedData = requests.get(url, auth=HTTPBasicAuth(OPENDTU_USER, OPENDTU_PASS), timeout=10).json()
+            ack = (ParsedData[SERIAL_NUMBER[pInverterId]]['limit_set_status'] == 'Ok')
+            if ack:
+                break
         if ack:
-            break
-    if ack:
-        logger.info('OpenDTU: Inverter "%s": Limit acknowledged', NAME[pInverterId])
-    else:
+            logger.info('OpenDTU: Inverter "%s": Limit acknowledged', NAME[pInverterId])
+        else:
+            logger.info('OpenDTU: Inverter "%s": Limit timeout!', NAME[pInverterId])
+        return ack
+    except:
         logger.info('OpenDTU: Inverter "%s": Limit timeout!', NAME[pInverterId])
-    return ack
+        return False
 
 def SetLimitWithPriority(pLimit):
     try:
-        if SET_LIMIT_RETRY != -1:
-            if not hasattr(SetLimitWithPriority, "LastLimit"):
-                SetLimitWithPriority.LastLimit = CastToInt(0)
-            if not hasattr(SetLimitWithPriority, "SameLimitCnt"):
-                SetLimitWithPriority.SameLimitCnt = CastToInt(0)
-            if not hasattr(SetLimitWithPriority, "LastLimitAck"):
-                SetLimitWithPriority.LastLimitAck = bool(False)
-            if (SetLimitWithPriority.LastLimit == CastToInt(pLimit)) and SetLimitWithPriority.LastLimitAck:
-                logger.info("Inverterlimit already at %s Watt",CastToInt(pLimit))
-                return
-            if (SetLimitWithPriority.LastLimit == CastToInt(pLimit)):
-                SetLimitWithPriority.SameLimitCnt = SetLimitWithPriority.SameLimitCnt + 1
-            else:
-                SetLimitWithPriority.LastLimit = CastToInt(pLimit)
-                SetLimitWithPriority.SameLimitCnt = 0
-            if SetLimitWithPriority.SameLimitCnt >= SET_LIMIT_RETRY:
-                logger.info("Retry Counter exceeded: Inverterlimit already at %s Watt",CastToInt(pLimit))
-                time.sleep(SET_LIMIT_DELAY_IN_SECONDS)
-                return
+        if not hasattr(SetLimitWithPriority, "LastLimit"):
+            SetLimitWithPriority.LastLimit = CastToInt(0)
+        if not hasattr(SetLimitWithPriority, "LastLimitAck"):
+            SetLimitWithPriority.LastLimitAck = bool(False)
+
+        if (SetLimitWithPriority.LastLimit == CastToInt(pLimit)) and SetLimitWithPriority.LastLimitAck:
+            logger.info("Inverterlimit was already accepted at %s Watt",CastToInt(pLimit))
+            return
+        if (SetLimitWithPriority.LastLimit == CastToInt(pLimit)) and not SetLimitWithPriority.LastLimitAck:
+            logger.info("Inverterlimit %s Watt was previously not accepted by the inverter, trying again...",CastToInt(pLimit))
+            return
+
         logger.info("setting new limit to %s Watt",CastToInt(pLimit))
+        SetLimitWithPriority.LastLimit = CastToInt(pLimit)
         SetLimitWithPriority.LastLimitAck = True
         if (CastToInt(pLimit) <= GetMinWattFromAllInverters()):
             pLimit = 0 # set only minWatt for every inv.
@@ -179,7 +181,7 @@ def SetLimitWithPriority(pLimit):
                 LimitPrio = GetMaxWattFromAllInvertersSamePrio(j)
             else:
                 LimitPrio = RemainingLimit    
-            RemainingLimit = RemainingLimit - LimitPrio            
+            RemainingLimit = RemainingLimit - LimitPrio
                        
             for i in range(INVERTER_COUNT):
                 if (not AVAILABLE[i]) or (not HOY_BATTERY_GOOD_VOLTAGE[i]):
@@ -215,26 +217,19 @@ def SetLimit(pLimit):
             SetLimitWithPriority(CastToInt(pLimit))
             return
 
-        if SET_LIMIT_RETRY != -1:
-            if not hasattr(SetLimit, "LastLimit"):
-                SetLimit.LastLimit = CastToInt(0)
-            if not hasattr(SetLimit, "SameLimitCnt"):
-                SetLimit.SameLimitCnt = CastToInt(0)
-            if not hasattr(SetLimit, "LastLimitAck"):
-                SetLimit.LastLimitAck = bool(False)
-            if (SetLimit.LastLimit == CastToInt(pLimit)) and SetLimit.LastLimitAck:
-                logger.info("Inverterlimit already at %s Watt",CastToInt(pLimit))
-                return
-            if (SetLimit.LastLimit == CastToInt(pLimit)):
-                SetLimit.SameLimitCnt = SetLimit.SameLimitCnt + 1
-            else:
-                SetLimit.LastLimit = CastToInt(pLimit)
-                SetLimit.SameLimitCnt = 0
-            if SetLimit.SameLimitCnt >= SET_LIMIT_RETRY:
-                logger.info("Retry Counter exceeded: Inverterlimit already at %s Watt",CastToInt(pLimit))
-                time.sleep(SET_LIMIT_DELAY_IN_SECONDS)
-                return
+        if not hasattr(SetLimit, "LastLimit"):
+            SetLimit.LastLimit = CastToInt(0)
+        if not hasattr(SetLimit, "LastLimitAck"):
+            SetLimit.LastLimitAck = bool(False)
+
+        if (SetLimit.LastLimit == CastToInt(pLimit)) and SetLimit.LastLimitAck:
+            logger.info("Inverterlimit was already accepted at %s Watt",CastToInt(pLimit))
+            return
+        if (SetLimit.LastLimit == CastToInt(pLimit)) and not SetLimit.LastLimitAck:
+            logger.info("Inverterlimit %s Watt was previously not accepted by the inverter, trying again...",CastToInt(pLimit))
+
         logger.info("setting new limit to %s Watt",CastToInt(pLimit))
+        SetLimit.LastLimit = CastToInt(pLimit)
         SetLimit.LastLimitAck = True
         if (CastToInt(pLimit) <= GetMinWattFromAllInverters()):
             pLimit = 0 # set only minWatt for every inv.
@@ -292,6 +287,14 @@ def GetHoymilesAvailable():
                 if AVAILABLE[i]:
                     GetHoymilesAvailable = True
                     if not WasAvail:
+                        if hasattr(SetLimit, "LastLimit"):
+                            SetLimit.LastLimit = CastToInt(0)
+                        if hasattr(SetLimit, "LastLimitAck"):
+                            SetLimit.LastLimitAck = bool(False)
+                        if hasattr(SetLimitWithPriority, "LastLimit"):
+                            SetLimitWithPriority.LastLimit = CastToInt(0)
+                        if hasattr(SetLimitWithPriority, "LastLimitAck"):
+                            SetLimitWithPriority.LastLimitAck = bool(False)
                         GetHoymilesInfo()
             except Exception as e:
                 AVAILABLE[i] = False
@@ -304,7 +307,7 @@ def GetHoymilesAvailable():
     except:
         logger.error('Exception at GetHoymilesAvailable')
         raise
-    
+
 def CheckAhoyVersion():
     MinVersion = '0.7.29'
     url = f'http://{AHOY_IP}/api/system'
@@ -1104,10 +1107,6 @@ SLOW_APPROX_LIMIT = CastToInt(GetMaxWattFromAllInverters() * config.getint('COMM
 try:
     logger.info("---Init---")
     newLimitSetpoint = 0
-    
-    GetHoymilesPanelMinVoltage(0)
-    
-    
     if USE_AHOY:
         CheckAhoyVersion()
         AHOY_FACTOR = GetAhoyLimitFactor()

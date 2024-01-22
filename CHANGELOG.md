@@ -1,5 +1,9 @@
 # Changelog
 
+## V1.67
+### script
+* Limit-Handling improved (if not acknowledged -> retransmit)
+
 ## V1.66
 ### script
 * calculates an average of the "MinPanelVoltage", rel https://github.com/reserve85/HoymilesZeroExport/issues/120
