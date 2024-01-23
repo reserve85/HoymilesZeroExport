@@ -1,6 +1,10 @@
 # Changelog
 
-## V1.67
+## V1.69
+### script
+* try to fix: Only repeat limit for the specific inverter (where limit was not acknowledged)
+
+## V1.68
 ### script
 * Only repeat limit for the specific inverter (where limit was not acknowledged)
 ### Config

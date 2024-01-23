@@ -15,7 +15,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 __author__ = "Tobias Kraft"
-__version__ = "1.68"
+__version__ = "1.69"
 
 import requests
 import time
@@ -166,7 +166,6 @@ def SetLimitWithPriority(pLimit):
             return
         if (SetLimitWithPriority.LastLimit == CastToInt(pLimit)) and not SetLimitWithPriority.LastLimitAck:
             logger.info("Inverterlimit %s Watt was previously not accepted by the inverter, trying again...",CastToInt(pLimit))
-            return
 
         logger.info("setting new limit to %s Watt",CastToInt(pLimit))
         SetLimitWithPriority.LastLimit = CastToInt(pLimit)
@@ -182,28 +181,35 @@ def SetLimitWithPriority(pLimit):
             else:
                 LimitPrio = RemainingLimit    
             RemainingLimit = RemainingLimit - LimitPrio
-                       
+
             for i in range(INVERTER_COUNT):
                 if (not AVAILABLE[i]) or (not HOY_BATTERY_GOOD_VOLTAGE[i]):
                     continue
                 if HOY_BATTERY_PRIORITY[i] != j:
                     continue
-                Factor = HOY_MAX_WATT[i] / GetMaxWattFromAllInvertersSamePrio(j)
-                
+                Factor = HOY_MAX_WATT[i] / GetMaxWattFromAllInvertersSamePrio(j)         
                 NewLimit = CastToInt(LimitPrio*Factor)
                 NewLimit = ApplyLimitsToSetpointInverter(i, NewLimit)
                 if HOY_COMPENSATE_WATT_FACTOR[i] != 1:
                     logger.info('Ahoy: Inverter "%s": compensate Limit from %s Watt to %s Watt', NAME[i], CastToInt(NewLimit), CastToInt(NewLimit*HOY_COMPENSATE_WATT_FACTOR[i]))
                     NewLimit = CastToInt(NewLimit * HOY_COMPENSATE_WATT_FACTOR[i])
                     NewLimit = ApplyLimitsToMaxInverterLimits(i, NewLimit)
+
+                if (NewLimit == CastToInt(CURRENT_LIMIT[i])) and LASTLIMITACKNOWLEDGED[i]:
+                    continue   
+
+                LASTLIMITACKNOWLEDGED[i] = True
+
                 if USE_AHOY:
                     SetLimitAhoy(i, NewLimit)
                     if not WaitForAckAhoy(i, SET_LIMIT_TIMEOUT_SECONDS):
                         SetLimitWithPriority.LastLimitAck = False
+                        LASTLIMITACKNOWLEDGED[i] = False
                 elif USE_OPENDTU:
                     SetLimitOpenDTU(i, NewLimit)
                     if not WaitForAckOpenDTU(i, SET_LIMIT_TIMEOUT_SECONDS):
                         SetLimitWithPriority.LastLimitAck = False
+                        LASTLIMITACKNOWLEDGED[i] = False
                 else:
                     raise Exception("Error: DTU Type not defined")
     except:
@@ -227,9 +233,6 @@ def SetLimit(pLimit):
             return
         if (SetLimit.LastLimit == CastToInt(pLimit)) and not SetLimit.LastLimitAck:
             logger.info("Inverterlimit %s Watt was previously not accepted by at least one inverter, trying again...",CastToInt(pLimit))
-            lclRepeatLimit = True
-        else:
-            lclRepeatLimit = False
 
         logger.info("setting new limit to %s Watt",CastToInt(pLimit))
         SetLimit.LastLimit = CastToInt(pLimit)
@@ -246,13 +249,14 @@ def SetLimit(pLimit):
                 logger.info('Ahoy: Inverter "%s": compensate Limit from %s Watt to %s Watt', NAME[i], CastToInt(NewLimit), CastToInt(NewLimit*HOY_COMPENSATE_WATT_FACTOR[i]))
                 NewLimit = CastToInt(NewLimit * HOY_COMPENSATE_WATT_FACTOR[i])
                 NewLimit = ApplyLimitsToMaxInverterLimits(i, NewLimit)
-            
-            if lclRepeatLimit and LASTLIMITACKNOWLEDGED[i]:
+
+            if (NewLimit == CastToInt(CURRENT_LIMIT[i])) and LASTLIMITACKNOWLEDGED[i]:
                 continue
-            
+
+            LASTLIMITACKNOWLEDGED[i] = True
+
             if USE_AHOY:
                 SetLimitAhoy(i, NewLimit)
-                LASTLIMITACKNOWLEDGED[i] = True
                 if not WaitForAckAhoy(i, SET_LIMIT_TIMEOUT_SECONDS):
                     SetLimit.LastLimitAck = False
                     LASTLIMITACKNOWLEDGED[i] = False
