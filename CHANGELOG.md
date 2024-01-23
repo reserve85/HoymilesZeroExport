@@ -2,6 +2,12 @@
 
 ## V1.67
 ### script
+* Only repeat limit for the specific inverter (where limit was not acknowledged)
+### Config
+* renamed `SET_LIMIT_RETRY` to `SET_POWERSTATUS_CNT`
+
+## V1.67
+### script
 * Limit-Handling improved (if not acknowledged -> retransmit)
 
 ## V1.66

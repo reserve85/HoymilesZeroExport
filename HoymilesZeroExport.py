@@ -15,7 +15,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 __author__ = "Tobias Kraft"
-__version__ = "1.67"
+__version__ = "1.68"
 
 import requests
 import time
@@ -226,7 +226,10 @@ def SetLimit(pLimit):
             logger.info("Inverterlimit was already accepted at %s Watt",CastToInt(pLimit))
             return
         if (SetLimit.LastLimit == CastToInt(pLimit)) and not SetLimit.LastLimitAck:
-            logger.info("Inverterlimit %s Watt was previously not accepted by the inverter, trying again...",CastToInt(pLimit))
+            logger.info("Inverterlimit %s Watt was previously not accepted by at least one inverter, trying again...",CastToInt(pLimit))
+            lclRepeatLimit = True
+        else:
+            lclRepeatLimit = False
 
         logger.info("setting new limit to %s Watt",CastToInt(pLimit))
         SetLimit.LastLimit = CastToInt(pLimit)
@@ -243,14 +246,21 @@ def SetLimit(pLimit):
                 logger.info('Ahoy: Inverter "%s": compensate Limit from %s Watt to %s Watt', NAME[i], CastToInt(NewLimit), CastToInt(NewLimit*HOY_COMPENSATE_WATT_FACTOR[i]))
                 NewLimit = CastToInt(NewLimit * HOY_COMPENSATE_WATT_FACTOR[i])
                 NewLimit = ApplyLimitsToMaxInverterLimits(i, NewLimit)
+            
+            if lclRepeatLimit and LASTLIMITACKNOWLEDGED[i]:
+                continue
+            
             if USE_AHOY:
                 SetLimitAhoy(i, NewLimit)
+                LASTLIMITACKNOWLEDGED[i] = True
                 if not WaitForAckAhoy(i, SET_LIMIT_TIMEOUT_SECONDS):
                     SetLimit.LastLimitAck = False
+                    LASTLIMITACKNOWLEDGED[i] = False
             elif USE_OPENDTU:
                 SetLimitOpenDTU(i, NewLimit)
                 if not WaitForAckOpenDTU(i, SET_LIMIT_TIMEOUT_SECONDS):
                     SetLimit.LastLimitAck = False
+                    LASTLIMITACKNOWLEDGED[i] = False
             else:
                 raise Exception("Error: DTU Type not defined")
     except:
@@ -295,6 +305,7 @@ def GetHoymilesAvailable():
                             SetLimitWithPriority.LastLimit = CastToInt(0)
                         if hasattr(SetLimitWithPriority, "LastLimitAck"):
                             SetLimitWithPriority.LastLimitAck = bool(False)
+                        LASTLIMITACKNOWLEDGED[i] = False
                         GetHoymilesInfo()
             except Exception as e:
                 AVAILABLE[i] = False
@@ -474,7 +485,7 @@ def SetHoymilesPowerStatus(pInverterId, pActive):
     try:
         if not AVAILABLE[pInverterId]:
             return
-        if SET_LIMIT_RETRY != -1:
+        if SET_POWERSTATUS_CNT > 0:
             if not hasattr(SetHoymilesPowerStatus, "LastPowerStatus"):
                 SetHoymilesPowerStatus.LastPowerStatus = []
                 SetHoymilesPowerStatus.LastPowerStatus = [False for i in range(INVERTER_COUNT)]
@@ -486,7 +497,7 @@ def SetHoymilesPowerStatus(pInverterId, pActive):
             else:
                 SetHoymilesPowerStatus.LastPowerStatus[pInverterId] = pActive
                 SetHoymilesPowerStatus.SamePowerStatusCnt[pInverterId] = 0
-            if SetHoymilesPowerStatus.SamePowerStatusCnt[pInverterId] >= SET_LIMIT_RETRY:
+            if SetHoymilesPowerStatus.SamePowerStatusCnt[pInverterId] > SET_POWERSTATUS_CNT:
                 if pActive:
                     logger.info("Retry Counter exceeded: Inverter PowerStatus already ON")
                 else:
@@ -1046,7 +1057,7 @@ SET_POWER_STATUS_DELAY_IN_SECONDS = config.getint('COMMON', 'SET_POWER_STATUS_DE
 POLL_INTERVAL_IN_SECONDS = config.getint('COMMON', 'POLL_INTERVAL_IN_SECONDS')
 ON_GRID_USAGE_JUMP_TO_LIMIT_PERCENT = config.getint('COMMON', 'ON_GRID_USAGE_JUMP_TO_LIMIT_PERCENT')
 MAX_DIFFERENCE_BETWEEN_LIMIT_AND_OUTPUTPOWER = config.getint('COMMON', 'MAX_DIFFERENCE_BETWEEN_LIMIT_AND_OUTPUTPOWER')
-SET_LIMIT_RETRY = config.getint('COMMON', 'SET_LIMIT_RETRY')
+SET_POWERSTATUS_CNT = config.getint('COMMON', 'SET_POWERSTATUS_CNT')
 SLOW_APPROX_FACTOR_IN_PERCENT = config.getint('COMMON', 'SLOW_APPROX_FACTOR_IN_PERCENT')
 LOG_TEMPERATURE = config.getboolean('COMMON', 'LOG_TEMPERATURE')
 POWERMETER_TARGET_POINT = config.getint('CONTROL', 'POWERMETER_TARGET_POINT')
@@ -1063,6 +1074,7 @@ HOY_INVERTER_WATT = []
 HOY_MIN_WATT = []
 CURRENT_LIMIT = []
 AVAILABLE = []
+LASTLIMITACKNOWLEDGED = []
 HOY_BATTERY_GOOD_VOLTAGE = []
 HOY_COMPENSATE_WATT_FACTOR = []
 HOY_BATTERY_MODE = []
@@ -1086,6 +1098,7 @@ for i in range(INVERTER_COUNT):
     HOY_MIN_WATT.append(int(HOY_MAX_WATT[i] * config.getint('INVERTER_' + str(i + 1), 'HOY_MIN_WATT_IN_PERCENT') / 100))
     CURRENT_LIMIT.append(int(0))
     AVAILABLE.append(bool(False))
+    LASTLIMITACKNOWLEDGED.append(bool(False))
     HOY_BATTERY_GOOD_VOLTAGE.append(bool(True))
     HOY_BATTERY_MODE.append(config.getboolean('INVERTER_' + str(i + 1), 'HOY_BATTERY_MODE'))
     HOY_BATTERY_THRESHOLD_OFF_LIMIT_IN_V.append(config.getfloat('INVERTER_' + str(i + 1), 'HOY_BATTERY_THRESHOLD_OFF_LIMIT_IN_V'))
