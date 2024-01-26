@@ -1,5 +1,25 @@
 # Changelog
 
+## V1.69
+### script
+* try to fix: Only repeat limit for the specific inverter (where limit was not acknowledged)
+
+## V1.68
+### script
+* Only repeat limit for the specific inverter (where limit was not acknowledged)
+### Config
+* renamed `SET_LIMIT_RETRY` to `SET_POWERSTATUS_CNT`
+
+## V1.67
+### script
+* Limit-Handling improved (if not acknowledged -> retransmit)
+
+## V1.66
+### script
+* calculates an average of the "MinPanelVoltage", rel https://github.com/reserve85/HoymilesZeroExport/issues/120
+### Config
+* add: `INVERTER_x`: `HOY_BATTERY_AVERAGE_CNT`
+
 ## V1.65
 ### script
 * bugfix set limit retry
