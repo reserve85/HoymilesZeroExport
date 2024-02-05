@@ -547,6 +547,21 @@ class Shelly3EMPro(Shelly):
     def GetPowermeterWatts(self):
         return CastToInt(self.GetRpcJson('/EM.GetStatus?id=0')['total_act_power'])
 
+class ESPHome(Powermeter):
+    def __init__(self, ip: str, port: str, domain: str, id: str):
+        self.ip = ip
+        self.port = port
+        self.domain = domain
+        self.id = id
+
+    def GetJson(self, path):
+        url = f'http://{self.ip}:{self.port}{path}'
+        return requests.get(url, timeout=10).json()
+
+    def GetPowermeterWatts(self):
+        ParsedData = self.GetJson(f'/{self.domain}/{self.id}')
+        return CastToInt(ParsedData['value'])
+
 class Shrdzm(Powermeter):
     def __init__(self, ip: str, user: str, password: str):
         self.ip = ip
@@ -1016,6 +1031,13 @@ def CreateIntermediatePowermeter(dtu: DTU) -> Powermeter:
         return Shelly1PM(shelly_ip, shelly_user, shelly_pass)
     elif config.getboolean('SELECT_INTERMEDIATE_METER', 'USE_SHELLY_PLUS_1PM_INTERMEDIATE'):
         return ShellyPlus1PM(shelly_ip, shelly_user, shelly_pass)
+    elif config.getboolean('SELECT_INTERMEDIATE_METER', 'USE_ESPHOME_INTERMEDIATE'):
+        return ESPHome(
+            config.get('INTERMEDIATE_ESPHOME', 'ESPHOME_IP_INTERMEDIATE'),
+            config.get('INTERMEDIATE_ESPHOME', 'ESPHOME_PORT_INTERMEDIATE', fallback='80'),
+            config.get('INTERMEDIATE_ESPHOME', 'ESPHOME_DOMAIN_INTERMEDIATE'),
+            config.get('INTERMEDIATE_ESPHOME', 'ESPHOME_ID_INTERMEDIATE')
+        )
     elif config.getboolean('SELECT_INTERMEDIATE_METER', 'USE_SHRDZM_INTERMEDIATE'):
         return Shrdzm(
             config.get('INTERMEDIATE_SHRDZM', 'SHRDZM_IP_INTERMEDIATE'),
