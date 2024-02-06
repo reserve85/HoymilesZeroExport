@@ -15,7 +15,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 __author__ = "Tobias Kraft"
-__version__ = "1.69"
+__version__ = "1.71"
 
 import requests
 import time
@@ -42,7 +42,7 @@ args = parser.parse_args()
 
 try:
     config = ConfigParser()
-    
+
     baseconfig = str(Path.joinpath(Path(__file__).parent.resolve(), "HoymilesZeroExport_Config.ini"))
     if args.config:
         config.read([baseconfig, args.config])
@@ -163,7 +163,7 @@ def SetLimitWithPriority(pLimit):
             logger.info("Inverterlimit was already accepted at %s Watt",CastToInt(pLimit))
             return
         if (SetLimitWithPriority.LastLimit == CastToInt(pLimit)) and not SetLimitWithPriority.LastLimitAck:
-            logger.info("Inverterlimit %s Watt was previously not accepted by the inverter, trying again...",CastToInt(pLimit))
+            logger.info("Inverterlimit %s Watt was previously not accepted by at least one inverter, trying again...",CastToInt(pLimit))
 
         logger.info("setting new limit to %s Watt",CastToInt(pLimit))
         SetLimitWithPriority.LastLimit = CastToInt(pLimit)
@@ -177,7 +177,7 @@ def SetLimitWithPriority(pLimit):
             if RemainingLimit >= GetMaxWattFromAllInvertersSamePrio(j):
                 LimitPrio = GetMaxWattFromAllInvertersSamePrio(j)
             else:
-                LimitPrio = RemainingLimit    
+                LimitPrio = RemainingLimit
             RemainingLimit = RemainingLimit - LimitPrio
 
             for i in range(INVERTER_COUNT):
@@ -185,7 +185,7 @@ def SetLimitWithPriority(pLimit):
                     continue
                 if HOY_BATTERY_PRIORITY[i] != j:
                     continue
-                Factor = HOY_MAX_WATT[i] / GetMaxWattFromAllInvertersSamePrio(j)         
+                Factor = HOY_MAX_WATT[i] / GetMaxWattFromAllInvertersSamePrio(j)
                 NewLimit = CastToInt(LimitPrio*Factor)
                 NewLimit = ApplyLimitsToSetpointInverter(i, NewLimit)
                 if HOY_COMPENSATE_WATT_FACTOR[i] != 1:
@@ -194,7 +194,7 @@ def SetLimitWithPriority(pLimit):
                     NewLimit = ApplyLimitsToMaxInverterLimits(i, NewLimit)
 
                 if (NewLimit == CastToInt(CURRENT_LIMIT[i])) and LASTLIMITACKNOWLEDGED[i]:
-                    continue   
+                    continue
 
                 LASTLIMITACKNOWLEDGED[i] = True
 
@@ -627,11 +627,23 @@ def GetHoymilesActualPowerAhoy(pInverterId):
 
 def GetHoymilesActualPower():
     try:
-        Watts = INTERMEDIATE_POWERMETER.GetPowermeterWatts()
-        logger.info(f"intermediate meter {INTERMEDIATE_POWERMETER.__class__.__name__}: {Watts} Watt")
-        return Watts
+        try:
+            Watts = INTERMEDIATE_POWERMETER.GetPowermeterWatts()
+            logger.info(f"intermediate meter {INTERMEDIATE_POWERMETER.__class__.__name__}: {Watts} Watt")
+            return Watts
+        except Exception as e:
+            logger.error("Exception at GetHoymilesActualPower")
+            if hasattr(e, 'message'):
+                logger.error(e.message)
+            else:
+                logger.error(e)
+            logger.error("try reading actual power from DTU:")
+            Watts = DTU.GetPowermeterWatts()
+            logger.info(f"intermediate meter {DTU.__class__.__name__}: {Watts} Watt")
     except:
         logger.error("Exception at GetHoymilesActualPower")
+        if GetBatteryMode:
+            SetLimit(0)
         raise
 
 def GetPowermeterWatts():
@@ -641,6 +653,8 @@ def GetPowermeterWatts():
         return Watts
     except:
         logger.error("Exception at GetPowermeterWatts")
+        if GetBatteryMode:
+            SetLimit(0)        
         raise
 
 def CutLimitToProduction(pSetpoint):

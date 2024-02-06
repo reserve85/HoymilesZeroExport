@@ -1,5 +1,14 @@
 # Changelog
 
+## V1.71
+### script
+* When intermediate meter is not available then try to get "ActualPower" from DTU
+* on battery mode: set Inverter to min power on meter-error
+
+## V1.70
+### script
+* refactoring, big big "thank you" to https://github.com/tomquist - i know it was overdue...
+
 ## V1.69
 ### script
 * try to fix: Only repeat limit for the specific inverter (where limit was not acknowledged)
