@@ -26,8 +26,6 @@ import logging
 from logging.handlers import TimedRotatingFileHandler
 from configparser import ConfigParser
 from pathlib import Path
-from datetime import timedelta
-import datetime
 import sys
 from packaging import version
 import argparse 
@@ -629,248 +627,18 @@ def GetHoymilesActualPowerAhoy(pInverterId):
 
 def GetHoymilesActualPower():
     try:
-        ActualPower = 0
-        if USE_SHELLY_EM_INTERMEDIATE:
-            return GetPowermeterWattsShellyEM_Intermediate()        
-        elif USE_SHELLY_3EM_INTERMEDIATE:
-            return GetPowermeterWattsShelly3EM_Intermediate()
-        elif USE_SHELLY_3EM_PRO_INTERMEDIATE:
-            return GetPowermeterWattsShelly3EMPro_Intermediate()
-        elif USE_SHELLY_1PM_INTERMEDIATE:
-            return GetPowermeterWattsShelly1PM_Intermediate()
-        elif USE_SHELLY_PLUS_1PM_INTERMEDIATE:
-            return GetPowermeterWattsShellyPlus1PM_Intermediate()
-        elif USE_TASMOTA_INTERMEDIATE:
-            return GetPowermeterWattsTasmota_Intermediate()
-        elif USE_SHRDZM_INTERMEDIATE:
-            return GetPowermeterWattsShrdzm_Intermediate()
-        elif USE_EMLOG_INTERMEDIATE:
-            return GetPowermeterWattsEmlog_Intermediate()
-        elif USE_IOBROKER_INTERMEDIATE:
-            return GetPowermeterWattsIobroker_Intermediate()
-        elif USE_HOMEASSISTANT_INTERMEDIATE:
-            return GetPowermeterWattsHomeAssistant_Intermediate()
-        elif USE_VZLOGGER_INTERMEDIATE:
-            return GetPowermeterWattsVZLogger_Intermediate()
-        elif USE_AHOY:
-            for i in range(INVERTER_COUNT):
-                if (not AVAILABLE[i]) or (not HOY_BATTERY_GOOD_VOLTAGE[i]):
-                    continue
-                ActualPower = ActualPower + GetHoymilesActualPowerAhoy(i)
-            return ActualPower
-        elif USE_OPENDTU:
-            for i in range(INVERTER_COUNT):
-                if (not AVAILABLE[i]) or (not HOY_BATTERY_GOOD_VOLTAGE[i]):
-                    continue
-                ActualPower = ActualPower + GetHoymilesActualPowerOpenDTU(i)
-            return ActualPower
-        else:
-            raise Exception("Error: DTU Type not defined")
+        Watts = INTERMEDIATE_POWERMETER.GetPowermeterWatts()
+        logger.info(f"intermediate meter {INTERMEDIATE_POWERMETER.__class__.__name__}: {Watts} Watt")
+        return Watts
     except:
         logger.error("Exception at GetHoymilesActualPower")
         raise
 
-def GetPowermeterWattsTasmota_Intermediate():
-    url = f'http://{TASMOTA_IP_INTERMEDIATE}/cm?cmnd=status%2010'
-    ParsedData = requests.get(url, timeout=10).json()
-    Watts = CastToInt(ParsedData[TASMOTA_JSON_STATUS_INTERMEDIATE][TASMOTA_JSON_PAYLOAD_MQTT_PREFIX_INTERMEDIATE][TASMOTA_JSON_POWER_MQTT_LABEL_INTERMEDIATE])
-    logger.info("intermediate meter Tasmota: %s %s",Watts," Watt")
-    return CastToInt(Watts)
-
-def GetPowermeterWattsShelly1PM_Intermediate():
-    url = f'http://{SHELLY_IP_INTERMEDIATE}/status'
-    headers = {"content-type": "application/json"}
-    ParsedData = requests.get(url, headers=headers, auth=(SHELLY_USER_INTERMEDIATE,SHELLY_PASS_INTERMEDIATE), timeout=10).json()
-    Watts = CastToInt(ParsedData['meters'][0]['power'])
-    logger.info("intermediate meter Shelly 1PM: %s %s",Watts," Watt")
-    return CastToInt(Watts)
-
-def GetPowermeterWattsShellyPlus1PM_Intermediate():
-    url = f'http://{SHELLY_IP_INTERMEDIATE}/rpc/Switch.GetStatus?id=0'
-    headers = {"content-type": "application/json"}
-    ParsedData = requests.get(url, headers=headers, auth=HTTPDigestAuth(SHELLY_USER_INTERMEDIATE,SHELLY_PASS_INTERMEDIATE), timeout=10).json()
-    Watts = CastToInt(ParsedData['apower'])
-    logger.info("intermediate meter Shelly Plus 1PM: %s %s",Watts," Watt")
-    return CastToInt(Watts)
-
-def GetPowermeterWattsShellyEM_Intermediate():
-    url = f'http://{SHELLY_IP_INTERMEDIATE}/status'
-    headers = {"content-type": "application/json"}
-    ParsedData = requests.get(url, headers=headers, auth=(SHELLY_USER_INTERMEDIATE,SHELLY_PASS_INTERMEDIATE), timeout=10).json()
-    Watts = sum(CastToInt(emeter['power']) for emeter in ParsedData['emeters'])
-    logger.info("intermediate meter Shelly EM: %s %s",Watts," Watt")
-    return CastToInt(Watts)
-
-def GetPowermeterWattsShelly3EM_Intermediate():
-    url = f'http://{SHELLY_IP_INTERMEDIATE}/status'
-    headers = {"content-type": "application/json"}
-    ParsedData = requests.get(url, headers=headers, auth=(SHELLY_USER_INTERMEDIATE,SHELLY_PASS_INTERMEDIATE), timeout=10).json()
-    Watts = CastToInt(ParsedData['total_power'])
-    logger.info("intermediate meter Shelly 3EM: %s %s",Watts," Watt")
-    return CastToInt(Watts)
-
-def GetPowermeterWattsShelly3EMPro_Intermediate():
-    url = f'http://{SHELLY_IP_INTERMEDIATE}/rpc/EM.GetStatus?id=0'
-    headers = {"content-type": "application/json"}
-    ParsedData = requests.get(url, headers=headers, auth=HTTPDigestAuth(SHELLY_USER_INTERMEDIATE,SHELLY_PASS_INTERMEDIATE), timeout=10).json()
-    Watts = CastToInt(ParsedData['total_act_power'])
-    logger.info("intermediate meter Shelly 3EM Pro: %s %s",Watts," Watt")
-    return CastToInt(Watts)
-
-def GetPowermeterWattsShrdzm_Intermediate():
-    url = f'http://{SHRDZM_IP_INTERMEDIATE}/getLastData?user={SHRDZM_USER_INTERMEDIATE}&password={SHRDZM_PASS_INTERMEDIATE}'
-    ParsedData = requests.get(url, timeout=10).json()
-    Watts = CastToInt(CastToInt(ParsedData['1.7.0']) - CastToInt(ParsedData['2.7.0']))
-    logger.info("intermediate meter SHRDZM: %s %s",Watts," Watt")
-    return CastToInt(Watts)
-
-def GetPowermeterWattsEmlog_Intermediate():
-    url = f'http://{EMLOG_IP_INTERMEDIATE}/pages/getinformation.php?heute&meterindex={EMLOG_METERINDEX_INTERMEDIATE}'
-    ParsedData = requests.get(url, timeout=10).json()
-    Watts = CastToInt(ParsedData['Leistung170'])
-    logger.info("intermediate meter EMLOG: %s %s",Watts," Watt")
-    return CastToInt(Watts)
-
-def GetPowermeterWattsIobroker_Intermediate():
-    url = f'http://{IOBROKER_IP_INTERMEDIATE}:{IOBROKER_PORT_INTERMEDIATE}/getBulk/{IOBROKER_CURRENT_POWER_ALIAS_INTERMEDIATE}'
-    ParsedData = requests.get(url, timeout=10).json()
-    Watts = CastToInt(ParsedData[0]['val'])
-    logger.info("intermediate meter IOBROKER: %s %s",Watts," Watt")
-    return CastToInt(Watts)
-
-def GetPowermeterWattsHomeAssistant_Intermediate():
-    url = f"http://{HA_IP_INTERMEDIATE}:{HA_PORT_INTERMEDIATE}/api/states/{HA_CURRENT_POWER_ENTITY_INTERMEDIATE}"
-    headers = {"Authorization": "Bearer " + HA_ACCESSTOKEN_INTERMEDIATE, "content-type": "application/json"}
-    ParsedData = requests.get(url, headers=headers, timeout=10).json()
-    Watts = CastToInt(ParsedData['state'])
-    logger.info("intermediate meter HomeAssistant: %s %s",Watts," Watt")
-    return CastToInt(Watts)
-
-def GetPowermeterWattsVZLogger_Intermediate():
-    url = f"http://{VZL_IP_INTERMEDIATE}:{VZL_PORT_INTERMEDIATE}/{VZL_UUID_INTERMEDIATE}"
-    ParsedData = requests.get(url, timeout=10).json()
-    Watts = CastToInt(ParsedData['data'][0]['tuples'][0][1])
-    logger.info("intermediate meter VZLogger: %s %s",Watts," Watt")
-    return CastToInt(Watts)
-
-def GetPowermeterWattsTasmota():
-    url = f'http://{TASMOTA_IP}/cm?cmnd=status%2010'
-    ParsedData = requests.get(url, timeout=10).json()
-    if not TASMOTA_JSON_POWER_CALCULATE:
-        Watts = CastToInt(ParsedData[TASMOTA_JSON_STATUS][TASMOTA_JSON_PAYLOAD_MQTT_PREFIX][TASMOTA_JSON_POWER_MQTT_LABEL])
-    else:
-        input = ParsedData[TASMOTA_JSON_STATUS][TASMOTA_JSON_PAYLOAD_MQTT_PREFIX][TASMOTA_JSON_POWER_INPUT_MQTT_LABEL]
-        ouput = ParsedData[TASMOTA_JSON_STATUS][TASMOTA_JSON_PAYLOAD_MQTT_PREFIX][TASMOTA_JSON_POWER_OUTPUT_MQTT_LABEL]
-        Watts = CastToInt(input - ouput)
-    logger.info("powermeter Tasmota: %s %s",Watts," Watt")
-    return CastToInt(Watts)
-
-def GetPowermeterWattsShellyEM():
-    url = f'http://{SHELLY_IP}/status'
-    headers = {"content-type": "application/json"}
-    ParsedData = requests.get(url, headers=headers, auth=(SHELLY_USER,SHELLY_PASS), timeout=10).json()
-    Watts = sum(CastToInt(emeter['power']) for emeter in ParsedData['emeters'])
-    logger.info("powermeter Shelly EM: %s %s",Watts," Watt")
-    return CastToInt(Watts)
-
-def GetPowermeterWattsShelly3EM():
-    url = f'http://{SHELLY_IP}/status'
-    headers = {"content-type": "application/json"}
-    ParsedData = requests.get(url, headers=headers, auth=(SHELLY_USER,SHELLY_PASS), timeout=10).json()
-    Watts = CastToInt(ParsedData['total_power'])
-    logger.info("powermeter Shelly 3EM: %s %s",Watts," Watt")
-    return CastToInt(Watts)
-
-def GetPowermeterWattsShelly3EMPro():
-    url = f'http://{SHELLY_IP}/rpc/EM.GetStatus?id=0'
-    headers = {"content-type": "application/json"}
-    ParsedData = requests.get(url, headers=headers, auth=HTTPDigestAuth(SHELLY_USER,SHELLY_PASS), timeout=10).json()
-    Watts = CastToInt(ParsedData['total_act_power'])
-    logger.info("powermeter Shelly 3EM Pro: %s %s",Watts," Watt")
-    return CastToInt(Watts)
-
-def GetPowermeterWattsShrdzm():
-    url = f'http://{SHRDZM_IP}/getLastData?user={SHRDZM_USER}&password={SHRDZM_PASS}'
-    ParsedData = requests.get(url, timeout=10).json()
-    Watts = CastToInt(CastToInt(ParsedData['1.7.0']) - CastToInt(ParsedData['2.7.0']))
-    logger.info("powermeter SHRDZM: %s %s",Watts," Watt")
-    return CastToInt(Watts)
-
-def GetPowermeterWattsEmlog():
-    url = f'http://{EMLOG_IP}/pages/getinformation.php?heute&meterindex={EMLOG_METERINDEX}'
-    ParsedData = requests.get(url, timeout=10).json()
-    Watts = CastToInt(CastToInt(ParsedData['Leistung170']) - CastToInt(ParsedData['Leistung270']))
-    logger.info("powermeter EMLOG: %s %s",Watts," Watt")
-    return CastToInt(Watts)
-
-def GetPowermeterWattsIobroker():
-    if not IOBROKER_POWER_CALCULATE:
-        url = f'http://{IOBROKER_IP}:{IOBROKER_PORT}/getBulk/{IOBROKER_CURRENT_POWER_ALIAS}'
-        ParsedData = requests.get(url, timeout=10).json()
-        for item in ParsedData:
-            if item['id'] == IOBROKER_CURRENT_POWER_ALIAS:
-                Watts = CastToInt(item['val'])
-                break
-    else:
-        url = f'http://{IOBROKER_IP}:{IOBROKER_PORT}/getBulk/{IOBROKER_POWER_INPUT_ALIAS},{IOBROKER_POWER_OUTPUT_ALIAS}'
-        ParsedData = requests.get(url, timeout=10).json()
-        for item in ParsedData:
-            if item['id'] == IOBROKER_POWER_INPUT_ALIAS:
-                input = CastToInt(item['val'])
-            if item['id'] == IOBROKER_POWER_OUTPUT_ALIAS:
-                output = CastToInt(item['val'])
-        Watts = CastToInt(input - output)
-    logger.info("powermeter IOBROKER: %s %s",Watts," Watt")
-    return CastToInt(Watts)
-
-def GetPowermeterWattsHomeAssistant():
-    if not HA_POWER_CALCULATE:
-        url = f"http://{HA_IP}:{HA_PORT}/api/states/{HA_CURRENT_POWER_ENTITY}"
-        headers = {"Authorization": "Bearer " + HA_ACCESSTOKEN, "content-type": "application/json"}
-        ParsedData = requests.get(url, headers=headers, timeout=10).json()
-        Watts = CastToInt(ParsedData['state'])
-    else:
-        url = f"http://{HA_IP}:{HA_PORT}/api/states/{HA_POWER_INPUT_ALIAS}"
-        headers = {"Authorization": "Bearer " + HA_ACCESSTOKEN, "content-type": "application/json"}
-        ParsedData = requests.get(url, headers=headers, timeout=10).json()
-        input = CastToInt(ParsedData['state'])
-        url = f"http://{HA_IP}:{HA_PORT}/api/states/{HA_POWER_OUTPUT_ALIAS}"
-        headers = {"Authorization": "Bearer " + HA_ACCESSTOKEN, "content-type": "application/json"}
-        ParsedData = requests.get(url, headers=headers, timeout=10).json()
-        output = CastToInt(ParsedData['state'])
-        Watts = CastToInt(input - output)
-    logger.info("powermeter HomeAssistant: %s %s",Watts," Watt")
-    return CastToInt(Watts)
-
-def GetPowermeterWattsVZLogger():
-    url = f"http://{VZL_IP}:{VZL_PORT}/{VZL_UUID}"
-    ParsedData = requests.get(url, timeout=10).json()
-    Watts = CastToInt(ParsedData['data'][0]['tuples'][0][1])
-    logger.info("powermeter VZLogger: %s %s",Watts," Watt")
-    return CastToInt(Watts)
-
 def GetPowermeterWatts():
     try:
-        if USE_SHELLY_EM:
-            return GetPowermeterWattsShellyEM()
-        elif USE_SHELLY_3EM:
-            return GetPowermeterWattsShelly3EM()
-        elif USE_SHELLY_3EM_PRO:
-            return GetPowermeterWattsShelly3EMPro()
-        elif USE_TASMOTA:
-            return GetPowermeterWattsTasmota()
-        elif USE_SHRDZM:
-            return GetPowermeterWattsShrdzm()
-        elif USE_EMLOG:
-            return GetPowermeterWattsEmlog()
-        elif USE_IOBROKER:
-            return GetPowermeterWattsIobroker()
-        elif USE_HOMEASSISTANT:
-            return GetPowermeterWattsHomeAssistant()
-        elif USE_VZLOGGER:
-            return GetPowermeterWattsVZLogger()
-        else:
-            raise Exception("Error: no powermeter defined!")
+        Watts = POWERMETER.GetPowermeterWatts()
+        logger.info(f"powermeter {POWERMETER.__class__.__name__}: {Watts} Watt")
+        return Watts
     except:
         logger.error("Exception at GetPowermeterWatts")
         raise
@@ -962,6 +730,345 @@ def GetPriorityMode():
                 return True
     return False
 
+class Powermeter:
+    def GetPowermeterWatts(self) -> int:
+        raise NotImplementedError()
+
+class Tasmota(Powermeter):
+    def __init__(self, ip: str, json_status: str, json_payload_mqtt_prefix: str, json_power_mqtt_label: str, json_power_input_mqtt_label: str, json_power_output_mqtt_label: str, json_power_calculate: bool):
+        self.ip = ip
+        self.json_status = json_status
+        self.json_payload_mqtt_prefix = json_payload_mqtt_prefix
+        self.json_power_mqtt_label = json_power_mqtt_label
+        self.json_power_input_mqtt_label = json_power_input_mqtt_label
+        self.json_power_output_mqtt_label = json_power_output_mqtt_label
+        self.json_power_calculate = json_power_calculate
+
+    def GetJson(self, path):
+        url = f'http://{self.ip}{path}'
+        return requests.get(url, timeout=10).json()
+
+    def GetPowermeterWatts(self):
+        ParsedData = self.GetJson('/cm?cmnd=status%2010')
+        if not self.json_power_calculate:
+            return CastToInt(ParsedData[self.json_status][self.json_payload_mqtt_prefix][self.json_power_mqtt_label])
+        else:
+            input = ParsedData[self.json_status][self.json_payload_mqtt_prefix][self.json_power_input_mqtt_label]
+            ouput = ParsedData[self.json_status][self.json_payload_mqtt_prefix][self.json_power_output_mqtt_label]
+            return CastToInt(input - ouput)
+
+class Shelly(Powermeter):
+    def __init__(self, ip: str, user: str, password: str):
+        self.ip = ip
+        self.user = user
+        self.password = password
+
+    def GetJson(self, path):
+        url = f'http://{self.ip}{path}'
+        headers = {"content-type": "application/json"}
+        return requests.get(url, headers=headers, auth=(self.user, self.password), timeout=10).json()
+
+    def GetRpcJson(self, path):
+        url = f'http://{self.ip}/rpc{path}'
+        headers = {"content-type": "application/json"}
+        return requests.get(url, headers=headers, auth=HTTPDigestAuth(self.user, self.password), timeout=10).json()
+
+    def GetPowermeterWatts(self) -> int:
+        raise NotImplementedError()
+
+class Shelly1PM(Shelly):
+    def GetPowermeterWatts(self):
+        return CastToInt(self.GetJson('/status')['meters'][0]['power'])
+
+class ShellyPlus1PM(Shelly):
+    def GetPowermeterWatts(self):
+        return CastToInt(self.GetRpcJson('/Switch.GetStatus?id=0')['apower'])
+
+class ShellyEM(Shelly):
+    def GetPowermeterWatts(self):
+        return sum(CastToInt(emeter['power']) for emeter in self.GetJson('/status')['emeters'])
+
+class Shelly3EM(Shelly):
+    def GetPowermeterWatts(self):
+        return CastToInt(self.GetJson('/status')['total_power'])
+
+class Shelly3EMPro(Shelly):
+    def GetPowermeterWatts(self):
+        return CastToInt(self.GetRpcJson('/EM.GetStatus?id=0')['total_act_power'])
+
+class Shrdzm(Powermeter):
+    def __init__(self, ip: str, user: str, password: str):
+        self.ip = ip
+        self.user = user
+        self.password = password
+
+    def GetJson(self, path):
+        url = f'http://{self.ip}{path}'
+        return requests.get(url, timeout=10).json()
+
+    def GetPowermeterWatts(self):
+        ParsedData = self.GetJson(f'/getLastData?user={self.user}&password={self.password}')
+        return CastToInt(CastToInt(ParsedData['1.7.0']) - CastToInt(ParsedData['2.7.0']))
+
+class Emlog(Powermeter):
+    def __init__(self, ip: str, meterindex: str):
+        self.ip = ip
+        self.meterindex = meterindex
+
+    def GetJson(self, path):
+        url = f'http://{self.ip}{path}'
+        return requests.get(url, timeout=10).json()
+
+    def GetPowermeterWatts(self):
+        ParsedData = self.GetJson(f'/pages/getinformation.php?heute&meterindex={self.meterindex}')
+        return CastToInt(ParsedData['Leistung170'])
+
+class IoBroker(Powermeter):
+    def __init__(self, ip: str, port: str, current_power_alias: str, power_calculate: bool, power_input_alias: str, power_output_alias: str):
+        self.ip = ip
+        self.port = port
+        self.current_power_alias = current_power_alias
+        self.power_calculate = power_calculate
+        self.power_input_alias = power_input_alias
+        self.power_output_alias = power_output_alias
+
+    def GetJson(self, path):
+        url = f'http://{self.ip}:{self.port}{path}'
+        return requests.get(url, timeout=10).json()
+
+    def GetPowermeterWatts(self):
+        if not self.power_calculate:
+            ParsedData = self.GetJson(f'/getBulk/{self.current_power_alias}')
+            for item in ParsedData:
+                if item['id'] == self.current_power_alias:
+                    return CastToInt(item['val'])
+        else:
+            ParsedData = self.GetJson(f'/getBulk/{self.power_input_alias},{self.power_output_alias}')
+            for item in ParsedData:
+                if item['id'] == self.power_input_alias:
+                    input = CastToInt(item['val'])
+                if item['id'] == self.power_output_alias:
+                    output = CastToInt(item['val'])
+            return CastToInt(input - output)
+
+class HomeAssistant(Powermeter):
+    def __init__(self, ip: str, port: str, access_token: str, current_power_entity: str, power_calculate: bool, power_input_alias: str, power_output_alias: str):
+        self.ip = ip
+        self.port = port
+        self.access_token = access_token
+        self.current_power_entity = current_power_entity
+        self.power_calculate = power_calculate
+        self.power_input_alias = power_input_alias
+        self.power_output_alias = power_output_alias
+
+    def GetJson(self, path):
+        url = f"http://{self.ip}:{self.port}{path}"
+        headers = {"Authorization": "Bearer " + self.access_token, "content-type": "application/json"}
+        return requests.get(url, headers=headers, timeout=10).json()
+
+    def GetPowermeterWatts(self):
+        if not self.power_calculate:
+            ParsedData = self.GetJson(f"/api/states/{self.current_power_entity}")
+            return CastToInt(ParsedData['state'])
+        else:
+            ParsedData = self.GetJson(f"/api/states/{self.power_input_alias}")
+            input = CastToInt(ParsedData['state'])
+            ParsedData = self.GetJson(f"/api/states/{self.power_output_alias}")
+            output = CastToInt(ParsedData['state'])
+            return CastToInt(input - output)
+
+class VZLogger(Powermeter):
+    def __init__(self, ip: str, port: str, uuid: str):
+        self.ip = ip
+        self.port = port
+        self.uuid = uuid
+
+    def GetJson(self):
+        url = f"http://{self.ip}:{self.port}/{self.uuid}"
+        return requests.get(url, timeout=10).json()
+
+    def GetPowermeterWatts(self):
+        return CastToInt(self.GetJson()['data'][0]['tuples'][0][1])
+
+class DTU(Powermeter):
+    def __init__(self, inverter_count: int):
+        self.inverter_count = inverter_count
+
+    def GetACPower(self, pInverterId: int):
+        raise NotImplementedError()
+
+    def GetPowermeterWatts(self):
+        return sum(self.GetACPower(pInverterId) for pInverterId in range(self.inverter_count) if AVAILABLE[pInverterId] and HOY_BATTERY_GOOD_VOLTAGE[pInverterId])
+
+class AhoyDTU(DTU):
+    def __init__(self, inverter_count: int, ip: str):
+        super().__init__(inverter_count)
+        self.ip = ip
+
+    def GetJson(self, path):
+        url = f'http://{self.ip}{path}'
+        return requests.get(url, timeout=10).json()
+
+    def GetACPower(self, pInverterId):
+        ParsedData = self.GetJson('/api/live')
+        ActualPower_index = ParsedData["ch0_fld_names"].index("P_AC")
+        ParsedData = self.GetJson(f'/api/inverter/id/{pInverterId}')
+        return CastToInt(ParsedData["ch"][0][ActualPower_index])
+
+class OpenDTU(DTU):
+    def __init__(self, inverter_count: int, ip: str, user: str, password: str):
+        super().__init__(inverter_count)
+        self.ip = ip
+        self.user = user
+        self.password = password
+
+    def GetJson(self, path):
+        url = f'http://{self.ip}{path}'
+        return requests.get(url, auth=HTTPBasicAuth(self.user, self.password), timeout=10).json()
+
+    def GetACPower(self, pInverterId):
+        ParsedData = self.GetJson('/api/livedata/status/inverters')
+        return CastToInt(ParsedData['inverters'][pInverterId]['AC']['0']['Power']['v'])
+
+def CreatePowermeter() -> Powermeter:
+    shelly_ip = config.get('SHELLY', 'SHELLY_IP')
+    shelly_user = config.get('SHELLY', 'SHELLY_USER')
+    shelly_pass = config.get('SHELLY', 'SHELLY_PASS')
+    if config.getboolean('SELECT_POWERMETER', 'USE_SHELLY_EM'):
+        return ShellyEM(shelly_ip, shelly_user, shelly_pass)
+    elif config.getboolean('SELECT_POWERMETER', 'USE_SHELLY_3EM'):
+        return Shelly3EM(shelly_ip, shelly_user, shelly_pass)
+    elif config.getboolean('SELECT_POWERMETER', 'USE_SHELLY_3EM_PRO'):
+        return Shelly3EMPro(shelly_ip, shelly_user, shelly_pass)
+    elif config.getboolean('SELECT_POWERMETER', 'USE_TASMOTA'):
+        return Tasmota(
+            config.get('TASMOTA', 'TASMOTA_IP'),
+            config.get('TASMOTA', 'TASMOTA_JSON_STATUS'),
+            config.get('TASMOTA', 'TASMOTA_JSON_PAYLOAD_MQTT_PREFIX'),
+            config.get('TASMOTA', 'TASMOTA_JSON_POWER_MQTT_LABEL'),
+            config.get('TASMOTA', 'TASMOTA_JSON_POWER_INPUT_MQTT_LABEL'),
+            config.get('TASMOTA', 'TASMOTA_JSON_POWER_OUTPUT_MQTT_LABEL'),
+            config.getboolean('TASMOTA', 'TASMOTA_JSON_POWER_CALCULATE', fallback=False)
+        )
+    elif config.getboolean('SELECT_POWERMETER', 'USE_SHRDZM'):
+        return Shrdzm(
+            config.get('SHRDZM', 'SHRDZM_IP'),
+            config.get('SHRDZM', 'SHRDZM_USER'),
+            config.get('SHRDZM', 'SHRDZM_PASS')
+        )
+    elif config.getboolean('SELECT_POWERMETER', 'USE_EMLOG'):
+        return Emlog(
+            config.get('EMLOG', 'EMLOG_IP'),
+            config.get('EMLOG', 'EMLOG_METERINDEX')
+        )
+    elif config.getboolean('SELECT_POWERMETER', 'USE_IOBROKER'):
+        return IoBroker(
+            config.get('IOBROKER', 'IOBROKER_IP'),
+            config.get('IOBROKER', 'IOBROKER_PORT'),
+            config.get('IOBROKER', 'IOBROKER_CURRENT_POWER_ALIAS'),
+            config.getboolean('IOBROKER', 'IOBROKER_POWER_CALCULATE'),
+            config.get('IOBROKER', 'IOBROKER_POWER_INPUT_ALIAS'),
+            config.get('IOBROKER', 'IOBROKER_POWER_OUTPUT_ALIAS')
+        )
+    elif config.getboolean('SELECT_POWERMETER', 'USE_HOMEASSISTANT'):
+        return HomeAssistant(
+            config.get('HOMEASSISTANT', 'HA_IP'),
+            config.get('HOMEASSISTANT', 'HA_PORT'),
+            config.get('HOMEASSISTANT', 'HA_ACCESSTOKEN'),
+            config.get('HOMEASSISTANT', 'HA_CURRENT_POWER_ENTITY'),
+            config.getboolean('HOMEASSISTANT', 'HA_POWER_CALCULATE'),
+            config.get('HOMEASSISTANT', 'HA_POWER_INPUT_ALIAS'),
+            config.get('HOMEASSISTANT', 'HA_POWER_OUTPUT_ALIAS')
+        )
+    elif config.getboolean('SELECT_POWERMETER', 'USE_VZLOGGER'):
+        return VZLogger(
+            config.get('VZLOGGER', 'VZL_IP'),
+            config.get('VZLOGGER', 'VZL_PORT'),
+            config.get('VZLOGGER', 'VZL_UUID')
+        )
+    else:
+        raise Exception("Error: no powermeter defined!")
+
+def CreateIntermediatePowermeter(dtu: DTU) -> Powermeter:
+    shelly_ip = config.get('INTERMEDIATE_SHELLY', 'SHELLY_IP_INTERMEDIATE')
+    shelly_user = config.get('INTERMEDIATE_SHELLY', 'SHELLY_USER_INTERMEDIATE')
+    shelly_pass = config.get('INTERMEDIATE_SHELLY', 'SHELLY_PASS_INTERMEDIATE')
+    if config.getboolean('SELECT_INTERMEDIATE_METER', 'USE_TASMOTA_INTERMEDIATE'):
+        return Tasmota(
+            config.get('INTERMEDIATE_TASMOTA', 'TASMOTA_IP_INTERMEDIATE'),
+            config.get('INTERMEDIATE_TASMOTA', 'TASMOTA_JSON_STATUS_INTERMEDIATE'),
+            config.get('INTERMEDIATE_TASMOTA', 'TASMOTA_JSON_PAYLOAD_MQTT_PREFIX_INTERMEDIATE'),
+            config.get('INTERMEDIATE_TASMOTA', 'TASMOTA_JSON_POWER_MQTT_LABEL_INTERMEDIATE'),
+            config.get('INTERMEDIATE_TASMOTA', 'TASMOTA_JSON_POWER_INPUT_MQTT_LABEL_INTERMEDIATE', fallback=None),
+            config.get('INTERMEDIATE_TASMOTA', 'TASMOTA_JSON_POWER_OUTPUT_MQTT_LABEL_INTERMEDIATE', fallback=None),
+            config.getboolean('INTERMEDIATE_TASMOTA', 'TASMOTA_JSON_POWER_CALCULATE_INTERMEDIATE', fallback=False)
+        )
+    elif config.getboolean('SELECT_INTERMEDIATE_METER', 'USE_SHELLY_EM_INTERMEDIATE'):
+        return ShellyEM(shelly_ip, shelly_user, shelly_pass)
+    elif config.getboolean('SELECT_INTERMEDIATE_METER', 'USE_SHELLY_3EM_INTERMEDIATE'):
+        return Shelly3EM(shelly_ip, shelly_user, shelly_pass)
+    elif config.getboolean('SELECT_INTERMEDIATE_METER', 'USE_SHELLY_3EM_PRO_INTERMEDIATE'):
+        return Shelly3EMPro(shelly_ip, shelly_user, shelly_pass)
+    elif config.getboolean('SELECT_INTERMEDIATE_METER', 'USE_SHELLY_1PM_INTERMEDIATE'):
+        return Shelly1PM(shelly_ip, shelly_user, shelly_pass)
+    elif config.getboolean('SELECT_INTERMEDIATE_METER', 'USE_SHELLY_PLUS_1PM_INTERMEDIATE'):
+        return ShellyPlus1PM(shelly_ip, shelly_user, shelly_pass)
+    elif config.getboolean('SELECT_INTERMEDIATE_METER', 'USE_SHRDZM_INTERMEDIATE'):
+        return Shrdzm(
+            config.get('INTERMEDIATE_SHRDZM', 'SHRDZM_IP_INTERMEDIATE'),
+            config.get('INTERMEDIATE_SHRDZM', 'SHRDZM_USER_INTERMEDIATE'),
+            config.get('INTERMEDIATE_SHRDZM', 'SHRDZM_PASS_INTERMEDIATE')
+        )
+    elif config.getboolean('SELECT_INTERMEDIATE_METER', 'USE_EMLOG_INTERMEDIATE'):
+        return Emlog(
+            config.get('INTERMEDIATE_EMLOG', 'EMLOG_IP_INTERMEDIATE'),
+            config.get('INTERMEDIATE_EMLOG', 'EMLOG_METERINDEX_INTERMEDIATE')
+        )
+    elif config.getboolean('SELECT_INTERMEDIATE_METER', 'USE_IOBROKER_INTERMEDIATE'):
+        return IoBroker(
+            config.get('INTERMEDIATE_IOBROKER', 'IOBROKER_IP_INTERMEDIATE'),
+            config.get('INTERMEDIATE_IOBROKER', 'IOBROKER_PORT_INTERMEDIATE'),
+            config.get('INTERMEDIATE_IOBROKER', 'IOBROKER_CURRENT_POWER_ALIAS_INTERMEDIATE'),
+            config.getboolean('INTERMEDIATE_IOBROKER', 'IOBROKER_POWER_CALCULATE'),
+            config.get('INTERMEDIATE_IOBROKER', 'IOBROKER_POWER_INPUT_ALIAS_INTERMEDIATE'),
+            config.get('INTERMEDIATE_IOBROKER', 'IOBROKER_POWER_OUTPUT_ALIAS_INTERMEDIATE')
+        )
+    elif config.getboolean('SELECT_INTERMEDIATE_METER', 'USE_HOMEASSISTANT_INTERMEDIATE'):
+        return HomeAssistant(
+            config.get('INTERMEDIATE_HOMEASSISTANT', 'HA_IP_INTERMEDIATE'),
+            config.get('INTERMEDIATE_HOMEASSISTANT', 'HA_PORT_INTERMEDIATE'),
+            config.get('INTERMEDIATE_HOMEASSISTANT', 'HA_ACCESSTOKEN_INTERMEDIATE'),
+            config.get('INTERMEDIATE_HOMEASSISTANT', 'HA_CURRENT_POWER_ENTITY_INTERMEDIATE'),
+            config.getboolean('INTERMEDIATE_HOMEASSISTANT', 'HA_POWER_CALCULATE_INTERMEDIATE'),
+            config.get('INTERMEDIATE_HOMEASSISTANT', 'HA_POWER_INPUT_ALIAS_INTERMEDIATE'),
+            config.get('INTERMEDIATE_HOMEASSISTANT', 'HA_POWER_OUTPUT_ALIAS_INTERMEDIATE')
+        )
+    elif config.getboolean('SELECT_INTERMEDIATE_METER', 'USE_VZLOGGER_INTERMEDIATE'):
+        return VZLogger(
+            config.get('INTERMEDIATE_VZLOGGER', 'VZL_IP_INTERMEDIATE'),
+            config.get('INTERMEDIATE_VZLOGGER', 'VZL_PORT_INTERMEDIATE'),
+            config.get('INTERMEDIATE_VZLOGGER', 'VZL_UUID_INTERMEDIATE')
+        )
+    else:
+        return dtu
+
+def CreateDTU() -> DTU:
+    inverter_count = config.getint('COMMON', 'INVERTER_COUNT')
+    if config.getboolean('SELECT_DTU', 'USE_AHOY'):
+        return AhoyDTU(
+            inverter_count,
+            config.get('AHOY_DTU', 'AHOY_IP')
+        )
+    elif config.getboolean('SELECT_DTU', 'USE_OPENDTU'):
+        return OpenDTU(
+            inverter_count,
+            config.get('OPEN_DTU', 'OPENDTU_IP'),
+            config.get('OPEN_DTU', 'OPENDTU_USER'),
+            config.get('OPEN_DTU', 'OPENDTU_PASS')
+        )
+    else:
+        raise Exception("Error: no DTU defined!")
+
 # ----- START -----
 
 logger.info("Author: %s / Script Version: %s",__author__, __version__)
@@ -975,83 +1082,13 @@ VERSION = config.get('VERSION', 'VERSION')
 logger.info("Config file V %s", VERSION)
 USE_AHOY = config.getboolean('SELECT_DTU', 'USE_AHOY')
 USE_OPENDTU = config.getboolean('SELECT_DTU', 'USE_OPENDTU')
-USE_TASMOTA = config.getboolean('SELECT_POWERMETER', 'USE_TASMOTA')
-USE_SHELLY_EM = config.getboolean('SELECT_POWERMETER', 'USE_SHELLY_EM')
-USE_SHELLY_3EM = config.getboolean('SELECT_POWERMETER', 'USE_SHELLY_3EM')
-USE_SHELLY_3EM_PRO = config.getboolean('SELECT_POWERMETER', 'USE_SHELLY_3EM_PRO')
-USE_SHRDZM = config.getboolean('SELECT_POWERMETER', 'USE_SHRDZM')
-USE_EMLOG = config.getboolean('SELECT_POWERMETER', 'USE_EMLOG')
-USE_IOBROKER = config.getboolean('SELECT_POWERMETER', 'USE_IOBROKER')
-USE_HOMEASSISTANT = config.getboolean('SELECT_POWERMETER', 'USE_HOMEASSISTANT')
-USE_VZLOGGER = config.getboolean('SELECT_POWERMETER', 'USE_VZLOGGER')
 AHOY_IP = config.get('AHOY_DTU', 'AHOY_IP')
 OPENDTU_IP = config.get('OPEN_DTU', 'OPENDTU_IP')
 OPENDTU_USER = config.get('OPEN_DTU', 'OPENDTU_USER')
 OPENDTU_PASS = config.get('OPEN_DTU', 'OPENDTU_PASS')
-TASMOTA_IP = config.get('TASMOTA', 'TASMOTA_IP')
-TASMOTA_JSON_STATUS = config.get('TASMOTA', 'TASMOTA_JSON_STATUS')
-TASMOTA_JSON_PAYLOAD_MQTT_PREFIX = config.get('TASMOTA', 'TASMOTA_JSON_PAYLOAD_MQTT_PREFIX')
-TASMOTA_JSON_POWER_MQTT_LABEL = config.get('TASMOTA', 'TASMOTA_JSON_POWER_MQTT_LABEL')
-TASMOTA_JSON_POWER_CALCULATE = config.getboolean('TASMOTA', 'TASMOTA_JSON_POWER_CALCULATE')
-TASMOTA_JSON_POWER_INPUT_MQTT_LABEL = config.get('TASMOTA', 'TASMOTA_JSON_POWER_INPUT_MQTT_LABEL')
-TASMOTA_JSON_POWER_OUTPUT_MQTT_LABEL = config.get('TASMOTA', 'TASMOTA_JSON_POWER_OUTPUT_MQTT_LABEL')
-SHELLY_IP = config.get('SHELLY', 'SHELLY_IP')
-SHELLY_USER = config.get('SHELLY', 'SHELLY_USER')
-SHELLY_PASS = config.get('SHELLY', 'SHELLY_PASS')
-SHRDZM_IP = config.get('SHRDZM', 'SHRDZM_IP')
-SHRDZM_USER = config.get('SHRDZM', 'SHRDZM_USER')
-SHRDZM_PASS = config.get('SHRDZM', 'SHRDZM_PASS')
-EMLOG_IP = config.get('EMLOG', 'EMLOG_IP')
-EMLOG_METERINDEX = config.get('EMLOG', 'EMLOG_METERINDEX')
-IOBROKER_IP = config.get('IOBROKER', 'IOBROKER_IP')
-IOBROKER_PORT = config.get('IOBROKER', 'IOBROKER_PORT')
-IOBROKER_CURRENT_POWER_ALIAS = config.get('IOBROKER', 'IOBROKER_CURRENT_POWER_ALIAS')
-IOBROKER_POWER_CALCULATE = config.getboolean('IOBROKER', 'IOBROKER_POWER_CALCULATE')
-IOBROKER_POWER_INPUT_ALIAS = config.get('IOBROKER', 'IOBROKER_POWER_INPUT_ALIAS')
-IOBROKER_POWER_OUTPUT_ALIAS = config.get('IOBROKER', 'IOBROKER_POWER_OUTPUT_ALIAS')
-HA_IP = config.get('HOMEASSISTANT', 'HA_IP')
-HA_PORT = config.get('HOMEASSISTANT', 'HA_PORT')
-HA_ACCESSTOKEN = config.get('HOMEASSISTANT', 'HA_ACCESSTOKEN')
-HA_CURRENT_POWER_ENTITY = config.get('HOMEASSISTANT', 'HA_CURRENT_POWER_ENTITY')
-HA_POWER_CALCULATE = config.getboolean('HOMEASSISTANT', 'HA_POWER_CALCULATE')
-HA_POWER_INPUT_ALIAS = config.get('HOMEASSISTANT', 'HA_POWER_INPUT_ALIAS')
-HA_POWER_OUTPUT_ALIAS = config.get('HOMEASSISTANT', 'HA_POWER_OUTPUT_ALIAS')
-VZL_IP = config.get('VZLOGGER', 'VZL_IP')
-VZL_PORT = config.get('VZLOGGER', 'VZL_PORT')
-VZL_UUID = config.get('VZLOGGER', 'VZL_UUID')
-USE_TASMOTA_INTERMEDIATE = config.getboolean('SELECT_INTERMEDIATE_METER', 'USE_TASMOTA_INTERMEDIATE')
-USE_SHELLY_EM_INTERMEDIATE = config.getboolean('SELECT_INTERMEDIATE_METER', 'USE_SHELLY_EM_INTERMEDIATE')
-USE_SHELLY_3EM_INTERMEDIATE = config.getboolean('SELECT_INTERMEDIATE_METER', 'USE_SHELLY_3EM_INTERMEDIATE')
-USE_SHELLY_3EM_PRO_INTERMEDIATE = config.getboolean('SELECT_INTERMEDIATE_METER', 'USE_SHELLY_3EM_PRO_INTERMEDIATE')
-USE_SHELLY_1PM_INTERMEDIATE = config.getboolean('SELECT_INTERMEDIATE_METER', 'USE_SHELLY_1PM_INTERMEDIATE')
-USE_SHELLY_PLUS_1PM_INTERMEDIATE = config.getboolean('SELECT_INTERMEDIATE_METER', 'USE_SHELLY_PLUS_1PM_INTERMEDIATE')
-USE_SHRDZM_INTERMEDIATE = config.getboolean('SELECT_INTERMEDIATE_METER', 'USE_SHRDZM_INTERMEDIATE')
-USE_EMLOG_INTERMEDIATE = config.getboolean('SELECT_INTERMEDIATE_METER', 'USE_EMLOG_INTERMEDIATE')
-USE_IOBROKER_INTERMEDIATE = config.getboolean('SELECT_INTERMEDIATE_METER', 'USE_IOBROKER_INTERMEDIATE')
-USE_HOMEASSISTANT_INTERMEDIATE = config.getboolean('SELECT_INTERMEDIATE_METER', 'USE_HOMEASSISTANT_INTERMEDIATE')
-USE_VZLOGGER_INTERMEDIATE = config.getboolean('SELECT_INTERMEDIATE_METER', 'USE_VZLOGGER_INTERMEDIATE')
-TASMOTA_IP_INTERMEDIATE = config.get('INTERMEDIATE_TASMOTA', 'TASMOTA_IP_INTERMEDIATE')
-TASMOTA_JSON_STATUS_INTERMEDIATE = config.get('INTERMEDIATE_TASMOTA', 'TASMOTA_JSON_STATUS_INTERMEDIATE')
-TASMOTA_JSON_PAYLOAD_MQTT_PREFIX_INTERMEDIATE = config.get('INTERMEDIATE_TASMOTA', 'TASMOTA_JSON_PAYLOAD_MQTT_PREFIX_INTERMEDIATE')
-TASMOTA_JSON_POWER_MQTT_LABEL_INTERMEDIATE = config.get('INTERMEDIATE_TASMOTA', 'TASMOTA_JSON_POWER_MQTT_LABEL_INTERMEDIATE')
-SHELLY_IP_INTERMEDIATE = config.get('INTERMEDIATE_SHELLY', 'SHELLY_IP_INTERMEDIATE')
-SHELLY_USER_INTERMEDIATE = config.get('INTERMEDIATE_SHELLY', 'SHELLY_USER_INTERMEDIATE')
-SHELLY_PASS_INTERMEDIATE = config.get('INTERMEDIATE_SHELLY', 'SHELLY_PASS_INTERMEDIATE')
-SHRDZM_IP_INTERMEDIATE = config.get('INTERMEDIATE_SHRDZM', 'SHRDZM_IP_INTERMEDIATE')
-SHRDZM_USER_INTERMEDIATE = config.get('INTERMEDIATE_SHRDZM', 'SHRDZM_USER_INTERMEDIATE')
-SHRDZM_PASS_INTERMEDIATE = config.get('INTERMEDIATE_SHRDZM', 'SHRDZM_PASS_INTERMEDIATE')
-EMLOG_IP_INTERMEDIATE = config.get('INTERMEDIATE_EMLOG', 'EMLOG_IP_INTERMEDIATE')
-EMLOG_METERINDEX_INTERMEDIATE = config.get('INTERMEDIATE_EMLOG', 'EMLOG_METERINDEX_INTERMEDIATE')
-IOBROKER_IP_INTERMEDIATE = config.get('INTERMEDIATE_IOBROKER', 'IOBROKER_IP_INTERMEDIATE')
-IOBROKER_PORT_INTERMEDIATE = config.get('INTERMEDIATE_IOBROKER', 'IOBROKER_PORT_INTERMEDIATE')
-IOBROKER_CURRENT_POWER_ALIAS_INTERMEDIATE = config.get('INTERMEDIATE_IOBROKER', 'IOBROKER_CURRENT_POWER_ALIAS_INTERMEDIATE')
-HA_IP_INTERMEDIATE = config.get('INTERMEDIATE_HOMEASSISTANT', 'HA_IP_INTERMEDIATE')
-HA_PORT_INTERMEDIATE = config.get('INTERMEDIATE_HOMEASSISTANT', 'HA_PORT_INTERMEDIATE')
-HA_ACCESSTOKEN_INTERMEDIATE = config.get('INTERMEDIATE_HOMEASSISTANT', 'HA_ACCESSTOKEN_INTERMEDIATE')
-HA_CURRENT_POWER_ENTITY_INTERMEDIATE = config.get('INTERMEDIATE_HOMEASSISTANT', 'HA_CURRENT_POWER_ENTITY_INTERMEDIATE')
-VZL_IP_INTERMEDIATE = config.get('INTERMEDIATE_VZLOGGER', 'VZL_IP_INTERMEDIATE')
-VZL_PORT_INTERMEDIATE = config.get('INTERMEDIATE_VZLOGGER', 'VZL_PORT_INTERMEDIATE')
-VZL_UUID_INTERMEDIATE = config.get('INTERMEDIATE_VZLOGGER', 'VZL_UUID_INTERMEDIATE')
+DTU = CreateDTU()
+POWERMETER = CreatePowermeter()
+INTERMEDIATE_POWERMETER = CreateIntermediatePowermeter(DTU)
 INVERTER_COUNT = config.getint('COMMON', 'INVERTER_COUNT')
 LOOP_INTERVAL_IN_SECONDS = config.getint('COMMON', 'LOOP_INTERVAL_IN_SECONDS')
 SET_LIMIT_DELAY_IN_SECONDS = config.getint('COMMON', 'SET_LIMIT_DELAY_IN_SECONDS')
