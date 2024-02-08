@@ -1,5 +1,11 @@
 # Changelog
 
+## V1.72
+### script
+* Emlog fix https://github.com/reserve85/HoymilesZeroExport/issues/134 -> calculate power
+### Config
+* added `EMLOG_JSON_POWER_CALCULATE` to `EMLOG`
+
 ## V1.71
 ### script
 * When intermediate meter is not available then try to get "ActualPower" from DTU
