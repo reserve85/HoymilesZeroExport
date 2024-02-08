@@ -15,7 +15,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 __author__ = "Tobias Kraft"
-__version__ = "1.71"
+__version__ = "1.72"
 
 import requests
 import time
@@ -825,9 +825,10 @@ class Shrdzm(Powermeter):
         return CastToInt(CastToInt(ParsedData['1.7.0']) - CastToInt(ParsedData['2.7.0']))
 
 class Emlog(Powermeter):
-    def __init__(self, ip: str, meterindex: str):
+    def __init__(self, ip: str, meterindex: str, json_power_calculate: bool):
         self.ip = ip
         self.meterindex = meterindex
+        self.json_power_calculate = json_power_calculate
 
     def GetJson(self, path):
         url = f'http://{self.ip}{path}'
@@ -835,7 +836,12 @@ class Emlog(Powermeter):
 
     def GetPowermeterWatts(self):
         ParsedData = self.GetJson(f'/pages/getinformation.php?heute&meterindex={self.meterindex}')
-        return CastToInt(ParsedData['Leistung170'])
+        if not self.json_power_calculate:
+            return CastToInt(ParsedData['Leistung170'])
+        else:
+            input = ParsedData['Leistung170']
+            ouput = ParsedData['Leistung270']
+            return CastToInt(input - ouput)
 
 class IoBroker(Powermeter):
     def __init__(self, ip: str, port: str, current_power_alias: str, power_calculate: bool, power_input_alias: str, power_output_alias: str):
@@ -973,7 +979,8 @@ def CreatePowermeter() -> Powermeter:
     elif config.getboolean('SELECT_POWERMETER', 'USE_EMLOG'):
         return Emlog(
             config.get('EMLOG', 'EMLOG_IP'),
-            config.get('EMLOG', 'EMLOG_METERINDEX')
+            config.get('EMLOG', 'EMLOG_METERINDEX'),
+            config.getboolean('EMLOG', 'EMLOG_JSON_POWER_CALCULATE', fallback=False)
         )
     elif config.getboolean('SELECT_POWERMETER', 'USE_IOBROKER'):
         return IoBroker(
@@ -1036,7 +1043,8 @@ def CreateIntermediatePowermeter(dtu: DTU) -> Powermeter:
     elif config.getboolean('SELECT_INTERMEDIATE_METER', 'USE_EMLOG_INTERMEDIATE'):
         return Emlog(
             config.get('INTERMEDIATE_EMLOG', 'EMLOG_IP_INTERMEDIATE'),
-            config.get('INTERMEDIATE_EMLOG', 'EMLOG_METERINDEX_INTERMEDIATE')
+            config.get('INTERMEDIATE_EMLOG', 'EMLOG_METERINDEX_INTERMEDIATE'),
+            config.getboolean('INTERMEDIATE_EMLOG', 'EMLOG_JSON_POWER_CALCULATE', fallback=False)
         )
     elif config.getboolean('SELECT_INTERMEDIATE_METER', 'USE_IOBROKER_INTERMEDIATE'):
         return IoBroker(
