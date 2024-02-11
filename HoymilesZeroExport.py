@@ -15,7 +15,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 __author__ = "Tobias Kraft"
-__version__ = "1.72"
+__version__ = "1.73"
 
 import requests
 import time
@@ -29,6 +29,7 @@ from pathlib import Path
 import sys
 from packaging import version
 import argparse 
+import json
 
 logging.basicConfig(
     format='%(asctime)s %(levelname)-8s %(message)s',
@@ -106,10 +107,16 @@ def SetLimitOpenDTU(pInverterId, pLimit):
 
 def SetLimitAhoy(pInverterId, pLimit):
     url = f"http://{AHOY_IP}/api/ctrl"
-    data = f'''{{"id": {pInverterId}, "cmd": "limit_nonpersistent_absolute", "val": {pLimit*AHOY_FACTOR}}}'''
-    headers = {'Content-type': 'application/json', 'Accept': 'text/plain'}
+    myobj = {'cmd': 'limit_nonpersistent_absolute', 'val': pLimit * AHOY_FACTOR, "id": pInverterId, "token": DTU.GetToken()}
     logger.info('Ahoy: Inverter "%s": setting new limit from %s Watt to %s Watt',NAME[pInverterId],CastToInt(CURRENT_LIMIT[pInverterId]),CastToInt(pLimit))
-    requests.post(url, data=data, headers=headers)
+    response = requests.post(url, json = myobj)
+    response_dict = json.loads(response.text)
+    if response_dict["success"] == False and response_dict["error"] == "not logged in, command not possible!":
+        DTU.Authenticate()
+        SetLimitAhoy(pInverterId, pLimit)
+        return
+    if response_dict["success"] == False:
+        raise Exception("Error: SetLimitAhoy Request error")
     CURRENT_LIMIT[pInverterId] = pLimit
 
 def WaitForAckAhoy(pInverterId, pTimeoutInS):
@@ -322,7 +329,7 @@ def GetHoymilesAvailable():
         raise
 
 def CheckAhoyVersion():
-    MinVersion = '0.7.29'
+    MinVersion = '0.8.78'
     url = f'http://{AHOY_IP}/api/system'
     ParsedData = requests.get(url, timeout=10).json()
     AhoyVersion = str((ParsedData["version"]))
@@ -465,13 +472,19 @@ def GetHoymilesPanelMinVoltage(pInverterId):
 
 def SetHoymilesPowerStatusAhoy(pInverterId, pActive):
     url = f"http://{AHOY_IP}/api/ctrl"
-    data = f'''{{"id": {pInverterId}, "cmd": "power", "val": {CastToInt(pActive == True)}}}'''
-    headers = {'Content-type': 'application/json', 'Accept': 'text/plain'}
+    myobj = {'cmd': 'power', 'val': CastToInt(pActive == True), "id": pInverterId, "token": DTU.GetToken()}
+    response = requests.post(url, json = myobj)
+    response_dict = json.loads(response.text)
+    if response_dict["success"] == False and response_dict["error"] == "not logged in, command not possible!":
+        DTU.Authenticate()
+        SetHoymilesPowerStatusAhoy(pInverterId, pActive)
+        return
+    if response_dict["success"] == False:
+        raise Exception("Error: SetHoymilesPowerStatusAhoy Request error")
     if pActive:
         logger.info('Ahoy: Inverter "%s": Turn on',NAME[pInverterId])
     else:
         logger.info('Ahoy: Inverter "%s": Turn off',NAME[pInverterId])
-    requests.post(url, data=data, headers=headers)
 
 def SetHoymilesPowerStatusOpenDTU(pInverterId, pActive):
     url=f"http://{OPENDTU_IP}/api/power/config"
@@ -921,9 +934,14 @@ class DTU(Powermeter):
         return sum(self.GetACPower(pInverterId) for pInverterId in range(self.inverter_count) if AVAILABLE[pInverterId] and HOY_BATTERY_GOOD_VOLTAGE[pInverterId])
 
 class AhoyDTU(DTU):
-    def __init__(self, inverter_count: int, ip: str):
+    def __init__(self, inverter_count: int, ip: str, password: str):
         super().__init__(inverter_count)
         self.ip = ip
+        self.password = password
+        self.Token = '1'
+
+    def GetToken(self):
+        return self.Token
 
     def GetJson(self, path):
         url = f'http://{self.ip}{path}'
@@ -934,6 +952,17 @@ class AhoyDTU(DTU):
         ActualPower_index = ParsedData["ch0_fld_names"].index("P_AC")
         ParsedData = self.GetJson(f'/api/inverter/id/{pInverterId}')
         return CastToInt(ParsedData["ch"][0][ActualPower_index])
+    
+    def Authenticate(self):
+        logger.info('Ahoy: Authenticating...')
+        url = f"http://{AHOY_IP}/api/ctrl"    
+        myobj = {'cmd': 'auth', 'val': self.password}
+        response = requests.post(url, json = myobj)
+        response_dict = json.loads(response.text)
+        if response_dict["success"] == False:
+            raise Exception("Error: Authenticate Request error")
+        self.Token = response_dict["token"]     
+        logger.info('Ahoy: Authenticating successful, received Token: %s', self.Token)
 
 class OpenDTU(DTU):
     def __init__(self, inverter_count: int, ip: str, user: str, password: str):
@@ -1079,7 +1108,8 @@ def CreateDTU() -> DTU:
     if config.getboolean('SELECT_DTU', 'USE_AHOY'):
         return AhoyDTU(
             inverter_count,
-            config.get('AHOY_DTU', 'AHOY_IP')
+            config.get('AHOY_DTU', 'AHOY_IP'),
+            config.get('AHOY_DTU', 'AHOY_PASSWORD', fallback='')
         )
     elif config.getboolean('SELECT_DTU', 'USE_OPENDTU'):
         return OpenDTU(

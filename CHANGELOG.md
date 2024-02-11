@@ -1,5 +1,11 @@
 # Changelog
 
+## V1.73
+### script
+* Support of AHOY-DTU Authentication, https://github.com/reserve85/HoymilesZeroExport/issues/132 and https://github.com/lumapu/ahoy/issues/1415
+### Config
+* added `AHOY_PASSWORD =` to `AHOY_DTU`
+
 ## V1.72
 ### script
 * Emlog fix https://github.com/reserve85/HoymilesZeroExport/issues/134 -> calculate power
