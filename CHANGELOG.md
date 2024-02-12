@@ -1,5 +1,9 @@
 # Changelog
 
+## V1.74
+### script
+* reverted script to support AHOY >= '0.7.29'
+
 ## V1.73
 ### script
 * Support of AHOY-DTU Authentication, https://github.com/reserve85/HoymilesZeroExport/issues/132 and https://github.com/lumapu/ahoy/issues/1415

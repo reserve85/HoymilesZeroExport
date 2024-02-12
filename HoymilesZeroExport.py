@@ -15,7 +15,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 __author__ = "Tobias Kraft"
-__version__ = "1.73"
+__version__ = "1.74"
 
 import requests
 import time
@@ -329,7 +329,7 @@ def GetHoymilesAvailable():
         raise
 
 def CheckAhoyVersion():
-    MinVersion = '0.8.78'
+    MinVersion = '0.7.29'
     url = f'http://{AHOY_IP}/api/system'
     ParsedData = requests.get(url, timeout=10).json()
     AhoyVersion = str((ParsedData["version"]))
