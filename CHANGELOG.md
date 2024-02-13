@@ -1,5 +1,15 @@
 # Changelog
 
+## V1.75
+### script
+* refactoring, all DTU commands moved into DTU class
+* support newest version of openDTU (API changed, see https://github.com/tbnobody/OpenDTU/releases/tag/v24.2.12)
+* set min Version of openDTU to v24.2.12
+* support newest version of AhoyDTU (Authentication, removed Factor, see https://github.com/lumapu/ahoy/issues/1415)
+* set min Version of AhoyDTU to 0.8.80
+### Config
+* renamed `AHOY_PASSWORD =` to `AHOY_PASS` (like openDTU)
+
 ## V1.74
 ### script
 * reverted script to support AHOY >= '0.7.29'

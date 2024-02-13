@@ -15,7 +15,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 __author__ = "Tobias Kraft"
-__version__ = "1.74"
+__version__ = "1.75"
 
 import requests
 import time
@@ -96,69 +96,6 @@ def CastToInt(pValueToCast):
         logger.error("Exception at CastToInt")
         raise
 
-def SetLimitOpenDTU(pInverterId, pLimit):
-    relLimit = CastToInt(pLimit / HOY_INVERTER_WATT[pInverterId] * 100)
-    url=f"http://{OPENDTU_IP}/api/limit/config"
-    data = f'''data={{"serial":"{SERIAL_NUMBER[pInverterId]}", "limit_type":1, "limit_value":{relLimit}}}'''
-    headers = {'Content-Type': 'application/x-www-form-urlencoded'}
-    logger.info('OpenDTU: Inverter "%s": setting new limit from %s Watt to %s Watt',NAME[pInverterId],CastToInt(CURRENT_LIMIT[pInverterId]),CastToInt(pLimit))
-    requests.post(url, data=data, auth=HTTPBasicAuth(OPENDTU_USER, OPENDTU_PASS), headers=headers)
-    CURRENT_LIMIT[pInverterId] = pLimit
-
-def SetLimitAhoy(pInverterId, pLimit):
-    url = f"http://{AHOY_IP}/api/ctrl"
-    myobj = {'cmd': 'limit_nonpersistent_absolute', 'val': pLimit * AHOY_FACTOR, "id": pInverterId, "token": DTU.GetToken()}
-    logger.info('Ahoy: Inverter "%s": setting new limit from %s Watt to %s Watt',NAME[pInverterId],CastToInt(CURRENT_LIMIT[pInverterId]),CastToInt(pLimit))
-    response = requests.post(url, json = myobj)
-    response_dict = json.loads(response.text)
-    if response_dict["success"] == False and response_dict["error"] == "not logged in, command not possible!":
-        DTU.Authenticate()
-        SetLimitAhoy(pInverterId, pLimit)
-        return
-    if response_dict["success"] == False:
-        raise Exception("Error: SetLimitAhoy Request error")
-    CURRENT_LIMIT[pInverterId] = pLimit
-
-def WaitForAckAhoy(pInverterId, pTimeoutInS):
-    try:
-        url = f'http://{AHOY_IP}/api/inverter/id/{pInverterId}'
-        timeout = pTimeoutInS
-        timeout_start = time.time()
-        while time.time() < timeout_start + timeout:
-            time.sleep(0.5)
-            ParsedData = requests.get(url, timeout=pTimeoutInS).json()
-            ack = bool(ParsedData['power_limit_ack'])
-            if ack:
-                break
-        if ack:
-            logger.info('Ahoy: Inverter "%s": Limit acknowledged', NAME[pInverterId])
-        else:
-            logger.info('Ahoy: Inverter "%s": Limit timeout!', NAME[pInverterId])
-        return ack
-    except:
-        logger.info('Ahoy: Inverter "%s": Limit timeout!', NAME[pInverterId])
-        return False
-
-def WaitForAckOpenDTU(pInverterId, pTimeoutInS):
-    try:
-        url = f'http://{OPENDTU_IP}/api/limit/status'
-        timeout = pTimeoutInS
-        timeout_start = time.time()
-        while time.time() < timeout_start + timeout:
-            time.sleep(0.5)
-            ParsedData = requests.get(url, auth=HTTPBasicAuth(OPENDTU_USER, OPENDTU_PASS), timeout=10).json()
-            ack = (ParsedData[SERIAL_NUMBER[pInverterId]]['limit_set_status'] == 'Ok')
-            if ack:
-                break
-        if ack:
-            logger.info('OpenDTU: Inverter "%s": Limit acknowledged', NAME[pInverterId])
-        else:
-            logger.info('OpenDTU: Inverter "%s": Limit timeout!', NAME[pInverterId])
-        return ack
-    except:
-        logger.info('OpenDTU: Inverter "%s": Limit timeout!', NAME[pInverterId])
-        return False
-
 def SetLimitWithPriority(pLimit):
     try:
         if not hasattr(SetLimitWithPriority, "LastLimit"):
@@ -205,18 +142,10 @@ def SetLimitWithPriority(pLimit):
 
                 LASTLIMITACKNOWLEDGED[i] = True
 
-                if USE_AHOY:
-                    SetLimitAhoy(i, NewLimit)
-                    if not WaitForAckAhoy(i, SET_LIMIT_TIMEOUT_SECONDS):
-                        SetLimitWithPriority.LastLimitAck = False
-                        LASTLIMITACKNOWLEDGED[i] = False
-                elif USE_OPENDTU:
-                    SetLimitOpenDTU(i, NewLimit)
-                    if not WaitForAckOpenDTU(i, SET_LIMIT_TIMEOUT_SECONDS):
-                        SetLimitWithPriority.LastLimitAck = False
-                        LASTLIMITACKNOWLEDGED[i] = False
-                else:
-                    raise Exception("Error: DTU Type not defined")
+                DTU.SetLimit(i, NewLimit)
+                if not DTU.WaitForAck(i, SET_LIMIT_TIMEOUT_SECONDS):
+                    SetLimitWithPriority.LastLimitAck = False
+                    LASTLIMITACKNOWLEDGED[i] = False
     except:
         logger.error("Exception at SetLimitWithPriority")
         SetLimitWithPriority.LastLimitAck = False
@@ -260,36 +189,15 @@ def SetLimit(pLimit):
 
             LASTLIMITACKNOWLEDGED[i] = True
 
-            if USE_AHOY:
-                SetLimitAhoy(i, NewLimit)
-                if not WaitForAckAhoy(i, SET_LIMIT_TIMEOUT_SECONDS):
-                    SetLimit.LastLimitAck = False
-                    LASTLIMITACKNOWLEDGED[i] = False
-            elif USE_OPENDTU:
-                SetLimitOpenDTU(i, NewLimit)
-                if not WaitForAckOpenDTU(i, SET_LIMIT_TIMEOUT_SECONDS):
-                    SetLimit.LastLimitAck = False
-                    LASTLIMITACKNOWLEDGED[i] = False
-            else:
-                raise Exception("Error: DTU Type not defined")
+            DTU.SetLimit(i, NewLimit)
+            if not DTU.WaitForAck(i, SET_LIMIT_TIMEOUT_SECONDS):
+                SetLimit.LastLimitAck = False
+                LASTLIMITACKNOWLEDGED[i] = False
+
     except:
         logger.error("Exception at SetLimit")
         SetLimit.LastLimitAck = False
         raise
-
-def GetHoymilesAvailableOpenDTU(pInverterId):
-    url = f'http://{OPENDTU_IP}/api/livedata/status/inverters'
-    ParsedData = requests.get(url, auth=HTTPBasicAuth(OPENDTU_USER, OPENDTU_PASS), timeout=10).json()
-    Reachable = bool(ParsedData["inverters"][pInverterId]["reachable"])
-    logger.info('OpenDTU: Inverter "%s" reachable: %s',NAME[pInverterId],Reachable)
-    return Reachable
-
-def GetHoymilesAvailableAhoy(pInverterId):
-    url = f'http://{AHOY_IP}/api/index'
-    ParsedData = requests.get(url, timeout=10).json()
-    Reachable = bool(ParsedData["inverter"][pInverterId]["is_avail"])
-    logger.info('Ahoy: Inverter "%s" reachable: %s',NAME[pInverterId],Reachable)
-    return Reachable
 
 def GetHoymilesAvailable():
     try:
@@ -297,12 +205,7 @@ def GetHoymilesAvailable():
         for i in range(INVERTER_COUNT):
             try:
                 WasAvail = AVAILABLE[i]
-                if USE_AHOY:
-                    AVAILABLE[i] = GetHoymilesAvailableAhoy(i)
-                elif USE_OPENDTU:
-                    AVAILABLE[i] = GetHoymilesAvailableOpenDTU(i)
-                else:
-                    raise Exception("Error: DTU Type not defined")
+                AVAILABLE[i] = DTU.GetAvailable(i)
                 if AVAILABLE[i]:
                     GetHoymilesAvailable = True
                     if not WasAvail:
@@ -328,58 +231,13 @@ def GetHoymilesAvailable():
         logger.error('Exception at GetHoymilesAvailable')
         raise
 
-def CheckAhoyVersion():
-    MinVersion = '0.7.29'
-    url = f'http://{AHOY_IP}/api/system'
-    ParsedData = requests.get(url, timeout=10).json()
-    AhoyVersion = str((ParsedData["version"]))
-    logger.info('Ahoy: Current Version: %s',AhoyVersion)
-    if version.parse(AhoyVersion) < version.parse(MinVersion):
-        logger.error('Error: Your AHOY Version is too old! Please update at least to Version %s - you can find the newest dev-releases here: https://github.com/lumapu/ahoy/actions',MinVersion)
-        quit()
-
-def GetAhoyLimitFactor():
-    Version = '0.8.39'
-    url = f'http://{AHOY_IP}/api/system'
-    ParsedData = requests.get(url, timeout=10).json()
-    AhoyVersion = str((ParsedData["version"]))
-    if version.parse(AhoyVersion) < version.parse(Version):
-        return 1
-    else:
-        return 10
-
-def GetHoymilesInfoOpenDTU(pInverterId):
-    url = f'http://{OPENDTU_IP}/api/livedata/status/inverters'
-    ParsedData = requests.get(url, auth=HTTPBasicAuth(OPENDTU_USER, OPENDTU_PASS), timeout=10).json()
-    SERIAL_NUMBER[pInverterId] = str(ParsedData['inverters'][pInverterId]['serial'])
-    TEMPERATURE[pInverterId] = str(round(float((ParsedData['inverters'][pInverterId]['INV']['0']['Temperature']['v'])),1)) + ' degC'
-    NAME[pInverterId] = str(ParsedData['inverters'][pInverterId]['name'])
-    logger.info('OpenDTU: Inverter "%s" / serial number "%s" / temperature %s',NAME[pInverterId],SERIAL_NUMBER[pInverterId],TEMPERATURE[pInverterId])
-
-def GetHoymilesInfoAhoy(pInverterId):
-    url = f'http://{AHOY_IP}/api/live'
-    ParsedData = requests.get(url, timeout=10).json()
-    temp_index = ParsedData["ch0_fld_names"].index("Temp")
-    
-    url = f'http://{AHOY_IP}/api/inverter/id/{pInverterId}'
-    ParsedData = requests.get(url, timeout=10).json()
-    SERIAL_NUMBER[pInverterId] = str(ParsedData['serial'])
-    NAME[pInverterId] = str(ParsedData['name'])
-    TEMPERATURE[pInverterId] = str(ParsedData["ch"][0][temp_index]) + ' degC'
-    logger.info('Ahoy: Inverter "%s" / serial number "%s" / temperature %s',NAME[pInverterId],SERIAL_NUMBER[pInverterId],TEMPERATURE[pInverterId])
-
 def GetHoymilesInfo():
     try:
         for i in range(INVERTER_COUNT):
             try:
                 if not AVAILABLE[i]:
                     continue
-                if USE_AHOY:
-                    GetHoymilesInfoAhoy(i)
-                elif USE_OPENDTU:
-                    GetHoymilesInfoOpenDTU(i)
-                else:
-                    raise Exception("Error: DTU Type not defined")
+                DTU.GetInfo(i)
             except Exception as e:
                 logger.error('Exception at GetHoymilesInfo, Inverter "%s" not reachable', NAME[i])
                 if hasattr(e, 'message'):
@@ -390,74 +248,14 @@ def GetHoymilesInfo():
         logger.error("Exception at GetHoymilesInfo")
         raise
 
-def GetHoymilesPanelMinVoltageAhoy(pInverterId):
-    url = f'http://{AHOY_IP}/api/live'
-    ParsedData = requests.get(url, timeout=10).json()
-    PanelVDC_index = ParsedData["fld_names"].index("U_DC")
-    url = f'http://{AHOY_IP}/api/inverter/id/{pInverterId}'
-    ParsedData = requests.get(url, timeout=10).json()
-    PanelVDC = []
-    ExcludedPanels = GetNumberArray(HOY_BATTERY_IGNORE_PANELS[pInverterId])
-    for i in range(1, len(ParsedData['ch']), 1):
-        if i not in ExcludedPanels:
-            PanelVDC.append(float(ParsedData['ch'][i][PanelVDC_index]))
-    minVdc = float('inf')
-    for i in range(len(PanelVDC)):
-        if (minVdc > PanelVDC[i]) and (PanelVDC[i] > 5):
-            minVdc = PanelVDC[i]
-    if minVdc == float('inf'):
-        minVdc = 0
-
-    # save last 5 min-values in list and return the "highest" value.
-    HOY_PANEL_VOLTAGE_LIST[pInverterId].append(minVdc)
-    if len(HOY_PANEL_VOLTAGE_LIST[pInverterId]) > 5:
-        HOY_PANEL_VOLTAGE_LIST[pInverterId].pop(0)
-    max_value = None
-    for num in HOY_PANEL_VOLTAGE_LIST[pInverterId]:
-        if (max_value is None or num > max_value):
-            max_value = num
-
-    logger.info('Lowest panel voltage inverter "%s": %s Volt',NAME[pInverterId],max_value)
-    return max_value
-
-def GetHoymilesPanelMinVoltageOpenDTU(pInverterId):
-    url = f'http://{OPENDTU_IP}/api/livedata/status/inverters'
-    ParsedData = requests.get(url, auth=HTTPBasicAuth(OPENDTU_USER, OPENDTU_PASS), timeout=10).json()
-    PanelVDC = []
-    ExcludedPanels = GetNumberArray(HOY_BATTERY_IGNORE_PANELS[pInverterId])
-    for i in range(len(ParsedData['inverters'][pInverterId]['DC'])):
-        if i not in ExcludedPanels:
-            PanelVDC.append(float(ParsedData['inverters'][pInverterId]['DC'][str(i)]['Voltage']['v']))
-    minVdc = float('inf')
-    for i in range(len(PanelVDC)):
-        if (minVdc > PanelVDC[i]) and (PanelVDC[i] > 5):
-            minVdc = PanelVDC[i]
-    if minVdc == float('inf'):
-        minVdc = 0
-
-    # save last 5 min-values in list and return the "highest" value.
-    HOY_PANEL_VOLTAGE_LIST[pInverterId].append(minVdc)
-    if len(HOY_PANEL_VOLTAGE_LIST[pInverterId]) > 5:
-        HOY_PANEL_VOLTAGE_LIST[pInverterId].pop(0)
-    max_value = None
-    for num in HOY_PANEL_VOLTAGE_LIST[pInverterId]:
-        if (max_value is None or num > max_value):
-            max_value = num
-
-    return max_value
-
 def GetHoymilesPanelMinVoltage(pInverterId):
     if not hasattr(GetHoymilesPanelMinVoltage, "HoymilesPanelMinVoltageArray"):
         GetHoymilesPanelMinVoltage.HoymilesPanelMinVoltageArray = [] 
     try:
         if not AVAILABLE[pInverterId]:
             return 0
-        if USE_AHOY:
-            HOY_PANEL_MIN_VOLTAGE_HISTORY_LIST[pInverterId].append(GetHoymilesPanelMinVoltageAhoy(pInverterId))
-        elif USE_OPENDTU:
-            HOY_PANEL_MIN_VOLTAGE_HISTORY_LIST[pInverterId].append(GetHoymilesPanelMinVoltageOpenDTU(pInverterId))
-        else:
-            raise Exception("Error: DTU Type not defined")
+        
+        HOY_PANEL_MIN_VOLTAGE_HISTORY_LIST[pInverterId].append(DTU.GetPanelMinVoltage(pInverterId))
         
         # calculate mean over last x values
         if len(HOY_PANEL_MIN_VOLTAGE_HISTORY_LIST[pInverterId]) > 5:
@@ -469,32 +267,6 @@ def GetHoymilesPanelMinVoltage(pInverterId):
     except:
         logger.error("Exception at GetHoymilesPanelMinVoltage, Inverter %s not reachable", pInverterId)
         raise
-
-def SetHoymilesPowerStatusAhoy(pInverterId, pActive):
-    url = f"http://{AHOY_IP}/api/ctrl"
-    myobj = {'cmd': 'power', 'val': CastToInt(pActive == True), "id": pInverterId, "token": DTU.GetToken()}
-    response = requests.post(url, json = myobj)
-    response_dict = json.loads(response.text)
-    if response_dict["success"] == False and response_dict["error"] == "not logged in, command not possible!":
-        DTU.Authenticate()
-        SetHoymilesPowerStatusAhoy(pInverterId, pActive)
-        return
-    if response_dict["success"] == False:
-        raise Exception("Error: SetHoymilesPowerStatusAhoy Request error")
-    if pActive:
-        logger.info('Ahoy: Inverter "%s": Turn on',NAME[pInverterId])
-    else:
-        logger.info('Ahoy: Inverter "%s": Turn off',NAME[pInverterId])
-
-def SetHoymilesPowerStatusOpenDTU(pInverterId, pActive):
-    url=f"http://{OPENDTU_IP}/api/power/config"
-    data = f'''data={{"serial":"{SERIAL_NUMBER[pInverterId]}", "power":{CastToInt(pActive == True)}}}'''
-    headers = {'Content-Type': 'application/x-www-form-urlencoded'}
-    if pActive:
-        logger.info('OpenDTU: Inverter "%s": Turn on',NAME[pInverterId])
-    else:
-        logger.info('OpenDTU: Inverter "%s": Turn off',NAME[pInverterId])
-    a = requests.post(url, data=data, auth=HTTPBasicAuth(OPENDTU_USER, OPENDTU_PASS), headers=headers)
 
 def SetHoymilesPowerStatus(pInverterId, pActive):
     try:
@@ -518,12 +290,7 @@ def SetHoymilesPowerStatus(pInverterId, pActive):
                 else:
                     logger.info("Retry Counter exceeded: Inverter PowerStatus already OFF")
                 return
-        if USE_AHOY:
-            SetHoymilesPowerStatusAhoy(pInverterId, pActive)
-        elif USE_OPENDTU:
-            SetHoymilesPowerStatusOpenDTU(pInverterId, pActive)
-        else:
-            raise Exception("Error: DTU Type not defined")
+        DTU.SetPowerStatus(pInverterId, pActive)
         time.sleep(SET_POWER_STATUS_DELAY_IN_SECONDS)
     except:
         logger.error("Exception at SetHoymilesPowerStatus")
@@ -564,12 +331,8 @@ def GetCheckBattery():
                 elif minVoltage >= HOY_BATTERY_THRESHOLD_ON_LIMIT_IN_V[i]:
                     SetHoymilesPowerStatus(i, True)
                     if not HOY_BATTERY_GOOD_VOLTAGE[i]:
-                        if USE_AHOY:
-                            SetLimitAhoy(i, HOY_MIN_WATT[i])
-                            WaitForAckAhoy(i, SET_LIMIT_TIMEOUT_SECONDS)
-                        else:
-                            SetLimitOpenDTU(i, HOY_MIN_WATT[i])
-                            WaitForAckOpenDTU(i, SET_LIMIT_TIMEOUT_SECONDS)
+                        DTU.SetLimit(i, HOY_MIN_WATT[i])
+                        DTU.WaitForAck(i, SET_LIMIT_TIMEOUT_SECONDS)
                         SetLimit.LastLimit = -1
                     HOY_BATTERY_GOOD_VOLTAGE[i] = True
                     HOY_MAX_WATT[i] = HOY_BATTERY_NORMAL_WATT[i]
@@ -588,55 +351,16 @@ def GetCheckBattery():
         logger.error("Exception at CheckBattery")
         raise
 
-def GetHoymilesTemperatureOpenDTU(pInverterId):
-    url = f'http://{OPENDTU_IP}/api/livedata/status/inverters'
-    ParsedData = requests.get(url, auth=HTTPBasicAuth(OPENDTU_USER, OPENDTU_PASS), timeout=10).json()
-    TEMPERATURE[pInverterId] = str(round(float((ParsedData['inverters'][pInverterId]['INV']['0']['Temperature']['v'])),1)) + ' degC'
-    logger.info('OpenDTU: Inverter "%s" temperature: %s',NAME[pInverterId],TEMPERATURE[pInverterId])
-
-def GetHoymilesTemperatureAhoy(pInverterId):
-    url = f'http://{AHOY_IP}/api/live'
-    ParsedData = requests.get(url, timeout=10).json()
-    temp_index = ParsedData["ch0_fld_names"].index("Temp")
-    url = f'http://{AHOY_IP}/api/inverter/id/{pInverterId}'
-    ParsedData = requests.get(url, timeout=10).json()
-    TEMPERATURE[pInverterId] = str(ParsedData["ch"][0][temp_index]) + ' degC'
-    logger.info('Ahoy: Inverter "%s" temperature: %s',NAME[pInverterId],TEMPERATURE[pInverterId])
-
 def GetHoymilesTemperature():
     try:
         for i in range(INVERTER_COUNT):
             try:
-                if not AVAILABLE[i]:
-                    continue
-                if USE_AHOY:
-                    GetHoymilesTemperatureAhoy(i)
-                elif USE_OPENDTU:
-                    GetHoymilesTemperatureOpenDTU(i)
-                else:
-                    raise Exception("Error: DTU Type not defined")
+                DTU.GetTemperature(i)
             except:
                 logger.error("Exception at GetHoymilesTemperature, Inverter %s not reachable", i)
     except:
         logger.error("Exception at GetHoymilesTemperature")
         raise
-
-def GetHoymilesActualPowerOpenDTU(pInverterId):
-    url = f'http://{OPENDTU_IP}/api/livedata/status/inverters'
-    ParsedData = requests.get(url, auth=HTTPBasicAuth(OPENDTU_USER, OPENDTU_PASS), timeout=10).json()
-    ActualPower = CastToInt(ParsedData['inverters'][pInverterId]['AC']['0']['Power']['v'])
-    logger.info('OpenDTU: Inverter "%s" power producing: %s %s',NAME[pInverterId],ActualPower," Watt")
-    return CastToInt(ActualPower)
-
-def GetHoymilesActualPowerAhoy(pInverterId):
-    url = f'http://{AHOY_IP}/api/live'
-    ParsedData = requests.get(url, timeout=10).json()
-    ActualPower_index = ParsedData["ch0_fld_names"].index("P_AC")
-    url = f'http://{AHOY_IP}/api/inverter/id/{pInverterId}'
-    ParsedData = requests.get(url, timeout=10).json()
-    ActualPower = CastToInt(ParsedData["ch"][0][ActualPower_index])
-    logger.info('Ahoy: Inverter "%s" power producing: %s %s',NAME[pInverterId],ActualPower," Watt")
-    return CastToInt(ActualPower)
 
 def GetHoymilesActualPower():
     try:
@@ -932,20 +656,45 @@ class DTU(Powermeter):
 
     def GetPowermeterWatts(self):
         return sum(self.GetACPower(pInverterId) for pInverterId in range(self.inverter_count) if AVAILABLE[pInverterId] and HOY_BATTERY_GOOD_VOLTAGE[pInverterId])
-
+    
+    def CheckMinVersion(self):
+        raise NotImplementedError()
+    
+    def GetAvailable(self, pInverterId: int):
+        raise NotImplementedError()
+    
+    def GetInfo(self, pInverterId: int):
+        raise NotImplementedError()
+    
+    def GetTemperature(self, pInverterId: int):
+        raise NotImplementedError()
+    
+    def GetPanelMinVoltage(self, pInverterId: int):
+        raise NotImplementedError()
+    
+    def WaitForAck(self, pInverterId: int, pTimeoutInS: int):
+        raise NotImplementedError()
+    
+    def SetLimit(self, pInverterId: int, pLimit: int):
+        raise NotImplementedError()
+    
+    def SetPowerStatus(self, pInverterId: int, pActive: bool):
+        raise NotImplementedError()
+    
 class AhoyDTU(DTU):
     def __init__(self, inverter_count: int, ip: str, password: str):
         super().__init__(inverter_count)
         self.ip = ip
         self.password = password
-        self.Token = '1'
-
-    def GetToken(self):
-        return self.Token
+        self.Token = ''
 
     def GetJson(self, path):
         url = f'http://{self.ip}{path}'
         return requests.get(url, timeout=10).json()
+    
+    def GetResponseJson(self, path, obj):
+        url = f'http://{self.ip}{path}'
+        return requests.post(url, json = obj, timeout=10).json()
 
     def GetACPower(self, pInverterId):
         ParsedData = self.GetJson('/api/live')
@@ -953,15 +702,120 @@ class AhoyDTU(DTU):
         ParsedData = self.GetJson(f'/api/inverter/id/{pInverterId}')
         return CastToInt(ParsedData["ch"][0][ActualPower_index])
     
+    def CheckMinVersion(self):
+        MinVersion = '0.8.80'
+        ParsedData = self.GetJson('/api/system')
+        AhoyVersion = str((ParsedData["version"]))
+        logger.info('Ahoy: Current Version: %s',AhoyVersion)
+        if version.parse(AhoyVersion) < version.parse(MinVersion):
+            logger.error('Error: Your AHOY Version is too old! Please update at least to Version %s - you can find the newest dev-releases here: https://github.com/lumapu/ahoy/actions',MinVersion)
+            quit()
+
+    def GetAvailable(self, pInverterId: int):
+        ParsedData = self.GetJson('/api/index')
+        Available = bool(ParsedData["inverter"][pInverterId]["is_avail"])
+        logger.info('Ahoy: Inverter "%s" Available: %s',NAME[pInverterId], Available)
+        return Available
+    
+    def GetInfo(self, pInverterId: int):
+        ParsedData = self.GetJson('/api/live')
+        temp_index = ParsedData["ch0_fld_names"].index("Temp")
+        
+        ParsedData = self.GetJson(f'/api/inverter/id/{pInverterId}')
+        SERIAL_NUMBER[pInverterId] = str(ParsedData['serial'])
+        NAME[pInverterId] = str(ParsedData['name'])
+        TEMPERATURE[pInverterId] = str(ParsedData["ch"][0][temp_index]) + ' degC'
+        logger.info('Ahoy: Inverter "%s" / serial number "%s" / temperature %s',NAME[pInverterId],SERIAL_NUMBER[pInverterId],TEMPERATURE[pInverterId])
+
+    def GetTemperature(self, pInverterId: int):
+        ParsedData = self.GetJson('/api/live')
+        temp_index = ParsedData["ch0_fld_names"].index("Temp")
+
+        ParsedData = self.GetJson(f'/api/inverter/id/{pInverterId}')
+        TEMPERATURE[pInverterId] = str(ParsedData["ch"][0][temp_index]) + ' degC'
+        logger.info('Ahoy: Inverter "%s" temperature: %s',NAME[pInverterId],TEMPERATURE[pInverterId])
+
+    def GetPanelMinVoltage(self, pInverterId: int):
+        ParsedData = self.GetJson('/api/live')
+        PanelVDC_index = ParsedData["fld_names"].index("U_DC")
+
+        ParsedData = self.GetJson(f'/api/inverter/id/{pInverterId}')
+        PanelVDC = []
+        ExcludedPanels = GetNumberArray(HOY_BATTERY_IGNORE_PANELS[pInverterId])
+        for i in range(1, len(ParsedData['ch']), 1):
+            if i not in ExcludedPanels:
+                PanelVDC.append(float(ParsedData['ch'][i][PanelVDC_index]))
+        minVdc = float('inf')
+        for i in range(len(PanelVDC)):
+            if (minVdc > PanelVDC[i]) and (PanelVDC[i] > 5):
+                minVdc = PanelVDC[i]
+        if minVdc == float('inf'):
+            minVdc = 0
+
+        # save last 5 min-values in list and return the "highest" value.
+        HOY_PANEL_VOLTAGE_LIST[pInverterId].append(minVdc)
+        if len(HOY_PANEL_VOLTAGE_LIST[pInverterId]) > 5:
+            HOY_PANEL_VOLTAGE_LIST[pInverterId].pop(0)
+        max_value = None
+        for num in HOY_PANEL_VOLTAGE_LIST[pInverterId]:
+            if (max_value is None or num > max_value):
+                max_value = num
+
+        logger.info('Lowest panel voltage inverter "%s": %s Volt',NAME[pInverterId],max_value)
+        return max_value
+    
+    def WaitForAck(self, pInverterId: int, pTimeoutInS: int):
+        try:
+            timeout = pTimeoutInS
+            timeout_start = time.time()
+            while time.time() < timeout_start + timeout:
+                time.sleep(0.5)
+                ParsedData = self.GetJson(f'/api/inverter/id/{pInverterId}')
+                ack = bool(ParsedData['power_limit_ack'])
+                if ack:
+                    break
+            if ack:
+                logger.info('Ahoy: Inverter "%s": Limit acknowledged', NAME[pInverterId])
+            else:
+                logger.info('Ahoy: Inverter "%s": Limit timeout!', NAME[pInverterId])
+            return ack
+        except:
+            logger.info('Ahoy: Inverter "%s": Limit timeout!', NAME[pInverterId])
+            return False
+    
+    def SetLimit(self, pInverterId: int, pLimit: int):
+        logger.info('Ahoy: Inverter "%s": setting new limit from %s Watt to %s Watt',NAME[pInverterId],CastToInt(CURRENT_LIMIT[pInverterId]),CastToInt(pLimit))
+        myobj = {'cmd': 'limit_nonpersistent_absolute', 'val': pLimit, "id": pInverterId, "token": self.Token}
+        response = self.GetResponseJson('/api/ctrl', myobj)
+        if response["success"] == False and response["error"] == "ERR_PROTECTED":
+            self.Authenticate()
+            self.SetLimit(pInverterId, pLimit)
+            return
+        if response["success"] == False:
+            raise Exception("Error: SetLimitAhoy Request error")
+        CURRENT_LIMIT[pInverterId] = pLimit
+
+    def SetPowerStatus(self, pInverterId: int, pActive: bool):
+        if pActive:
+            logger.info('Ahoy: Inverter "%s": Turn on',NAME[pInverterId])
+        else:
+            logger.info('Ahoy: Inverter "%s": Turn off',NAME[pInverterId])
+        myobj = {'cmd': 'power', 'val': CastToInt(pActive == True), "id": pInverterId, "token": self.Token}
+        response = self.GetResponseJson('/api/ctrl', myobj)
+        if response["success"] == False and response["error"] == "ERR_PROTECTED":
+            self.Authenticate()
+            self.SetPowerStatus(pInverterId, pActive)
+            return
+        if response["success"] == False:
+            raise Exception("Error: SetPowerStatus Request error")
+
     def Authenticate(self):
         logger.info('Ahoy: Authenticating...')
-        url = f"http://{AHOY_IP}/api/ctrl"    
-        myobj = {'cmd': 'auth', 'val': self.password}
-        response = requests.post(url, json = myobj)
-        response_dict = json.loads(response.text)
-        if response_dict["success"] == False:
+        myobj = {'auth': self.password}
+        response = self.GetResponseJson('/api/ctrl', myobj)
+        if response["success"] == False:
             raise Exception("Error: Authenticate Request error")
-        self.Token = response_dict["token"]     
+        self.Token = response["token"]     
         logger.info('Ahoy: Authenticating successful, received Token: %s', self.Token)
 
 class OpenDTU(DTU):
@@ -974,10 +828,108 @@ class OpenDTU(DTU):
     def GetJson(self, path):
         url = f'http://{self.ip}{path}'
         return requests.get(url, auth=HTTPBasicAuth(self.user, self.password), timeout=10).json()
+    
+    def GetResponseJson(self, path, sendStr):
+        url = f'http://{self.ip}{path}'
+        headers = {'Content-Type': 'application/x-www-form-urlencoded'}
+        return requests.post(url=url, headers=headers, data=sendStr, auth=HTTPBasicAuth(self.user, self.password), timeout=10).json()
 
     def GetACPower(self, pInverterId):
-        ParsedData = self.GetJson('/api/livedata/status/inverters')
-        return CastToInt(ParsedData['inverters'][pInverterId]['AC']['0']['Power']['v'])
+        ParsedData = self.GetJson(f'/api/livedata/status?inv={SERIAL_NUMBER[pInverterId]}')
+        return CastToInt(ParsedData['inverters'][0]['AC']['0']['Power']['v'])
+    
+    def CheckMinVersion(self):
+        MinVersion = 'v24.2.12'
+        ParsedData = self.GetJson('/api/system/status')
+        OpenDTUVersion = str((ParsedData["git_hash"]))
+        logger.info('OpenDTU: Current Version: %s',OpenDTUVersion)
+        if version.parse(OpenDTUVersion) < version.parse(MinVersion):
+            logger.error('Error: Your OpenDTU Version is too old! Please update at least to Version %s - you can find the newest dev-releases here: https://github.com/tbnobody/OpenDTU/actions',MinVersion)
+            quit()
+
+    def GetAvailable(self, pInverterId: int):
+        ParsedData = self.GetJson(f'/api/livedata/status?inv={SERIAL_NUMBER[pInverterId]}')
+        Reachable = bool(ParsedData['inverters'][0]["reachable"])
+        logger.info('OpenDTU: Inverter "%s" reachable: %s',NAME[pInverterId],Reachable)
+        return Reachable
+    
+    def GetInfo(self, pInverterId: int):
+        ParsedData = self.GetJson('/api/livedata/status')
+        SERIAL_NUMBER[pInverterId] = str(ParsedData['inverters'][pInverterId]['serial'])
+
+        ParsedData = self.GetJson(f'/api/livedata/status?inv={SERIAL_NUMBER[pInverterId]}')
+        TEMPERATURE[pInverterId] = str(round(float((ParsedData['inverters'][0]['INV']['0']['Temperature']['v'])),1)) + ' degC'
+        NAME[pInverterId] = str(ParsedData['inverters'][0]['name'])
+        logger.info('OpenDTU: Inverter "%s" / serial number "%s" / temperature %s',NAME[pInverterId],SERIAL_NUMBER[pInverterId],TEMPERATURE[pInverterId])
+
+    def GetTemperature(self, pInverterId: int):
+        ParsedData = self.GetJson(f'/api/livedata/status?inv={SERIAL_NUMBER[pInverterId]}')
+        TEMPERATURE[pInverterId] = str(round(float((ParsedData['inverters'][0]['INV']['0']['Temperature']['v'])),1)) + ' degC'
+        logger.info('OpenDTU: Inverter "%s" temperature: %s',NAME[pInverterId],TEMPERATURE[pInverterId])
+
+    def GetPanelMinVoltage(self, pInverterId: int):
+        ParsedData = self.GetJson(f'/api/livedata/status?inv={SERIAL_NUMBER[pInverterId]}')
+        PanelVDC = []
+        ExcludedPanels = GetNumberArray(HOY_BATTERY_IGNORE_PANELS[pInverterId])
+        for i in range(len(ParsedData['inverters'][0]['DC'])):
+            if i not in ExcludedPanels:
+                PanelVDC.append(float(ParsedData['inverters'][0]['DC'][str(i)]['Voltage']['v']))
+        minVdc = float('inf')
+        for i in range(len(PanelVDC)):
+            if (minVdc > PanelVDC[i]) and (PanelVDC[i] > 5):
+                minVdc = PanelVDC[i]
+        if minVdc == float('inf'):
+            minVdc = 0
+
+        # save last 5 min-values in list and return the "highest" value.
+        HOY_PANEL_VOLTAGE_LIST[pInverterId].append(minVdc)
+        if len(HOY_PANEL_VOLTAGE_LIST[pInverterId]) > 5:
+            HOY_PANEL_VOLTAGE_LIST[pInverterId].pop(0)
+        max_value = None
+        for num in HOY_PANEL_VOLTAGE_LIST[pInverterId]:
+            if (max_value is None or num > max_value):
+                max_value = num
+
+        return max_value
+
+    def WaitForAck(self, pInverterId: int, pTimeoutInS: int):
+        try:
+            timeout = pTimeoutInS
+            timeout_start = time.time()
+            while time.time() < timeout_start + timeout:
+                time.sleep(0.5)
+                ParsedData = self.GetJson('/api/limit/status')
+                ack = (ParsedData[SERIAL_NUMBER[pInverterId]]['limit_set_status'] == 'Ok')
+                if ack:
+                    break
+            if ack:
+                logger.info('OpenDTU: Inverter "%s": Limit acknowledged', NAME[pInverterId])
+            else:
+                logger.info('OpenDTU: Inverter "%s": Limit timeout!', NAME[pInverterId])
+            return ack
+        except:
+            logger.info('OpenDTU: Inverter "%s": Limit timeout!', NAME[pInverterId])
+            return False
+
+    def SetLimit(self, pInverterId: int, pLimit: int):
+        logger.info('OpenDTU: Inverter "%s": setting new limit from %s Watt to %s Watt',NAME[pInverterId],CastToInt(CURRENT_LIMIT[pInverterId]),CastToInt(pLimit))
+        relLimit = CastToInt(pLimit / HOY_INVERTER_WATT[pInverterId] * 100)
+        mySendStr = f'''data={{"serial":"{SERIAL_NUMBER[pInverterId]}", "limit_type":1, "limit_value":{relLimit}}}'''
+        response = self.GetResponseJson('/api/limit/config', mySendStr)
+        if response['type'] != 'success':
+            raise Exception(f"Error: SetLimit error: {response['message']}")
+        CURRENT_LIMIT[pInverterId] = pLimit
+
+    def SetPowerStatus(self, pInverterId: int, pActive: bool):
+        if pActive:
+            logger.info('OpenDTU: Inverter "%s": Turn on',NAME[pInverterId])
+        else:
+            logger.info('OpenDTU: Inverter "%s": Turn off',NAME[pInverterId])
+        mySendStr = f'''data={{"serial":"{SERIAL_NUMBER[pInverterId]}", "power":{CastToInt(pActive == True)}}}'''
+        response = self.GetResponseJson('/api/power/config', mySendStr)
+        if response['type'] != 'success':
+            raise Exception(f"Error: SetPowerStatus error: {response['message']}")
+
 
 def CreatePowermeter() -> Powermeter:
     shelly_ip = config.get('SHELLY', 'SHELLY_IP')
@@ -1109,7 +1061,7 @@ def CreateDTU() -> DTU:
         return AhoyDTU(
             inverter_count,
             config.get('AHOY_DTU', 'AHOY_IP'),
-            config.get('AHOY_DTU', 'AHOY_PASSWORD', fallback='')
+            config.get('AHOY_DTU', 'AHOY_PASS', fallback='')
         )
     elif config.getboolean('SELECT_DTU', 'USE_OPENDTU'):
         return OpenDTU(
@@ -1213,9 +1165,7 @@ SLOW_APPROX_LIMIT = CastToInt(GetMaxWattFromAllInverters() * config.getint('COMM
 try:
     logger.info("---Init---")
     newLimitSetpoint = 0
-    if USE_AHOY:
-        CheckAhoyVersion()
-        AHOY_FACTOR = GetAhoyLimitFactor()
+    DTU.CheckMinVersion()
     if GetHoymilesAvailable():
         for i in range(INVERTER_COUNT):
             SetHoymilesPowerStatus(i, True)
