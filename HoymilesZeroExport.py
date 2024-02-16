@@ -15,7 +15,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 __author__ = "Tobias Kraft"
-__version__ = "1.75"
+__version__ = "1.76"
 
 import requests
 import time
@@ -1095,9 +1095,7 @@ POWERMETER = CreatePowermeter()
 INTERMEDIATE_POWERMETER = CreateIntermediatePowermeter(DTU)
 INVERTER_COUNT = config.getint('COMMON', 'INVERTER_COUNT')
 LOOP_INTERVAL_IN_SECONDS = config.getint('COMMON', 'LOOP_INTERVAL_IN_SECONDS')
-SET_LIMIT_DELAY_IN_SECONDS = config.getint('COMMON', 'SET_LIMIT_DELAY_IN_SECONDS')
 SET_LIMIT_TIMEOUT_SECONDS = config.getint('COMMON', 'SET_LIMIT_TIMEOUT_SECONDS')
-SET_LIMIT_DELAY_IN_SECONDS_MULTIPLE_INVERTER = config.getint('COMMON', 'SET_LIMIT_DELAY_IN_SECONDS_MULTIPLE_INVERTER')
 SET_POWER_STATUS_DELAY_IN_SECONDS = config.getint('COMMON', 'SET_POWER_STATUS_DELAY_IN_SECONDS')
 POLL_INTERVAL_IN_SECONDS = config.getint('COMMON', 'POLL_INTERVAL_IN_SECONDS')
 ON_GRID_USAGE_JUMP_TO_LIMIT_PERCENT = config.getint('COMMON', 'ON_GRID_USAGE_JUMP_TO_LIMIT_PERCENT')
@@ -1173,7 +1171,6 @@ try:
         GetHoymilesActualPower()
         GetCheckBattery()
     GetPowermeterWatts()
-    time.sleep(SET_LIMIT_DELAY_IN_SECONDS)
 except Exception as e:
     if hasattr(e, 'message'):
         logger.error(e.message)
@@ -1199,11 +1196,10 @@ while True:
                         newLimitSetpoint = PreviousLimitSetpoint + powermeterWatts - POWERMETER_TARGET_POINT
                     newLimitSetpoint = ApplyLimitsToSetpoint(newLimitSetpoint)
                     SetLimit(newLimitSetpoint)
-                    if CastToInt(LOOP_INTERVAL_IN_SECONDS) - SET_LIMIT_DELAY_IN_SECONDS - x * POLL_INTERVAL_IN_SECONDS <= 0:
+                    RemainingDelay = CastToInt((LOOP_INTERVAL_IN_SECONDS / POLL_INTERVAL_IN_SECONDS) - (x * POLL_INTERVAL_IN_SECONDS))
+                    if RemainingDelay > 0:
+                        time.sleep(RemainingDelay)
                         break
-                    else:
-                        time.sleep(CastToInt(LOOP_INTERVAL_IN_SECONDS) - SET_LIMIT_DELAY_IN_SECONDS - x * POLL_INTERVAL_IN_SECONDS)
-                    break
                 else:
                     time.sleep(POLL_INTERVAL_IN_SECONDS)
 

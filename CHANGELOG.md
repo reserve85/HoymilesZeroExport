@@ -1,5 +1,13 @@
 # Changelog
 
+## V1.76
+### script
+* removed SetLimitDelay + SetLimitDelayMultipleInverter
+* improved loop-code
+### Config
+* removed `SET_LIMIT_DELAY_IN_SECONDS` + `SET_LIMIT_DELAY_IN_SECONDS_MULTIPLE_INVERTER`
+
+
 ## V1.75
 ### script
 * refactoring, all DTU commands moved into DTU class
