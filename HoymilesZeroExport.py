@@ -15,7 +15,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 __author__ = "Tobias Kraft"
-__version__ = "1.76"
+__version__ = "1.77"
 
 import requests
 import time
@@ -1196,7 +1196,7 @@ while True:
                         newLimitSetpoint = PreviousLimitSetpoint + powermeterWatts - POWERMETER_TARGET_POINT
                     newLimitSetpoint = ApplyLimitsToSetpoint(newLimitSetpoint)
                     SetLimit(newLimitSetpoint)
-                    RemainingDelay = CastToInt((LOOP_INTERVAL_IN_SECONDS / POLL_INTERVAL_IN_SECONDS) - (x * POLL_INTERVAL_IN_SECONDS))
+                    RemainingDelay = CastToInt((LOOP_INTERVAL_IN_SECONDS / POLL_INTERVAL_IN_SECONDS - x) * POLL_INTERVAL_IN_SECONDS)
                     if RemainingDelay > 0:
                         time.sleep(RemainingDelay)
                         break

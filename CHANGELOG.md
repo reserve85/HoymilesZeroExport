@@ -1,12 +1,15 @@
 # Changelog
 
+## V1.77
+### script
+* fixed wrong calculation "RemainingDelay"
+
 ## V1.76
 ### script
 * removed SetLimitDelay + SetLimitDelayMultipleInverter
 * improved loop-code
 ### Config
 * removed `SET_LIMIT_DELAY_IN_SECONDS` + `SET_LIMIT_DELAY_IN_SECONDS_MULTIPLE_INVERTER`
-
 
 ## V1.75
 ### script
