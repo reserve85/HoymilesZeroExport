@@ -15,7 +15,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 __author__ = "Tobias Kraft"
-__version__ = "1.77"
+__version__ = "1.78"
 
 import requests
 import time
@@ -854,8 +854,9 @@ class OpenDTU(DTU):
         return Reachable
     
     def GetInfo(self, pInverterId: int):
-        ParsedData = self.GetJson('/api/livedata/status')
-        SERIAL_NUMBER[pInverterId] = str(ParsedData['inverters'][pInverterId]['serial'])
+        if SERIAL_NUMBER[pInverterId] == '':
+            ParsedData = self.GetJson('/api/livedata/status')
+            SERIAL_NUMBER[pInverterId] = str(ParsedData['inverters'][pInverterId]['serial'])
 
         ParsedData = self.GetJson(f'/api/livedata/status?inv={SERIAL_NUMBER[pInverterId]}')
         TEMPERATURE[pInverterId] = str(round(float((ParsedData['inverters'][0]['INV']['0']['Temperature']['v'])),1)) + ' degC'
@@ -1133,7 +1134,7 @@ HOY_PANEL_VOLTAGE_LIST = []
 HOY_PANEL_MIN_VOLTAGE_HISTORY_LIST = []
 HOY_BATTERY_AVERAGE_CNT = []
 for i in range(INVERTER_COUNT):
-    SERIAL_NUMBER.append(str('yet unknown'))
+    SERIAL_NUMBER.append(config.get('INVERTER_' + str(i + 1), 'SERIAL_NUMBER', fallback=''))
     NAME.append(str('yet unknown'))
     TEMPERATURE.append(str('--- degC'))
     HOY_MAX_WATT.append(config.getint('INVERTER_' + str(i + 1), 'HOY_MAX_WATT'))
