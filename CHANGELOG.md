@@ -1,5 +1,9 @@
 # Changelog
 
+## V1.79
+### script
+* fix intermediate meter (HA, IOBroker): define a fallback value for POWER_CALCULATION (https://github.com/reserve85/HoymilesZeroExport/issues/144)
+
 ## V1.78
 ### script
 * openDTU: don´t override serialnumber every time a inverter gets available
