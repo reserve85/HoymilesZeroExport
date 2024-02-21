@@ -1,5 +1,11 @@
 # Changelog
 
+## V1.78
+### script
+* openDTU: don´t override serialnumber every time a inverter gets available
+### config
+* optional field in : `INVERTER_x`: `SERIAL_NUMBER`: If you use more than one inverter you should define the serialnumber(s) in the config. Else a mix-up of the inverters possible (only openDTU)
+
 ## V1.77
 ### script
 * fixed wrong calculation "RemainingDelay"
