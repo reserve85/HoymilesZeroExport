@@ -365,7 +365,7 @@ def GetHoymilesTemperature():
 def GetHoymilesActualPower():
     try:
         try:
-            Watts = INTERMEDIATE_POWERMETER.GetPowermeterWatts()
+            Watts = abs(INTERMEDIATE_POWERMETER.GetPowermeterWatts())
             logger.info(f"intermediate meter {INTERMEDIATE_POWERMETER.__class__.__name__}: {Watts} Watt")
             return Watts
         except Exception as e:
