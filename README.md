@@ -16,12 +16,13 @@ This script does not use MQTT, it's based on webapi communication.
 - [ioBroker](https://www.iobroker.net/) with [simpleAPI](https://github.com/ioBroker/ioBroker.simple-api)
 - [HomeAssistant](https://www.home-assistant.io/)
 - [Volkszaehler (VZLogger)](https://volkszaehler.org/)
+- [ESPHome](https://esphome.io/)
 - easy to implement new smart meter modules supporting WebAPI / JSON
 
 ### Supported DTU and Inverters
 - [Ahoy](https://github.com/lumapu/ahoy) - this script is developed with AHOY and therefore i recommend it
 - [OpenDTU](https://github.com/tbnobody/OpenDTU)
-- Hoymiles HM-Series Inverter (since V1.7 multiple inverters are supported) like [1-in-1](https://www.hoymiles.com/product/microinverter/hm-300-350-400-eu/), [2-in-1](https://www.hoymiles.com/product/microinverter/hm-600-700-800-eu/) or [4-in-1](https://www.hoymiles.com/product/microinverter/hm-1200-1500-eu/)
+- Hoymiles HM + HMS-Series Inverter (since V1.7 multiple inverters are supported) like [1-in-1](https://www.hoymiles.com/product/microinverter/hm-300-350-400-eu/), [2-in-1](https://www.hoymiles.com/product/microinverter/hm-600-700-800-eu/) or [4-in-1](https://www.hoymiles.com/product/microinverter/hm-1200-1500-eu/)
 
 ### Support of battery powered Hoymiles Inverters
 With Version 1.28 and higher you can set various limits to support battery powered Hoymiles Inverters

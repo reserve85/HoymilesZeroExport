@@ -1,5 +1,12 @@
 # Changelog
 
+## V1.80
+### script
+* add ESPHome for intermediate power meter
+* use absolute value for intermediate power value
+### config
+* add ESPHome fields
+
 ## V1.79
 ### script
 * fix intermediate meter (HA, IOBroker): define a fallback value for POWER_CALCULATION (https://github.com/reserve85/HoymilesZeroExport/issues/144)
