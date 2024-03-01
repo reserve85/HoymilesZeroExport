@@ -15,7 +15,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 __author__ = "Tobias Kraft"
-__version__ = "1.80"
+__version__ = "1.81"
 
 import requests
 import time
@@ -379,7 +379,7 @@ def GetHoymilesActualPower():
             logger.info(f"intermediate meter {DTU.__class__.__name__}: {Watts} Watt")
     except:
         logger.error("Exception at GetHoymilesActualPower")
-        if GetBatteryMode:
+        if SET_INVERTER_TO_MIN_ON_POWERMETER_ERROR:
             SetLimit(0)
         raise
 
@@ -390,7 +390,7 @@ def GetPowermeterWatts():
         return Watts
     except:
         logger.error("Exception at GetPowermeterWatts")
-        if GetBatteryMode:
+        if SET_INVERTER_TO_MIN_ON_POWERMETER_ERROR:
             SetLimit(0)        
         raise
 
@@ -1126,6 +1126,7 @@ MAX_DIFFERENCE_BETWEEN_LIMIT_AND_OUTPUTPOWER = config.getint('COMMON', 'MAX_DIFF
 SET_POWERSTATUS_CNT = config.getint('COMMON', 'SET_POWERSTATUS_CNT')
 SLOW_APPROX_FACTOR_IN_PERCENT = config.getint('COMMON', 'SLOW_APPROX_FACTOR_IN_PERCENT')
 LOG_TEMPERATURE = config.getboolean('COMMON', 'LOG_TEMPERATURE')
+SET_INVERTER_TO_MIN_ON_POWERMETER_ERROR = config.getboolean('COMMON', 'SET_INVERTER_TO_MIN_ON_POWERMETER_ERROR', fallback=False)
 POWERMETER_TARGET_POINT = config.getint('CONTROL', 'POWERMETER_TARGET_POINT')
 POWERMETER_TOLERANCE = config.getint('CONTROL', 'POWERMETER_TOLERANCE')
 POWERMETER_MAX_POINT = config.getint('CONTROL', 'POWERMETER_MAX_POINT')

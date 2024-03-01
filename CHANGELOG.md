@@ -1,5 +1,11 @@
 # Changelog
 
+## V1.81
+### script
+* add option to enable/disable to set the inverter to min watts when the powermeter can´t be read out. https://github.com/reserve85/HoymilesZeroExport/issues/28#issuecomment-1967306742 + https://github.com/reserve85/HoymilesZeroExport/issues/74
+### config
+* add `COMMON`: `SET_INVERTER_TO_MIN_ON_POWERMETER_ERROR`
+
 ## V1.80
 ### script
 * add ESPHome for intermediate power meter
