@@ -1,5 +1,12 @@
 # Changelog
 
+## V1.82
+### script
+* read the power rating of each inverter from config file.
+* calculate HOY_MIN_POWER based on the inverter power rating.
+### config
+* add HOY_INVERTER_WATT to INVERTER_x section
+
 ## V1.81
 ### script
 * add option to enable/disable to set the inverter to min watts when the powermeter can´t be read out. https://github.com/reserve85/HoymilesZeroExport/issues/28#issuecomment-1967306742 + https://github.com/reserve85/HoymilesZeroExport/issues/74
