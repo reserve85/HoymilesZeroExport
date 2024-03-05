@@ -15,7 +15,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 __author__ = "Tobias Kraft"
-__version__ = "1.82"
+__version__ = "1.83"
 
 import requests
 import time
@@ -1161,7 +1161,12 @@ for i in range(INVERTER_COUNT):
     NAME.append(str('yet unknown'))
     TEMPERATURE.append(str('--- degC'))
     HOY_MAX_WATT.append(config.getint('INVERTER_' + str(i + 1), 'HOY_MAX_WATT'))
-    HOY_INVERTER_WATT.append(config.getint('INVERTER_' + str(i + 1), 'HOY_INVERTER_WATT', fallback=HOY_MAX_WATT[i]))
+    
+    if (config.get('INVERTER_' + str(i + 1), 'HOY_INVERTER_WATT') != ''):
+        HOY_INVERTER_WATT.append(config.getint('INVERTER_' + str(i + 1), 'HOY_INVERTER_WATT'))
+    else:
+        HOY_INVERTER_WATT.append(HOY_MAX_WATT[i])
+        
     HOY_MIN_WATT.append(int(HOY_INVERTER_WATT[i] * config.getint('INVERTER_' + str(i + 1), 'HOY_MIN_WATT_IN_PERCENT') / 100))
     CURRENT_LIMIT.append(int(0))
     AVAILABLE.append(bool(False))

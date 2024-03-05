@@ -1,5 +1,11 @@
 # Changelog
 
+## V1.83
+### script
+* Bugfix fallback value
+### config
+* added comment
+
 ## V1.82
 ### script
 * read the power rating of each inverter from config file.
