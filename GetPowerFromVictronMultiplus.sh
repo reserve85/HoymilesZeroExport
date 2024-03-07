@@ -1,14 +1,15 @@
 #! /bin/sh
 
 # Script to read powermeter values from a Victron Multiplus II 
-# Needs "mbpoll" to be installed
-# usage: GetPowerFromVictronMultiplus <ip-address> [<username>] [<password>]
+# Needs "mbpoll" (command line utility to communicate with ModBus slave) to be installed, e.g. "apt install mbpoll"
+# Usage: GetPowerFromVictronMultiplus <ip-address> [<username>] [<password>]
 
 
 # read registers 820-822 via ModbusTCP
 VE_SYSTEM=`mbpoll "$1" -a 100 -r 820 -c 3 -t 3 -0 -1 | grep "\[.*\]:"`
 if [ $? -ne 0 ]; then
 	# failed, one more try
+	sleep 1
 	VE_SYSTEM=`mbpoll "$1" -a 100 -r 820 -c 3 -t 3 -0 -1 | grep "\[.*\]:"`
 	if [ $? -ne 0 ]; then
 		type mbpoll > /dev/null 2>&1

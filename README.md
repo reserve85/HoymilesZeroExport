@@ -17,6 +17,7 @@ This script does not use MQTT, it's based on webapi communication.
 - [HomeAssistant](https://www.home-assistant.io/)
 - [Volkszaehler (VZLogger)](https://volkszaehler.org/)
 - [ESPHome](https://esphome.io/)
+- shell script based interface
 - easy to implement new smart meter modules supporting WebAPI / JSON
 
 ### Supported DTU and Inverters

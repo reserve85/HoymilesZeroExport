@@ -1,5 +1,15 @@
 # Changelog
 
+## V1.85
+### script
+* Added shell script based powermeter interface (USE_SCRIPT)
+### config
+* Added parameters for shell script based powermeter interface (SCRIPT_)
+### bash script
+* Added example shell script for usage with Victron Multiplus II (GetPowerFromVictronMultiplus.sh)
+### 
+* Updated supported interface list in README.md with new shell script based powermeter
+
 ## V1.84
 ### script
 * Add support for priority mixed-mode (combination of battery powered and non-battery powered inverters).
