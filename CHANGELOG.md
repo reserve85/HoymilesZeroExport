@@ -1,5 +1,9 @@
 # Changelog
 
+## V1.84
+### script
+* Add support for priority mixed-mode (combination of battery powered and non-battery powered inverters).
+
 ## V1.83
 ### script
 * Bugfix fallback value
