@@ -15,7 +15,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 __author__ = "Tobias Kraft"
-__version__ = "1.84"
+__version__ = "1.85"
 
 import requests
 import time
@@ -30,6 +30,7 @@ import sys
 from packaging import version
 import argparse 
 import json
+import subprocess
 
 logging.basicConfig(
     format='%(asctime)s %(levelname)-8s %(message)s',
@@ -1057,6 +1058,17 @@ class OpenDTU(DTU):
         if response['type'] != 'success':
             raise Exception(f"Error: SetPowerStatus error: {response['message']}")
 
+class Script(Powermeter):
+    def __init__(self, file: str, ip: str, user: str, password: str):
+        self.file = file
+        self.ip = ip
+        self.user = user
+        self.password = password
+
+    def GetPowermeterWatts(self):
+        power = subprocess.check_output([self.file, self.ip, self.user, self.password])
+        return CastToInt(power)
+
 
 def CreatePowermeter() -> Powermeter:
     shelly_ip = config.get('SHELLY', 'SHELLY_IP')
@@ -1114,6 +1126,13 @@ def CreatePowermeter() -> Powermeter:
             config.get('VZLOGGER', 'VZL_IP'),
             config.get('VZLOGGER', 'VZL_PORT'),
             config.get('VZLOGGER', 'VZL_UUID')
+        )
+    elif config.getboolean('SELECT_POWERMETER', 'USE_SCRIPT'):
+        return Script(
+            config.get('SCRIPT', 'SCRIPT_FILE'),
+            config.get('SCRIPT', 'SCRIPT_IP'),
+            config.get('SCRIPT', 'SCRIPT_USER'),
+            config.get('SCRIPT', 'SCRIPT_PASS')
         )
     else:
         raise Exception("Error: no powermeter defined!")
