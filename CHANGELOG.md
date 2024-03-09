@@ -1,5 +1,11 @@
 # Changelog
 
+## V1.87
+### script
+* Add support for dynamic reconfiguration of config parameters via MQTT
+### config
+* Add optional section '[MQTT_CONFIG]' to config file. If present, the script will listen for MQTT messages to reconfigure various parameters at runtime.
+
 ## V1.86
 ### script
 * Prepare config to support dynamic reconfiguration of various parameters
