@@ -106,6 +106,12 @@ If you really don´t want the service anymore, just uninstall it
 sudo ./uninstall_service.sh
 ```
 
+If you want to update the script to the latest version on Github:
+```sh
+sudo chmod +x update.sh
+sudo ./update.sh
+```
+
 ## Windows installation
 Get Python 3 (download is available at https://www.python.org/) and then install the module "requests" and "packaging":
 ```sh
