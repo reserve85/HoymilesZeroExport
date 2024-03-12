@@ -15,7 +15,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 __author__ = "Tobias Kraft"
-__version__ = "1.86"
+__version__ = "1.87"
 
 import requests
 import time
@@ -30,7 +30,7 @@ import sys
 from packaging import version
 import argparse 
 import subprocess
-from config_provider import ConfigFileConfigProvider
+from config_provider import ConfigFileConfigProvider, MqttConfigProvider, ConfigProviderChain
 
 logging.basicConfig(
     format='%(asctime)s %(levelname)-8s %(message)s',
@@ -1314,6 +1314,16 @@ for i in range(INVERTER_COUNT):
 SLOW_APPROX_LIMIT = CastToInt(GetMaxWattFromAllInverters() * config.getint('COMMON', 'SLOW_APPROX_LIMIT_IN_PERCENT') / 100)
 
 CONFIG_PROVIDER = ConfigFileConfigProvider(config)
+if config.has_section("MQTT_CONFIG"):
+    broker = config.get("MQTT_CONFIG", "MQTT_BROKER")
+    port = config.getint("MQTT_CONFIG", "MQTT_PORT", fallback=1883)
+    client_id = config.get("MQTT_CONFIG", "MQTT_CLIENT_ID", fallback="HoymilesZeroExport")
+    username = config.get("MQTT_CONFIG", "MQTT_USERNAME", fallback=None)
+    password = config.get("MQTT_CONFIG", "MQTT_PASSWORD", fallback=None)
+    set_topic = config.get("MQTT_CONFIG", "MQTT_SET_TOPIC", fallback="zeropower/set")
+    reset_topic = config.get("MQTT_CONFIG", "MQTT_RESET_TOPIC", fallback="zeropower/reset")
+    mqtt_config_provider = MqttConfigProvider(broker, port, client_id, username, password, set_topic, reset_topic)
+    CONFIG_PROVIDER = ConfigProviderChain([mqtt_config_provider, CONFIG_PROVIDER])
 
 try:
     logger.info("---Init---")
