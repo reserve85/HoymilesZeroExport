@@ -15,7 +15,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 __author__ = "Tobias Kraft"
-__version__ = "1.85"
+__version__ = "1.86"
 
 import requests
 import time
@@ -29,8 +29,8 @@ from pathlib import Path
 import sys
 from packaging import version
 import argparse 
-import json
 import subprocess
+from config_provider import ConfigFileConfigProvider
 
 logging.basicConfig(
     format='%(asctime)s %(levelname)-8s %(message)s',
@@ -128,7 +128,7 @@ def SetLimitWithPriority(pLimit):
             for i in range(INVERTER_COUNT):
                 if (not AVAILABLE[i]) or (not HOY_BATTERY_GOOD_VOLTAGE[i]):
                     continue
-                if HOY_BATTERY_PRIORITY[i] != j:
+                if CONFIG_PROVIDER.get_battery_priority(i) != j:
                     continue
                 Factor = HOY_MAX_WATT[i] / GetMaxWattFromAllInvertersSamePrio(j)
                 NewLimit = CastToInt(LimitPrio*Factor)
@@ -224,7 +224,7 @@ def SetLimitMixedModeWithPriority(pLimit):
                     continue
                 if (not AVAILABLE[i]) or (not HOY_BATTERY_GOOD_VOLTAGE[i]):
                     continue
-                if HOY_BATTERY_PRIORITY[i] != j:
+                if CONFIG_PROVIDER.get_battery_priority(i) != j:
                     continue
                 Factor = HOY_MAX_WATT[i] / batteryMaxWattSamePrio
                 NewLimit = CastToInt(LimitPrio*Factor)
@@ -421,25 +421,25 @@ def GetCheckBattery():
                 if minVoltage <= HOY_BATTERY_THRESHOLD_OFF_LIMIT_IN_V[i]:
                     SetHoymilesPowerStatus(i, False)
                     HOY_BATTERY_GOOD_VOLTAGE[i] = False
-                    HOY_MAX_WATT[i] = HOY_BATTERY_REDUCE_WATT[i]
+                    HOY_MAX_WATT[i] = CONFIG_PROVIDER.get_reduce_wattage(i)
 
                 elif minVoltage <= HOY_BATTERY_THRESHOLD_REDUCE_LIMIT_IN_V[i]:
-                    if HOY_MAX_WATT[i] != HOY_BATTERY_REDUCE_WATT[i]:
-                        HOY_MAX_WATT[i] = HOY_BATTERY_REDUCE_WATT[i]
+                    if HOY_MAX_WATT[i] != CONFIG_PROVIDER.get_reduce_wattage(i):
+                        HOY_MAX_WATT[i] = CONFIG_PROVIDER.get_reduce_wattage(i)
                         SetLimit.LastLimit = -1
 
                 elif minVoltage >= HOY_BATTERY_THRESHOLD_ON_LIMIT_IN_V[i]:
                     SetHoymilesPowerStatus(i, True)
                     if not HOY_BATTERY_GOOD_VOLTAGE[i]:
-                        DTU.SetLimit(i, HOY_MIN_WATT[i])
+                        DTU.SetLimit(i, GetMinWatt(i))
                         DTU.WaitForAck(i, SET_LIMIT_TIMEOUT_SECONDS)
                         SetLimit.LastLimit = -1
                     HOY_BATTERY_GOOD_VOLTAGE[i] = True
-                    HOY_MAX_WATT[i] = HOY_BATTERY_NORMAL_WATT[i]
+                    HOY_MAX_WATT[i] = GetBatteryNormalWatt(i)
 
                 elif minVoltage >= HOY_BATTERY_THRESHOLD_NORMAL_LIMIT_IN_V[i]:
-                    if HOY_MAX_WATT[i] != HOY_BATTERY_NORMAL_WATT[i]:
-                        HOY_MAX_WATT[i] = HOY_BATTERY_NORMAL_WATT[i]
+                    if HOY_MAX_WATT[i] != GetBatteryNormalWatt(i):
+                        HOY_MAX_WATT[i] = GetBatteryNormalWatt(i)
                         SetLimit.LastLimit = -1
 
                 if HOY_BATTERY_GOOD_VOLTAGE[i]:
@@ -494,6 +494,16 @@ def GetPowermeterWatts():
             SetLimit(0)        
         raise
 
+def GetMinWatt(pInverter: int):
+    min_watt_percent = CONFIG_PROVIDER.get_min_wattage_in_percent(pInverter)
+    return int(HOY_INVERTER_WATT[pInverter] * min_watt_percent / 100)
+
+def GetBatteryNormalWatt(pInverter: int):
+    normal_watt = CONFIG_PROVIDER.get_normal_wattage(pInverter)
+    if normal_watt > HOY_MAX_WATT[pInverter]:
+        normal_watt = HOY_MAX_WATT[pInverter]
+    return normal_watt
+
 def CutLimitToProduction(pSetpoint):
     if pSetpoint != GetMaxWattFromAllInverters():
         ActualPower = GetHoymilesActualPower()
@@ -513,15 +523,15 @@ def ApplyLimitsToSetpoint(pSetpoint):
 def ApplyLimitsToSetpointInverter(pInverter, pSetpoint):
     if pSetpoint > HOY_MAX_WATT[pInverter]:
         pSetpoint = HOY_MAX_WATT[pInverter]
-    if pSetpoint < HOY_MIN_WATT[pInverter]:
-        pSetpoint = HOY_MIN_WATT[pInverter]
+    if pSetpoint < GetMinWatt(pInverter):
+        pSetpoint = GetMinWatt(pInverter)
     return pSetpoint
 
 def ApplyLimitsToMaxInverterLimits(pInverter, pSetpoint):
     if pSetpoint > HOY_INVERTER_WATT[pInverter]:
         pSetpoint = HOY_INVERTER_WATT[pInverter]
-    if pSetpoint < HOY_MIN_WATT[pInverter]:
-        pSetpoint = HOY_MIN_WATT[pInverter]
+    if pSetpoint < GetMinWatt(pInverter):
+        pSetpoint = GetMinWatt(pInverter)
     return pSetpoint
 
 # Max possible Watts, can be reduced on battery mode
@@ -539,14 +549,14 @@ def GetMaxWattFromAllInvertersSamePrio(pPriority):
     for i in range(INVERTER_COUNT):
         if (not AVAILABLE[i]) or (not HOY_BATTERY_GOOD_VOLTAGE[i]):
             continue
-        if HOY_BATTERY_PRIORITY[i] == pPriority:
+        if CONFIG_PROVIDER.get_battery_priority(i) == pPriority:
             maxWatt = maxWatt + HOY_MAX_WATT[i]
     return maxWatt
 
 def GetMaxWattFromAllBatteryInvertersSamePrio(pPriority):
     return sum(
         HOY_MAX_WATT[i] for i in range(INVERTER_COUNT)
-        if AVAILABLE[i] and HOY_BATTERY_GOOD_VOLTAGE[i] and HOY_BATTERY_MODE[i] and HOY_BATTERY_PRIORITY[i] == pPriority
+        if AVAILABLE[i] and HOY_BATTERY_GOOD_VOLTAGE[i] and HOY_BATTERY_MODE[i] and CONFIG_PROVIDER.get_battery_priority(i) == pPriority
     )
 
 # Max possible Watts (physically) - Inverter Specification!
@@ -569,7 +579,7 @@ def GetMinWattFromAllInverters():
     for i in range(INVERTER_COUNT):
         if (not AVAILABLE[i]) or (not HOY_BATTERY_GOOD_VOLTAGE[i]):
             continue
-        minWatt = minWatt + HOY_MIN_WATT[i]
+        minWatt = minWatt + GetMinWatt(i)
     return minWatt
 
 def GetMixedMode():
@@ -589,7 +599,7 @@ def GetBatteryMode():
 def GetPriorityMode():
     for i in range(INVERTER_COUNT):
         for j in range(INVERTER_COUNT):
-            if HOY_BATTERY_PRIORITY[i] != HOY_BATTERY_PRIORITY[j]:
+            if CONFIG_PROVIDER.get_battery_priority(i) != CONFIG_PROVIDER.get_battery_priority(j):
                 return True
     return False
 
@@ -1251,24 +1261,17 @@ LOOP_INTERVAL_IN_SECONDS = config.getint('COMMON', 'LOOP_INTERVAL_IN_SECONDS')
 SET_LIMIT_TIMEOUT_SECONDS = config.getint('COMMON', 'SET_LIMIT_TIMEOUT_SECONDS')
 SET_POWER_STATUS_DELAY_IN_SECONDS = config.getint('COMMON', 'SET_POWER_STATUS_DELAY_IN_SECONDS')
 POLL_INTERVAL_IN_SECONDS = config.getint('COMMON', 'POLL_INTERVAL_IN_SECONDS')
-ON_GRID_USAGE_JUMP_TO_LIMIT_PERCENT = config.getint('COMMON', 'ON_GRID_USAGE_JUMP_TO_LIMIT_PERCENT')
 MAX_DIFFERENCE_BETWEEN_LIMIT_AND_OUTPUTPOWER = config.getint('COMMON', 'MAX_DIFFERENCE_BETWEEN_LIMIT_AND_OUTPUTPOWER')
 SET_POWERSTATUS_CNT = config.getint('COMMON', 'SET_POWERSTATUS_CNT')
 SLOW_APPROX_FACTOR_IN_PERCENT = config.getint('COMMON', 'SLOW_APPROX_FACTOR_IN_PERCENT')
 LOG_TEMPERATURE = config.getboolean('COMMON', 'LOG_TEMPERATURE')
 SET_INVERTER_TO_MIN_ON_POWERMETER_ERROR = config.getboolean('COMMON', 'SET_INVERTER_TO_MIN_ON_POWERMETER_ERROR', fallback=False)
-POWERMETER_TARGET_POINT = config.getint('CONTROL', 'POWERMETER_TARGET_POINT')
-POWERMETER_TOLERANCE = config.getint('CONTROL', 'POWERMETER_TOLERANCE')
-POWERMETER_MAX_POINT = config.getint('CONTROL', 'POWERMETER_MAX_POINT')
-if POWERMETER_MAX_POINT < (POWERMETER_TARGET_POINT + POWERMETER_TOLERANCE):
-    POWERMETER_MAX_POINT = POWERMETER_TARGET_POINT + POWERMETER_TOLERANCE + 50
-    logger.info('Warning: POWERMETER_MAX_POINT < POWERMETER_TARGET_POINT + POWERMETER_TOLERANCE. Setting POWERMETER_MAX_POINT to ' + str(POWERMETER_MAX_POINT))
+powermeter_target_point = config.getint('CONTROL', 'POWERMETER_TARGET_POINT')
 SERIAL_NUMBER = []
 NAME = []
 TEMPERATURE = []
 HOY_MAX_WATT = []
 HOY_INVERTER_WATT = []
-HOY_MIN_WATT = []
 CURRENT_LIMIT = []
 AVAILABLE = []
 LASTLIMITACKNOWLEDGED = []
@@ -1278,11 +1281,8 @@ HOY_BATTERY_MODE = []
 HOY_BATTERY_THRESHOLD_OFF_LIMIT_IN_V = []
 HOY_BATTERY_THRESHOLD_REDUCE_LIMIT_IN_V = []
 HOY_BATTERY_THRESHOLD_NORMAL_LIMIT_IN_V = []
-HOY_BATTERY_NORMAL_WATT = []
-HOY_BATTERY_REDUCE_WATT = []
 HOY_BATTERY_THRESHOLD_ON_LIMIT_IN_V = []
 HOY_BATTERY_IGNORE_PANELS = []
-HOY_BATTERY_PRIORITY = []
 HOY_PANEL_VOLTAGE_LIST = []
 HOY_PANEL_MIN_VOLTAGE_HISTORY_LIST = []
 HOY_BATTERY_AVERAGE_CNT = []
@@ -1297,8 +1297,7 @@ for i in range(INVERTER_COUNT):
     else:
         HOY_INVERTER_WATT.append(HOY_MAX_WATT[i])
         
-    HOY_MIN_WATT.append(int(HOY_INVERTER_WATT[i] * config.getint('INVERTER_' + str(i + 1), 'HOY_MIN_WATT_IN_PERCENT') / 100))
-    CURRENT_LIMIT.append(int(0))
+    CURRENT_LIMIT.append(int(-1))
     AVAILABLE.append(bool(False))
     LASTLIMITACKNOWLEDGED.append(bool(False))
     HOY_BATTERY_GOOD_VOLTAGE.append(bool(True))
@@ -1306,18 +1305,15 @@ for i in range(INVERTER_COUNT):
     HOY_BATTERY_THRESHOLD_OFF_LIMIT_IN_V.append(config.getfloat('INVERTER_' + str(i + 1), 'HOY_BATTERY_THRESHOLD_OFF_LIMIT_IN_V'))
     HOY_BATTERY_THRESHOLD_REDUCE_LIMIT_IN_V.append(config.getfloat('INVERTER_' + str(i + 1), 'HOY_BATTERY_THRESHOLD_REDUCE_LIMIT_IN_V'))
     HOY_BATTERY_THRESHOLD_NORMAL_LIMIT_IN_V.append(config.getfloat('INVERTER_' + str(i + 1), 'HOY_BATTERY_THRESHOLD_NORMAL_LIMIT_IN_V'))
-    HOY_BATTERY_NORMAL_WATT.append(config.getint('INVERTER_' + str(i + 1), 'HOY_BATTERY_NORMAL_WATT'))
-    if HOY_BATTERY_NORMAL_WATT[i] > HOY_MAX_WATT[i]:
-        HOY_BATTERY_NORMAL_WATT[i] = HOY_MAX_WATT[i]
-    HOY_BATTERY_REDUCE_WATT.append(config.getint('INVERTER_' + str(i + 1), 'HOY_BATTERY_REDUCE_WATT'))
     HOY_BATTERY_THRESHOLD_ON_LIMIT_IN_V.append(config.getfloat('INVERTER_' + str(i + 1), 'HOY_BATTERY_THRESHOLD_ON_LIMIT_IN_V'))
     HOY_COMPENSATE_WATT_FACTOR.append(config.getfloat('INVERTER_' + str(i + 1), 'HOY_COMPENSATE_WATT_FACTOR'))
     HOY_BATTERY_IGNORE_PANELS.append(config.get('INVERTER_' + str(i + 1), 'HOY_BATTERY_IGNORE_PANELS'))
-    HOY_BATTERY_PRIORITY.append(config.getint('INVERTER_' + str(i + 1), 'HOY_BATTERY_PRIORITY'))
     HOY_PANEL_VOLTAGE_LIST.append([])
     HOY_PANEL_MIN_VOLTAGE_HISTORY_LIST.append([])
     HOY_BATTERY_AVERAGE_CNT.append(config.getint('INVERTER_' + str(i + 1), 'HOY_BATTERY_AVERAGE_CNT'))
 SLOW_APPROX_LIMIT = CastToInt(GetMaxWattFromAllInverters() * config.getint('COMMON', 'SLOW_APPROX_LIMIT_IN_PERCENT') / 100)
+
+CONFIG_PROVIDER = ConfigFileConfigProvider(config)
 
 try:
     logger.info("---Init---")
@@ -1339,6 +1335,17 @@ except Exception as e:
 logger.info("---Start Zero Export---")
 
 while True:
+    CONFIG_PROVIDER.update()
+    on_grid_usage_jump_to_limit_percent = CONFIG_PROVIDER.on_grid_usage_jump_to_limit_percent()
+    powermeter_target_point = CONFIG_PROVIDER.get_powermeter_target_point()
+    powermeter_max_point = CONFIG_PROVIDER.get_powermeter_max_point()
+    powermeter_tolerance = CONFIG_PROVIDER.get_powermeter_tolerance()
+    if powermeter_max_point < (powermeter_target_point + powermeter_tolerance):
+        powermeter_max_point = powermeter_target_point + powermeter_tolerance + 50
+        logger.info(
+            'Warning: POWERMETER_MAX_POINT < POWERMETER_TARGET_POINT + POWERMETER_TOLERANCE. Setting POWERMETER_MAX_POINT to ' + str(
+                powermeter_max_point))
+
     try:
         PreviousLimitSetpoint = newLimitSetpoint
         if GetHoymilesAvailable() and GetCheckBattery():
@@ -1346,13 +1353,13 @@ while True:
                 GetHoymilesTemperature()
             for x in range(CastToInt(LOOP_INTERVAL_IN_SECONDS / POLL_INTERVAL_IN_SECONDS)):
                 powermeterWatts = GetPowermeterWatts()
-                if powermeterWatts > POWERMETER_MAX_POINT:
-                    if ON_GRID_USAGE_JUMP_TO_LIMIT_PERCENT > 0:
-                        newLimitSetpoint = CastToInt(GetMaxInverterWattFromAllInverters() * ON_GRID_USAGE_JUMP_TO_LIMIT_PERCENT / 100)
-                        if (newLimitSetpoint <= PreviousLimitSetpoint) and (ON_GRID_USAGE_JUMP_TO_LIMIT_PERCENT != 100):
-                            newLimitSetpoint = PreviousLimitSetpoint + powermeterWatts - POWERMETER_TARGET_POINT
+                if powermeterWatts > powermeter_max_point:
+                    if on_grid_usage_jump_to_limit_percent > 0:
+                        newLimitSetpoint = CastToInt(GetMaxInverterWattFromAllInverters() * on_grid_usage_jump_to_limit_percent / 100)
+                        if (newLimitSetpoint <= PreviousLimitSetpoint) and (on_grid_usage_jump_to_limit_percent != 100):
+                            newLimitSetpoint = PreviousLimitSetpoint + powermeterWatts - powermeter_target_point
                     else:
-                        newLimitSetpoint = PreviousLimitSetpoint + powermeterWatts - POWERMETER_TARGET_POINT
+                        newLimitSetpoint = PreviousLimitSetpoint + powermeterWatts - powermeter_target_point
                     newLimitSetpoint = ApplyLimitsToSetpoint(newLimitSetpoint)
                     SetLimit(newLimitSetpoint)
                     RemainingDelay = CastToInt((LOOP_INTERVAL_IN_SECONDS / POLL_INTERVAL_IN_SECONDS - x) * POLL_INTERVAL_IN_SECONDS)
@@ -1368,14 +1375,14 @@ while True:
                     newLimitSetpoint = CutLimit
                     PreviousLimitSetpoint = newLimitSetpoint
 
-            if powermeterWatts > POWERMETER_MAX_POINT:
+            if powermeterWatts > powermeter_max_point:
                 continue
 
             # producing too much power: reduce limit
-            if powermeterWatts < (POWERMETER_TARGET_POINT - POWERMETER_TOLERANCE):
+            if powermeterWatts < (powermeter_target_point - powermeter_tolerance):
                 if PreviousLimitSetpoint >= GetMaxWattFromAllInverters():
                     hoymilesActualPower = GetHoymilesActualPower()
-                    newLimitSetpoint = hoymilesActualPower + powermeterWatts - POWERMETER_TARGET_POINT
+                    newLimitSetpoint = hoymilesActualPower + powermeterWatts - powermeter_target_point
                     LimitDifference = abs(hoymilesActualPower - newLimitSetpoint)
                     if LimitDifference > SLOW_APPROX_LIMIT:
                         newLimitSetpoint = newLimitSetpoint + (LimitDifference * SLOW_APPROX_FACTOR_IN_PERCENT / 100)
@@ -1383,7 +1390,7 @@ while True:
                         newLimitSetpoint = hoymilesActualPower
                     logger.info("overproducing: reduce limit based on actual power")
                 else:
-                    newLimitSetpoint = PreviousLimitSetpoint + powermeterWatts - POWERMETER_TARGET_POINT
+                    newLimitSetpoint = PreviousLimitSetpoint + powermeterWatts - powermeter_target_point
                     # check if it is necessary to approximate to the setpoint with some more passes. this reduce overshoot
                     LimitDifference = abs(PreviousLimitSetpoint - newLimitSetpoint)
                     if LimitDifference > SLOW_APPROX_LIMIT:
@@ -1393,9 +1400,9 @@ while True:
                         logger.info("overproducing: reduce limit based on previous limit setpoint")
 
             # producing too little power: increase limit
-            elif powermeterWatts > (POWERMETER_TARGET_POINT + POWERMETER_TOLERANCE):
+            elif powermeterWatts > (powermeter_target_point + powermeter_tolerance):
                 if PreviousLimitSetpoint < GetMaxWattFromAllInverters():
-                    newLimitSetpoint = PreviousLimitSetpoint + powermeterWatts - POWERMETER_TARGET_POINT
+                    newLimitSetpoint = PreviousLimitSetpoint + powermeterWatts - powermeter_target_point
                     logger.info("Not enough energy producing: increasing limit")
                 else:
                     logger.info("Not enough energy producing: limit already at maximum")

@@ -1,5 +1,9 @@
 # Changelog
 
+## V1.86
+### script
+* Prepare config to support dynamic reconfiguration of various parameters
+
 ## V1.85
 ### script
 * Added shell script based powermeter interface (USE_SCRIPT)
