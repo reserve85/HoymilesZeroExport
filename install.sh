@@ -4,6 +4,7 @@ SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 chmod +x $SCRIPT_DIR/HoymilesZeroExport.py
 chmod +x $SCRIPT_DIR/restart.sh
 chmod +x $SCRIPT_DIR/uninstall_service.sh
+chmod +x $SCRIPT_DIR/update.sh
 
 PIP3=$(which pip3)
 
