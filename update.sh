@@ -1,4 +1,5 @@
 #!/bin/bash
+SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 
 echo "start update of HoymilesZeroExport"
 
@@ -14,7 +15,11 @@ fi
 rsync -a HoymilesZeroExport-main/ ./
 rm -r HoymilesZeroExport-main/
 
-chmod +x install.sh
+chmod +x $SCRIPT_DIR/install.sh
+chmod +x $SCRIPT_DIR/HoymilesZeroExport.py
+chmod +x $SCRIPT_DIR/restart.sh
+chmod +x $SCRIPT_DIR/uninstall_service.sh
+chmod +x $SCRIPT_DIR/update.sh
 
 bash install.sh
 bash restart.sh
