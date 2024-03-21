@@ -19,8 +19,11 @@ __version__ = "1.87"
 
 import requests
 import time
+from requests.sessions import Session
 from requests.auth import HTTPBasicAuth
 from requests.auth import HTTPDigestAuth
+from requests.adapters import HTTPAdapter
+from urllib3.util import Retry
 import os
 import logging
 from logging.handlers import TimedRotatingFileHandler
@@ -32,6 +35,7 @@ import argparse
 import subprocess
 from config_provider import ConfigFileConfigProvider, MqttConfigProvider, ConfigProviderChain
 
+session = Session()
 logging.basicConfig(
     format='%(asctime)s %(levelname)-8s %(message)s',
     level=logging.INFO,
@@ -619,7 +623,7 @@ class Tasmota(Powermeter):
 
     def GetJson(self, path):
         url = f'http://{self.ip}{path}'
-        return requests.get(url, timeout=10).json()
+        return session.get(url, timeout=10).json()
 
     def GetPowermeterWatts(self):
         ParsedData = self.GetJson('/cm?cmnd=status%2010')
@@ -639,12 +643,12 @@ class Shelly(Powermeter):
     def GetJson(self, path):
         url = f'http://{self.ip}{path}'
         headers = {"content-type": "application/json"}
-        return requests.get(url, headers=headers, auth=(self.user, self.password), timeout=10).json()
+        return session.get(url, headers=headers, auth=(self.user, self.password), timeout=10).json()
 
     def GetRpcJson(self, path):
         url = f'http://{self.ip}/rpc{path}'
         headers = {"content-type": "application/json"}
-        return requests.get(url, headers=headers, auth=HTTPDigestAuth(self.user, self.password), timeout=10).json()
+        return session.get(url, headers=headers, auth=HTTPDigestAuth(self.user, self.password), timeout=10).json()
 
     def GetPowermeterWatts(self) -> int:
         raise NotImplementedError()
@@ -678,7 +682,7 @@ class ESPHome(Powermeter):
 
     def GetJson(self, path):
         url = f'http://{self.ip}:{self.port}{path}'
-        return requests.get(url, timeout=10).json()
+        return session.get(url, timeout=10).json()
 
     def GetPowermeterWatts(self):
         ParsedData = self.GetJson(f'/{self.domain}/{self.id}')
@@ -692,7 +696,7 @@ class Shrdzm(Powermeter):
 
     def GetJson(self, path):
         url = f'http://{self.ip}{path}'
-        return requests.get(url, timeout=10).json()
+        return session.get(url, timeout=10).json()
 
     def GetPowermeterWatts(self):
         ParsedData = self.GetJson(f'/getLastData?user={self.user}&password={self.password}')
@@ -706,7 +710,7 @@ class Emlog(Powermeter):
 
     def GetJson(self, path):
         url = f'http://{self.ip}{path}'
-        return requests.get(url, timeout=10).json()
+        return session.get(url, timeout=10).json()
 
     def GetPowermeterWatts(self):
         ParsedData = self.GetJson(f'/pages/getinformation.php?heute&meterindex={self.meterindex}')
@@ -728,7 +732,7 @@ class IoBroker(Powermeter):
 
     def GetJson(self, path):
         url = f'http://{self.ip}:{self.port}{path}'
-        return requests.get(url, timeout=10).json()
+        return session.get(url, timeout=10).json()
 
     def GetPowermeterWatts(self):
         if not self.power_calculate:
@@ -758,7 +762,7 @@ class HomeAssistant(Powermeter):
     def GetJson(self, path):
         url = f"http://{self.ip}:{self.port}{path}"
         headers = {"Authorization": "Bearer " + self.access_token, "content-type": "application/json"}
-        return requests.get(url, headers=headers, timeout=10).json()
+        return session.get(url, headers=headers, timeout=10).json()
 
     def GetPowermeterWatts(self):
         if not self.power_calculate:
@@ -779,7 +783,7 @@ class VZLogger(Powermeter):
 
     def GetJson(self):
         url = f"http://{self.ip}:{self.port}/{self.uuid}"
-        return requests.get(url, timeout=10).json()
+        return session.get(url, timeout=10).json()
 
     def GetPowermeterWatts(self):
         return CastToInt(self.GetJson()['data'][0]['tuples'][0][1])
@@ -827,11 +831,17 @@ class AhoyDTU(DTU):
 
     def GetJson(self, path):
         url = f'http://{self.ip}{path}'
-        return requests.get(url, timeout=10).json()
+        # AhoyDTU sometimes returns literal 'null' instead of a valid json, so we retry a few times
+        data = None
+        retry_count = 3
+        while retry_count > 0 and data is None:
+            data = session.get(url, timeout=10).json()
+            retry_count -= 1
+        return data
     
     def GetResponseJson(self, path, obj):
         url = f'http://{self.ip}{path}'
-        return requests.post(url, json = obj, timeout=10).json()
+        return session.post(url, json = obj, timeout=10).json()
 
     def GetACPower(self, pInverterId):
         ParsedData = self.GetJson('/api/live')
@@ -964,12 +974,12 @@ class OpenDTU(DTU):
 
     def GetJson(self, path):
         url = f'http://{self.ip}{path}'
-        return requests.get(url, auth=HTTPBasicAuth(self.user, self.password), timeout=10).json()
+        return session.get(url, auth=HTTPBasicAuth(self.user, self.password), timeout=10).json()
     
     def GetResponseJson(self, path, sendStr):
         url = f'http://{self.ip}{path}'
         headers = {'Content-Type': 'application/x-www-form-urlencoded'}
-        return requests.post(url=url, headers=headers, data=sendStr, auth=HTTPBasicAuth(self.user, self.password), timeout=10).json()
+        return session.post(url=url, headers=headers, data=sendStr, auth=HTTPBasicAuth(self.user, self.password), timeout=10).json()
 
     def GetACPower(self, pInverterId):
         ParsedData = self.GetJson(f'/api/livedata/status?inv={SERIAL_NUMBER[pInverterId]}')
@@ -1247,6 +1257,18 @@ if args.config:
 
 VERSION = config.get('VERSION', 'VERSION')
 logger.info("Config file V %s", VERSION)
+
+MAX_RETRIES = config.getint('COMMON', 'MAX_RETRIES', fallback=3)
+RETRY_STATUS_CODES = config.get('COMMON', 'RETRY_STATUS_CODES', fallback='500,502,503,504')
+RETRY_BACKOFF_FACTOR = config.getfloat('COMMON', 'RETRY_BACKOFF_FACTOR', fallback=0.1)
+retry = Retry(total=MAX_RETRIES,
+              backoff_factor=RETRY_BACKOFF_FACTOR,
+              status_forcelist=[int(status_code) for status_code in RETRY_STATUS_CODES.split(',')],
+              allowed_methods={"GET", "POST"})
+adapter = HTTPAdapter(max_retries=retry)
+session.mount('http://', adapter)
+session.mount('https://', adapter)
+
 USE_AHOY = config.getboolean('SELECT_DTU', 'USE_AHOY')
 USE_OPENDTU = config.getboolean('SELECT_DTU', 'USE_OPENDTU')
 AHOY_IP = config.get('AHOY_DTU', 'AHOY_IP')
