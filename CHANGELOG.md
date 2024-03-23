@@ -1,5 +1,17 @@
 # Changelog
 
+## V1.89
+### script
+* Auto-retry failed requests
+### config
+* add `COMMON`: `MAX_RETRIES`
+* add `COMMON`: `RETRY_STATUS_CODES`
+* add `COMMON`: `RETRY_BACKOFF_FACTOR`
+
+## V1.88
+### script
+* Refactoring: Reset all inverter data when inverter becomes unavailable
+
 ## V1.87
 ### script
 * Add support for dynamic reconfiguration of config parameters via MQTT
