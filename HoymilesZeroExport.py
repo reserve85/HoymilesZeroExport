@@ -248,6 +248,36 @@ def SetLimitMixedModeWithPriority(pLimit):
         SetLimitMixedModeWithPriority.LastLimitAck = False
         raise
 
+def ResetInverterData(pInverterId):
+    attributes_to_delete = [
+        "LastLimit",
+        "LastLimitAck",
+    ]
+    array_attributes_to_delete = [
+        {"LastPowerStatus": False},
+        {"SamePowerStatusCnt": 0},
+    ]
+    target_objects = [
+        SetLimit,
+        SetLimitWithPriority,
+        SetLimitMixedModeWithPriority,
+        GetHoymilesPanelMinVoltage,
+    ]
+    for target_object in target_objects:
+        for attribute in attributes_to_delete:
+            if hasattr(target_object, attribute):
+                delattr(target_object, attribute)
+        for array_attribute in array_attributes_to_delete:
+            for key, value in array_attribute.items():
+                if hasattr(target_object, key):
+                    target_object[key][pInverterId] = value
+
+    LASTLIMITACKNOWLEDGED[pInverterId] = False
+    HOY_PANEL_MIN_VOLTAGE_HISTORY_LIST[pInverterId] = []
+    CURRENT_LIMIT[pInverterId] = -1
+    HOY_BATTERY_GOOD_VOLTAGE[pInverterId] = True
+    TEMPERATURE[pInverterId] = str('--- degC')
+
 def SetLimit(pLimit):
     try:
         if GetMixedMode():
@@ -309,15 +339,7 @@ def GetHoymilesAvailable():
                 if AVAILABLE[i]:
                     GetHoymilesAvailable = True
                     if not WasAvail:
-                        if hasattr(SetLimit, "LastLimit"):
-                            SetLimit.LastLimit = CastToInt(0)
-                        if hasattr(SetLimit, "LastLimitAck"):
-                            SetLimit.LastLimitAck = bool(False)
-                        if hasattr(SetLimitWithPriority, "LastLimit"):
-                            SetLimitWithPriority.LastLimit = CastToInt(0)
-                        if hasattr(SetLimitWithPriority, "LastLimitAck"):
-                            SetLimitWithPriority.LastLimitAck = bool(False)
-                        LASTLIMITACKNOWLEDGED[i] = False
+                        ResetInverterData(i)
                         GetHoymilesInfo()
             except Exception as e:
                 AVAILABLE[i] = False
@@ -349,8 +371,6 @@ def GetHoymilesInfo():
         raise
 
 def GetHoymilesPanelMinVoltage(pInverterId):
-    if not hasattr(GetHoymilesPanelMinVoltage, "HoymilesPanelMinVoltageArray"):
-        GetHoymilesPanelMinVoltage.HoymilesPanelMinVoltageArray = [] 
     try:
         if not AVAILABLE[pInverterId]:
             return 0
