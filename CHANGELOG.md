@@ -1,5 +1,9 @@
 # Changelog
 
+## V1.90
+### script
+* fix HOY_BATTERY_THRESHOLD_NORMAL_LIMIT_IN_V, see https://github.com/reserve85/HoymilesZeroExport/issues/174
+
 ## V1.89
 ### script
 * Auto-retry failed requests

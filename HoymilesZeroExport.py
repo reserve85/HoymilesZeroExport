@@ -15,7 +15,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 __author__ = "Tobias Kraft"
-__version__ = "1.89"
+__version__ = "1.90"
 
 import requests
 import time
@@ -459,11 +459,13 @@ def GetCheckBattery():
                         DTU.WaitForAck(i, SET_LIMIT_TIMEOUT_SECONDS)
                         SetLimit.LastLimit = -1
                     HOY_BATTERY_GOOD_VOLTAGE[i] = True
-                    HOY_MAX_WATT[i] = GetBatteryNormalWatt(i)
+                    if (minVoltage >= HOY_BATTERY_THRESHOLD_NORMAL_LIMIT_IN_V[i]) and (HOY_MAX_WATT[i] != CONFIG_PROVIDER.get_normal_wattage(i)):
+                        HOY_MAX_WATT[i] = CONFIG_PROVIDER.get_normal_wattage(i)
+                        SetLimit.LastLimit = -1
 
                 elif minVoltage >= HOY_BATTERY_THRESHOLD_NORMAL_LIMIT_IN_V[i]:
-                    if HOY_MAX_WATT[i] != GetBatteryNormalWatt(i):
-                        HOY_MAX_WATT[i] = GetBatteryNormalWatt(i)
+                    if HOY_MAX_WATT[i] != CONFIG_PROVIDER.get_normal_wattage(i):
+                        HOY_MAX_WATT[i] = CONFIG_PROVIDER.get_normal_wattage(i)
                         SetLimit.LastLimit = -1
 
                 if HOY_BATTERY_GOOD_VOLTAGE[i]:
@@ -521,12 +523,6 @@ def GetPowermeterWatts():
 def GetMinWatt(pInverter: int):
     min_watt_percent = CONFIG_PROVIDER.get_min_wattage_in_percent(pInverter)
     return int(HOY_INVERTER_WATT[pInverter] * min_watt_percent / 100)
-
-def GetBatteryNormalWatt(pInverter: int):
-    normal_watt = CONFIG_PROVIDER.get_normal_wattage(pInverter)
-    if normal_watt > HOY_MAX_WATT[pInverter]:
-        normal_watt = HOY_MAX_WATT[pInverter]
-    return normal_watt
 
 def CutLimitToProduction(pSetpoint):
     if pSetpoint != GetMaxWattFromAllInverters():
