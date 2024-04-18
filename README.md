@@ -23,7 +23,7 @@ This script does not use MQTT, it's based on webapi communication.
 ### Supported DTU and Inverters
 - [Ahoy](https://github.com/lumapu/ahoy) - this script is developed with AHOY and therefore i recommend it
 - [OpenDTU](https://github.com/tbnobody/OpenDTU)
-- Hoymiles HM + HMS-Series Inverter (since V1.7 multiple inverters are supported) like [1-in-1](https://www.hoymiles.com/product/microinverter/hm-300-350-400-eu/), [2-in-1](https://www.hoymiles.com/product/microinverter/hm-600-700-800-eu/) or [4-in-1](https://www.hoymiles.com/product/microinverter/hm-1200-1500-eu/)
+- Hoymiles MI, HM, HMS and HMT-Series Inverter (--> all inverters that are supported by AHOY / OpenDTU)
 - The Hoymiles wireless devices, like HMS-xxxxW Series, are not supported
 
 ### Support of battery powered Hoymiles Inverters
