@@ -24,10 +24,10 @@ This script does not use MQTT, it's based on webapi communication.
 - [Ahoy](https://github.com/lumapu/ahoy) - this script is developed with AHOY and therefore i recommend it
 - [OpenDTU](https://github.com/tbnobody/OpenDTU)
 - Hoymiles MI, HM, HMS and HMT-Series Inverter (--> all inverters that are supported by AHOY / OpenDTU)
--   **Note:** The Hoymiles inverts with build-in DTU devices communicating via WiFi, like HMS-xxxxW Series, **are not supported!**
+-   **Note:** The Hoymiles inverters with a build-in DTU, like the HMS-xxxxW Series, **are not supported!**
 
 ### Support of battery powered Hoymiles Inverters
-With Version 1.28 and higher you can set various limits to support battery powered Hoymiles Inverters
+You can set various limits to support battery powered Hoymiles Inverters
 - power-off limit
 - limit reduction if battery voltage drops
 - auto-power-on if battery voltage rises 

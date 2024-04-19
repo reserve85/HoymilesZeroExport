@@ -15,7 +15,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 __author__ = "Tobias Kraft"
-__version__ = "1.90"
+__version__ = "1.91"
 
 import requests
 import time
@@ -628,8 +628,10 @@ class Powermeter:
         raise NotImplementedError()
 
 class Tasmota(Powermeter):
-    def __init__(self, ip: str, json_status: str, json_payload_mqtt_prefix: str, json_power_mqtt_label: str, json_power_input_mqtt_label: str, json_power_output_mqtt_label: str, json_power_calculate: bool):
+    def __init__(self, ip: str, user: str, password: str, json_status: str, json_payload_mqtt_prefix: str, json_power_mqtt_label: str, json_power_input_mqtt_label: str, json_power_output_mqtt_label: str, json_power_calculate: bool):
         self.ip = ip
+        self.user = user
+        self.password = password
         self.json_status = json_status
         self.json_payload_mqtt_prefix = json_payload_mqtt_prefix
         self.json_power_mqtt_label = json_power_mqtt_label
@@ -637,12 +639,15 @@ class Tasmota(Powermeter):
         self.json_power_output_mqtt_label = json_power_output_mqtt_label
         self.json_power_calculate = json_power_calculate
 
-    def GetJson(self, path):
+    def GetJson(self, path):      
         url = f'http://{self.ip}{path}'
         return session.get(url, timeout=10).json()
 
     def GetPowermeterWatts(self):
-        ParsedData = self.GetJson('/cm?cmnd=status%2010')
+        if not self.user:
+            ParsedData = self.GetJson('/cm?cmnd=status%2010')
+        else:
+            ParsedData = self.GetJson(f'/cm?user={self.user}&password={self.password}&cmnd=status%2010')
         if not self.json_power_calculate:
             return CastToInt(ParsedData[self.json_status][self.json_payload_mqtt_prefix][self.json_power_mqtt_label])
         else:
@@ -766,9 +771,10 @@ class IoBroker(Powermeter):
             return CastToInt(input - output)
 
 class HomeAssistant(Powermeter):
-    def __init__(self, ip: str, port: str, access_token: str, current_power_entity: str, power_calculate: bool, power_input_alias: str, power_output_alias: str):
+    def __init__(self, ip: str, port: str, use_https: bool, access_token: str, current_power_entity: str, power_calculate: bool, power_input_alias: str, power_output_alias: str):
         self.ip = ip
         self.port = port
+        self.use_https = use_https
         self.access_token = access_token
         self.current_power_entity = current_power_entity
         self.power_calculate = power_calculate
@@ -776,7 +782,10 @@ class HomeAssistant(Powermeter):
         self.power_output_alias = power_output_alias
 
     def GetJson(self, path):
-        url = f"http://{self.ip}:{self.port}{path}"
+        if self.use_https:
+            url = f"https://{self.ip}:{self.port}{path}"
+        else:
+            url = f"http://{self.ip}:{self.port}{path}"
         headers = {"Authorization": "Bearer " + self.access_token, "content-type": "application/json"}
         return session.get(url, headers=headers, timeout=10).json()
 
@@ -1119,6 +1128,8 @@ def CreatePowermeter() -> Powermeter:
     elif config.getboolean('SELECT_POWERMETER', 'USE_TASMOTA'):
         return Tasmota(
             config.get('TASMOTA', 'TASMOTA_IP'),
+            config.get('TASMOTA', 'TASMOTA_USER'),
+            config.get('TASMOTA', 'TASMOTA_PASS'),
             config.get('TASMOTA', 'TASMOTA_JSON_STATUS'),
             config.get('TASMOTA', 'TASMOTA_JSON_PAYLOAD_MQTT_PREFIX'),
             config.get('TASMOTA', 'TASMOTA_JSON_POWER_MQTT_LABEL'),
@@ -1151,6 +1162,7 @@ def CreatePowermeter() -> Powermeter:
         return HomeAssistant(
             config.get('HOMEASSISTANT', 'HA_IP'),
             config.get('HOMEASSISTANT', 'HA_PORT'),
+            config.getboolean('HOMEASSISTANT', 'HA_HTTPS', fallback=False),
             config.get('HOMEASSISTANT', 'HA_ACCESSTOKEN'),
             config.get('HOMEASSISTANT', 'HA_CURRENT_POWER_ENTITY'),
             config.getboolean('HOMEASSISTANT', 'HA_POWER_CALCULATE'),
@@ -1180,6 +1192,8 @@ def CreateIntermediatePowermeter(dtu: DTU) -> Powermeter:
     if config.getboolean('SELECT_INTERMEDIATE_METER', 'USE_TASMOTA_INTERMEDIATE'):
         return Tasmota(
             config.get('INTERMEDIATE_TASMOTA', 'TASMOTA_IP_INTERMEDIATE'),
+            config.get('INTERMEDIATE_TASMOTA', 'TASMOTA_USER_INTERMEDIATE'),
+            config.get('INTERMEDIATE_TASMOTA', 'TASMOTA_PASS_INTERMEDIATE'),
             config.get('INTERMEDIATE_TASMOTA', 'TASMOTA_JSON_STATUS_INTERMEDIATE'),
             config.get('INTERMEDIATE_TASMOTA', 'TASMOTA_JSON_PAYLOAD_MQTT_PREFIX_INTERMEDIATE'),
             config.get('INTERMEDIATE_TASMOTA', 'TASMOTA_JSON_POWER_MQTT_LABEL_INTERMEDIATE'),
@@ -1229,6 +1243,7 @@ def CreateIntermediatePowermeter(dtu: DTU) -> Powermeter:
         return HomeAssistant(
             config.get('INTERMEDIATE_HOMEASSISTANT', 'HA_IP_INTERMEDIATE'),
             config.get('INTERMEDIATE_HOMEASSISTANT', 'HA_PORT_INTERMEDIATE'),
+            config.getboolean('INTERMEDIATE_HOMEASSISTANT', 'HA_HTTPS_INTERMEDIATE', fallback=False),
             config.get('INTERMEDIATE_HOMEASSISTANT', 'HA_ACCESSTOKEN_INTERMEDIATE'),
             config.get('INTERMEDIATE_HOMEASSISTANT', 'HA_CURRENT_POWER_ENTITY_INTERMEDIATE'),
             config.getboolean('INTERMEDIATE_HOMEASSISTANT', 'HA_POWER_CALCULATE_INTERMEDIATE', fallback=False),
