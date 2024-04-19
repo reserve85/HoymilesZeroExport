@@ -4,6 +4,7 @@
 ### script
 * support Home Assistant over HTTPS (https://github.com/reserve85/HoymilesZeroExport/issues/178)
 * Support login credentials for Tasmota (https://github.com/reserve85/HoymilesZeroExport/issues/159)
+* update.sh supports custom URL, for example a dev path. usage: ./update.sh https://github.com/reserve85/HoymilesZeroExport/archive/refs/heads/dev.zip
 ### config
 * add `[HOMEASSISTANT]`: `HA_HTTPS` 
 * add `[INTERMEDIATE_HOMEASSISTANT]`: `HA_HTTPS_INTERMEDIATE`

@@ -1,9 +1,22 @@
 #!/bin/bash
-SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+# Check if an argument is provided
+if [ $# -gt 1 ]; then
+  echo "Error: Too many arguments"
+elif [ $# -eq 1 ]; then
+  # Use custom URL if provided
+  DOWNLOAD_URL="$1"
+else
+  # Default URL if no argument provided
+  DOWNLOAD_URL="https://github.com/reserve85/HoymilesZeroExport/archive/refs/heads/main.zip"
+fi
 
-echo "start update of HoymilesZeroExport"
+# Change directory to the script's directory
+SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &>/dev/null && pwd)
 
-wget https://github.com/reserve85/HoymilesZeroExport/archive/refs/heads/main.zip
+echo "Start update of HoymilesZeroExport"
+
+# Download and unzip the file
+wget "$DOWNLOAD_URL" -O main.zip
 unzip main.zip
 rm main.zip
 
