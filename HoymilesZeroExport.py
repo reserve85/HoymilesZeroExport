@@ -339,7 +339,7 @@ def GetHoymilesAvailable():
         for i in range(INVERTER_COUNT):
             try:
                 WasAvail = AVAILABLE[i]
-                AVAILABLE[i] = DTU.GetAvailable(i)
+                AVAILABLE[i] = ENABLED[i] and DTU.GetAvailable(i)
                 if AVAILABLE[i]:
                     GetHoymilesAvailable = True
                     if not WasAvail:
@@ -1321,6 +1321,7 @@ LOG_TEMPERATURE = config.getboolean('COMMON', 'LOG_TEMPERATURE')
 SET_INVERTER_TO_MIN_ON_POWERMETER_ERROR = config.getboolean('COMMON', 'SET_INVERTER_TO_MIN_ON_POWERMETER_ERROR', fallback=False)
 powermeter_target_point = config.getint('CONTROL', 'POWERMETER_TARGET_POINT')
 SERIAL_NUMBER = []
+ENABLED = []
 NAME = []
 TEMPERATURE = []
 HOY_MAX_WATT = []
@@ -1341,6 +1342,7 @@ HOY_PANEL_MIN_VOLTAGE_HISTORY_LIST = []
 HOY_BATTERY_AVERAGE_CNT = []
 for i in range(INVERTER_COUNT):
     SERIAL_NUMBER.append(config.get('INVERTER_' + str(i + 1), 'SERIAL_NUMBER', fallback=''))
+    ENABLED.append(config.getboolean('INVERTER_' + str(i + 1), 'ENABLED', fallback = True))
     NAME.append(str('yet unknown'))
     TEMPERATURE.append(str('--- degC'))
     HOY_MAX_WATT.append(config.getint('INVERTER_' + str(i + 1), 'HOY_MAX_WATT'))
