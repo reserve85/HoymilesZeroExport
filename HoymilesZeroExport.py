@@ -656,10 +656,11 @@ class Tasmota(Powermeter):
             return CastToInt(input - ouput)
 
 class Shelly(Powermeter):
-    def __init__(self, ip: str, user: str, password: str):
+    def __init__(self, ip: str, user: str, password: str, emeterindex: str):
         self.ip = ip
         self.user = user
         self.password = password
+        self.emeterindex = emeterindex
 
     def GetJson(self, path):
         url = f'http://{self.ip}{path}'
@@ -684,7 +685,10 @@ class ShellyPlus1PM(Shelly):
 
 class ShellyEM(Shelly):
     def GetPowermeterWatts(self):
-        return sum(CastToInt(emeter['power']) for emeter in self.GetJson('/status')['emeters'])
+        if self.emeterindex:
+            return CastToInt(self.GetJson(f'/emeter/{self.emeterindex}')['power'])
+        else:
+            return sum(CastToInt(emeter['power']) for emeter in self.GetJson('/status')['emeters'])
 
 class Shelly3EM(Shelly):
     def GetPowermeterWatts(self):
@@ -1119,12 +1123,13 @@ def CreatePowermeter() -> Powermeter:
     shelly_ip = config.get('SHELLY', 'SHELLY_IP')
     shelly_user = config.get('SHELLY', 'SHELLY_USER')
     shelly_pass = config.get('SHELLY', 'SHELLY_PASS')
+    shelly_emeterindex = config.get('SHELLY', 'EMETER_INDEX')
     if config.getboolean('SELECT_POWERMETER', 'USE_SHELLY_EM'):
-        return ShellyEM(shelly_ip, shelly_user, shelly_pass)
+        return ShellyEM(shelly_ip, shelly_user, shelly_pass, shelly_emeterindex)
     elif config.getboolean('SELECT_POWERMETER', 'USE_SHELLY_3EM'):
-        return Shelly3EM(shelly_ip, shelly_user, shelly_pass)
+        return Shelly3EM(shelly_ip, shelly_user, shelly_pass, shelly_emeterindex)
     elif config.getboolean('SELECT_POWERMETER', 'USE_SHELLY_3EM_PRO'):
-        return Shelly3EMPro(shelly_ip, shelly_user, shelly_pass)
+        return Shelly3EMPro(shelly_ip, shelly_user, shelly_pass, shelly_emeterindex)
     elif config.getboolean('SELECT_POWERMETER', 'USE_TASMOTA'):
         return Tasmota(
             config.get('TASMOTA', 'TASMOTA_IP'),
@@ -1189,6 +1194,7 @@ def CreateIntermediatePowermeter(dtu: DTU) -> Powermeter:
     shelly_ip = config.get('INTERMEDIATE_SHELLY', 'SHELLY_IP_INTERMEDIATE')
     shelly_user = config.get('INTERMEDIATE_SHELLY', 'SHELLY_USER_INTERMEDIATE')
     shelly_pass = config.get('INTERMEDIATE_SHELLY', 'SHELLY_PASS_INTERMEDIATE')
+    shelly_emeterindex = config.get('INTERMEDIATE_SHELLY', 'EMETER_INDEX')
     if config.getboolean('SELECT_INTERMEDIATE_METER', 'USE_TASMOTA_INTERMEDIATE'):
         return Tasmota(
             config.get('INTERMEDIATE_TASMOTA', 'TASMOTA_IP_INTERMEDIATE'),
@@ -1202,15 +1208,15 @@ def CreateIntermediatePowermeter(dtu: DTU) -> Powermeter:
             config.getboolean('INTERMEDIATE_TASMOTA', 'TASMOTA_JSON_POWER_CALCULATE_INTERMEDIATE', fallback=False)
         )
     elif config.getboolean('SELECT_INTERMEDIATE_METER', 'USE_SHELLY_EM_INTERMEDIATE'):
-        return ShellyEM(shelly_ip, shelly_user, shelly_pass)
+        return ShellyEM(shelly_ip, shelly_user, shelly_pass, shelly_emeterindex)
     elif config.getboolean('SELECT_INTERMEDIATE_METER', 'USE_SHELLY_3EM_INTERMEDIATE'):
-        return Shelly3EM(shelly_ip, shelly_user, shelly_pass)
+        return Shelly3EM(shelly_ip, shelly_user, shelly_pass, shelly_emeterindex)
     elif config.getboolean('SELECT_INTERMEDIATE_METER', 'USE_SHELLY_3EM_PRO_INTERMEDIATE'):
-        return Shelly3EMPro(shelly_ip, shelly_user, shelly_pass)
+        return Shelly3EMPro(shelly_ip, shelly_user, shelly_pass, shelly_emeterindex)
     elif config.getboolean('SELECT_INTERMEDIATE_METER', 'USE_SHELLY_1PM_INTERMEDIATE'):
-        return Shelly1PM(shelly_ip, shelly_user, shelly_pass)
+        return Shelly1PM(shelly_ip, shelly_user, shelly_pass, shelly_emeterindex)
     elif config.getboolean('SELECT_INTERMEDIATE_METER', 'USE_SHELLY_PLUS_1PM_INTERMEDIATE'):
-        return ShellyPlus1PM(shelly_ip, shelly_user, shelly_pass)
+        return ShellyPlus1PM(shelly_ip, shelly_user, shelly_pass, shelly_emeterindex)
     elif config.getboolean('SELECT_INTERMEDIATE_METER', 'USE_ESPHOME_INTERMEDIATE'):
         return ESPHome(
             config.get('INTERMEDIATE_ESPHOME', 'ESPHOME_IP_INTERMEDIATE'),
