@@ -15,7 +15,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 __author__ = "Tobias Kraft"
-__version__ = "1.90"
+__version__ = "1.91"
 
 import requests
 import time
@@ -339,7 +339,7 @@ def GetHoymilesAvailable():
         for i in range(INVERTER_COUNT):
             try:
                 WasAvail = AVAILABLE[i]
-                AVAILABLE[i] = DTU.GetAvailable(i)
+                AVAILABLE[i] = ENABLED[i] and DTU.GetAvailable(i)
                 if AVAILABLE[i]:
                     GetHoymilesAvailable = True
                     if not WasAvail:
@@ -628,8 +628,10 @@ class Powermeter:
         raise NotImplementedError()
 
 class Tasmota(Powermeter):
-    def __init__(self, ip: str, json_status: str, json_payload_mqtt_prefix: str, json_power_mqtt_label: str, json_power_input_mqtt_label: str, json_power_output_mqtt_label: str, json_power_calculate: bool):
+    def __init__(self, ip: str, user: str, password: str, json_status: str, json_payload_mqtt_prefix: str, json_power_mqtt_label: str, json_power_input_mqtt_label: str, json_power_output_mqtt_label: str, json_power_calculate: bool):
         self.ip = ip
+        self.user = user
+        self.password = password
         self.json_status = json_status
         self.json_payload_mqtt_prefix = json_payload_mqtt_prefix
         self.json_power_mqtt_label = json_power_mqtt_label
@@ -637,12 +639,15 @@ class Tasmota(Powermeter):
         self.json_power_output_mqtt_label = json_power_output_mqtt_label
         self.json_power_calculate = json_power_calculate
 
-    def GetJson(self, path):
+    def GetJson(self, path):      
         url = f'http://{self.ip}{path}'
         return session.get(url, timeout=10).json()
 
     def GetPowermeterWatts(self):
-        ParsedData = self.GetJson('/cm?cmnd=status%2010')
+        if not self.user:
+            ParsedData = self.GetJson('/cm?cmnd=status%2010')
+        else:
+            ParsedData = self.GetJson(f'/cm?user={self.user}&password={self.password}&cmnd=status%2010')
         if not self.json_power_calculate:
             return CastToInt(ParsedData[self.json_status][self.json_payload_mqtt_prefix][self.json_power_mqtt_label])
         else:
@@ -651,10 +656,11 @@ class Tasmota(Powermeter):
             return CastToInt(input - ouput)
 
 class Shelly(Powermeter):
-    def __init__(self, ip: str, user: str, password: str):
+    def __init__(self, ip: str, user: str, password: str, emeterindex: str):
         self.ip = ip
         self.user = user
         self.password = password
+        self.emeterindex = emeterindex
 
     def GetJson(self, path):
         url = f'http://{self.ip}{path}'
@@ -679,7 +685,10 @@ class ShellyPlus1PM(Shelly):
 
 class ShellyEM(Shelly):
     def GetPowermeterWatts(self):
-        return sum(CastToInt(emeter['power']) for emeter in self.GetJson('/status')['emeters'])
+        if self.emeterindex:
+            return CastToInt(self.GetJson(f'/emeter/{self.emeterindex}')['power'])
+        else:
+            return sum(CastToInt(emeter['power']) for emeter in self.GetJson('/status')['emeters'])
 
 class Shelly3EM(Shelly):
     def GetPowermeterWatts(self):
@@ -766,9 +775,10 @@ class IoBroker(Powermeter):
             return CastToInt(input - output)
 
 class HomeAssistant(Powermeter):
-    def __init__(self, ip: str, port: str, access_token: str, current_power_entity: str, power_calculate: bool, power_input_alias: str, power_output_alias: str):
+    def __init__(self, ip: str, port: str, use_https: bool, access_token: str, current_power_entity: str, power_calculate: bool, power_input_alias: str, power_output_alias: str):
         self.ip = ip
         self.port = port
+        self.use_https = use_https
         self.access_token = access_token
         self.current_power_entity = current_power_entity
         self.power_calculate = power_calculate
@@ -776,7 +786,10 @@ class HomeAssistant(Powermeter):
         self.power_output_alias = power_output_alias
 
     def GetJson(self, path):
-        url = f"http://{self.ip}:{self.port}{path}"
+        if self.use_https:
+            url = f"https://{self.ip}:{self.port}{path}"
+        else:
+            url = f"http://{self.ip}:{self.port}{path}"
         headers = {"Authorization": "Bearer " + self.access_token, "content-type": "application/json"}
         return session.get(url, headers=headers, timeout=10).json()
 
@@ -1110,15 +1123,18 @@ def CreatePowermeter() -> Powermeter:
     shelly_ip = config.get('SHELLY', 'SHELLY_IP')
     shelly_user = config.get('SHELLY', 'SHELLY_USER')
     shelly_pass = config.get('SHELLY', 'SHELLY_PASS')
+    shelly_emeterindex = config.get('SHELLY', 'EMETER_INDEX')
     if config.getboolean('SELECT_POWERMETER', 'USE_SHELLY_EM'):
-        return ShellyEM(shelly_ip, shelly_user, shelly_pass)
+        return ShellyEM(shelly_ip, shelly_user, shelly_pass, shelly_emeterindex)
     elif config.getboolean('SELECT_POWERMETER', 'USE_SHELLY_3EM'):
-        return Shelly3EM(shelly_ip, shelly_user, shelly_pass)
+        return Shelly3EM(shelly_ip, shelly_user, shelly_pass, shelly_emeterindex)
     elif config.getboolean('SELECT_POWERMETER', 'USE_SHELLY_3EM_PRO'):
-        return Shelly3EMPro(shelly_ip, shelly_user, shelly_pass)
+        return Shelly3EMPro(shelly_ip, shelly_user, shelly_pass, shelly_emeterindex)
     elif config.getboolean('SELECT_POWERMETER', 'USE_TASMOTA'):
         return Tasmota(
             config.get('TASMOTA', 'TASMOTA_IP'),
+            config.get('TASMOTA', 'TASMOTA_USER'),
+            config.get('TASMOTA', 'TASMOTA_PASS'),
             config.get('TASMOTA', 'TASMOTA_JSON_STATUS'),
             config.get('TASMOTA', 'TASMOTA_JSON_PAYLOAD_MQTT_PREFIX'),
             config.get('TASMOTA', 'TASMOTA_JSON_POWER_MQTT_LABEL'),
@@ -1151,6 +1167,7 @@ def CreatePowermeter() -> Powermeter:
         return HomeAssistant(
             config.get('HOMEASSISTANT', 'HA_IP'),
             config.get('HOMEASSISTANT', 'HA_PORT'),
+            config.getboolean('HOMEASSISTANT', 'HA_HTTPS', fallback=False),
             config.get('HOMEASSISTANT', 'HA_ACCESSTOKEN'),
             config.get('HOMEASSISTANT', 'HA_CURRENT_POWER_ENTITY'),
             config.getboolean('HOMEASSISTANT', 'HA_POWER_CALCULATE'),
@@ -1177,9 +1194,12 @@ def CreateIntermediatePowermeter(dtu: DTU) -> Powermeter:
     shelly_ip = config.get('INTERMEDIATE_SHELLY', 'SHELLY_IP_INTERMEDIATE')
     shelly_user = config.get('INTERMEDIATE_SHELLY', 'SHELLY_USER_INTERMEDIATE')
     shelly_pass = config.get('INTERMEDIATE_SHELLY', 'SHELLY_PASS_INTERMEDIATE')
+    shelly_emeterindex = config.get('INTERMEDIATE_SHELLY', 'EMETER_INDEX')
     if config.getboolean('SELECT_INTERMEDIATE_METER', 'USE_TASMOTA_INTERMEDIATE'):
         return Tasmota(
             config.get('INTERMEDIATE_TASMOTA', 'TASMOTA_IP_INTERMEDIATE'),
+            config.get('INTERMEDIATE_TASMOTA', 'TASMOTA_USER_INTERMEDIATE'),
+            config.get('INTERMEDIATE_TASMOTA', 'TASMOTA_PASS_INTERMEDIATE'),
             config.get('INTERMEDIATE_TASMOTA', 'TASMOTA_JSON_STATUS_INTERMEDIATE'),
             config.get('INTERMEDIATE_TASMOTA', 'TASMOTA_JSON_PAYLOAD_MQTT_PREFIX_INTERMEDIATE'),
             config.get('INTERMEDIATE_TASMOTA', 'TASMOTA_JSON_POWER_MQTT_LABEL_INTERMEDIATE'),
@@ -1188,15 +1208,15 @@ def CreateIntermediatePowermeter(dtu: DTU) -> Powermeter:
             config.getboolean('INTERMEDIATE_TASMOTA', 'TASMOTA_JSON_POWER_CALCULATE_INTERMEDIATE', fallback=False)
         )
     elif config.getboolean('SELECT_INTERMEDIATE_METER', 'USE_SHELLY_EM_INTERMEDIATE'):
-        return ShellyEM(shelly_ip, shelly_user, shelly_pass)
+        return ShellyEM(shelly_ip, shelly_user, shelly_pass, shelly_emeterindex)
     elif config.getboolean('SELECT_INTERMEDIATE_METER', 'USE_SHELLY_3EM_INTERMEDIATE'):
-        return Shelly3EM(shelly_ip, shelly_user, shelly_pass)
+        return Shelly3EM(shelly_ip, shelly_user, shelly_pass, shelly_emeterindex)
     elif config.getboolean('SELECT_INTERMEDIATE_METER', 'USE_SHELLY_3EM_PRO_INTERMEDIATE'):
-        return Shelly3EMPro(shelly_ip, shelly_user, shelly_pass)
+        return Shelly3EMPro(shelly_ip, shelly_user, shelly_pass, shelly_emeterindex)
     elif config.getboolean('SELECT_INTERMEDIATE_METER', 'USE_SHELLY_1PM_INTERMEDIATE'):
-        return Shelly1PM(shelly_ip, shelly_user, shelly_pass)
+        return Shelly1PM(shelly_ip, shelly_user, shelly_pass, shelly_emeterindex)
     elif config.getboolean('SELECT_INTERMEDIATE_METER', 'USE_SHELLY_PLUS_1PM_INTERMEDIATE'):
-        return ShellyPlus1PM(shelly_ip, shelly_user, shelly_pass)
+        return ShellyPlus1PM(shelly_ip, shelly_user, shelly_pass, shelly_emeterindex)
     elif config.getboolean('SELECT_INTERMEDIATE_METER', 'USE_ESPHOME_INTERMEDIATE'):
         return ESPHome(
             config.get('INTERMEDIATE_ESPHOME', 'ESPHOME_IP_INTERMEDIATE'),
@@ -1229,6 +1249,7 @@ def CreateIntermediatePowermeter(dtu: DTU) -> Powermeter:
         return HomeAssistant(
             config.get('INTERMEDIATE_HOMEASSISTANT', 'HA_IP_INTERMEDIATE'),
             config.get('INTERMEDIATE_HOMEASSISTANT', 'HA_PORT_INTERMEDIATE'),
+            config.getboolean('INTERMEDIATE_HOMEASSISTANT', 'HA_HTTPS_INTERMEDIATE', fallback=False),
             config.get('INTERMEDIATE_HOMEASSISTANT', 'HA_ACCESSTOKEN_INTERMEDIATE'),
             config.get('INTERMEDIATE_HOMEASSISTANT', 'HA_CURRENT_POWER_ENTITY_INTERMEDIATE'),
             config.getboolean('INTERMEDIATE_HOMEASSISTANT', 'HA_POWER_CALCULATE_INTERMEDIATE', fallback=False),
@@ -1306,6 +1327,7 @@ LOG_TEMPERATURE = config.getboolean('COMMON', 'LOG_TEMPERATURE')
 SET_INVERTER_TO_MIN_ON_POWERMETER_ERROR = config.getboolean('COMMON', 'SET_INVERTER_TO_MIN_ON_POWERMETER_ERROR', fallback=False)
 powermeter_target_point = config.getint('CONTROL', 'POWERMETER_TARGET_POINT')
 SERIAL_NUMBER = []
+ENABLED = []
 NAME = []
 TEMPERATURE = []
 HOY_MAX_WATT = []
@@ -1326,6 +1348,7 @@ HOY_PANEL_MIN_VOLTAGE_HISTORY_LIST = []
 HOY_BATTERY_AVERAGE_CNT = []
 for i in range(INVERTER_COUNT):
     SERIAL_NUMBER.append(config.get('INVERTER_' + str(i + 1), 'SERIAL_NUMBER', fallback=''))
+    ENABLED.append(config.getboolean('INVERTER_' + str(i + 1), 'ENABLED', fallback = True))
     NAME.append(str('yet unknown'))
     TEMPERATURE.append(str('--- degC'))
     HOY_MAX_WATT.append(config.getint('INVERTER_' + str(i + 1), 'HOY_MAX_WATT'))

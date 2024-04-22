@@ -1,5 +1,21 @@
 # Changelog
 
+## V1.91
+### script
+* support Home Assistant over HTTPS (https://github.com/reserve85/HoymilesZeroExport/issues/178)
+* Support login credentials for Tasmota (https://github.com/reserve85/HoymilesZeroExport/issues/159)
+* update.sh supports custom branch, for example to update to dev path. usage: ./update.sh dev
+* option to disable a inverter (@tester277)
+* option to specify a specific emeter-index for ShellyEM [possible values: 0...1]. (https://github.com/reserve85/HoymilesZeroExport/issues/181)
+### config
+* add `[HOMEASSISTANT]`: `HA_HTTPS` 
+* add `[INTERMEDIATE_HOMEASSISTANT]`: `HA_HTTPS_INTERMEDIATE`
+* add `[TASMOTA]`: `USER` and `PASS` 
+* add `[TASMOTA_INTERMEDIATE]`: `USER_INTERMEDIATE` and `PASS_INTERMEDIATE`
+* add `[INVERTER_x]`: `ENABLED`
+* add `[SHELLY]`: `EMETER_INDEX`
+* add `[INTERMEDIATE_SHELLY]`: `EMETER_INDEX`
+
 ## V1.90
 ### script
 * fix HOY_BATTERY_THRESHOLD_NORMAL_LIMIT_IN_V, see https://github.com/reserve85/HoymilesZeroExport/issues/174
