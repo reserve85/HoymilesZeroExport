@@ -1,5 +1,12 @@
 # Changelog
 
+## V1.92
+### script
+* support DDSU666 Smartmeter Module (Modbus)
+### config
+* add section `DDSU666`
+* add `SELECT_POWERMETER`: `USE_DDSU666`
+
 ## V1.91
 ### script
 * support Home Assistant over HTTPS (https://github.com/reserve85/HoymilesZeroExport/issues/178)
