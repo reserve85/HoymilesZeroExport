@@ -1200,7 +1200,7 @@ def CreatePowermeter() -> Powermeter:
             config.get('SCRIPT', 'SCRIPT_PASS')
         )
     elif config.getboolean('SELECT_POWERMETER', 'USE_AMIS_READER'):
-        return VZLogger(
+        return AmisReader(
             config.get('AMIS_READER', 'AMIS_READER_IP')
         )
     else:
@@ -1279,7 +1279,7 @@ def CreateIntermediatePowermeter(dtu: DTU) -> Powermeter:
             config.get('INTERMEDIATE_VZLOGGER', 'VZL_UUID_INTERMEDIATE')
         )
     elif config.getboolean('SELECT_POWERMETER', 'USE_AMIS_READER_INTERMEDIATE'):
-        return VZLogger(
+        return AmisReader(
             config.get('INTERMEDIATE_AMIS_READER', 'AMIS_READER_IP_INTERMEDIATE')
         )        
     else:
