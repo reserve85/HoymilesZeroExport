@@ -1,5 +1,14 @@
 # Changelog
 
+## V1.92
+### script
+* support "Mitterbaur AMIS Lesekopf" (https://github.com/reserve85/HoymilesZeroExport/issues/184)
+### config
+* add `[SELECT_POWERMETER]`: `USE_AMIS_READER` 
+* add `[AMIS_READER]`: `AMIS_READER_IP`
+* add `[SELECT_INTERMEDIATE_METER]`: `USE_AMIS_READER_INTERMEDIATE` 
+* add `[INTERMEDIATE_AMIS_READER]`: `AMIS_READER_IP_INTERMEDIATE`
+
 ## V1.91
 ### script
 * support Home Assistant over HTTPS (https://github.com/reserve85/HoymilesZeroExport/issues/178)

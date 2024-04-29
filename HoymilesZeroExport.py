@@ -15,7 +15,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 __author__ = "Tobias Kraft"
-__version__ = "1.91"
+__version__ = "1.92"
 
 import requests
 import time
@@ -817,6 +817,18 @@ class VZLogger(Powermeter):
     def GetPowermeterWatts(self):
         return CastToInt(self.GetJson()['data'][0]['tuples'][0][1])
 
+class AmisReader(Powermeter):
+    def __init__(self, ip: str):
+        self.ip = ip
+
+    def GetJson(self, path):
+        url = f'http://{self.ip}{path}'
+        return session.get(url, timeout=10).json()
+
+    def GetPowermeterWatts(self):
+        ParsedData = self.GetJson(f'/rest')
+        return CastToInt(ParsedData['saldo'])
+
 class DTU(Powermeter):
     def __init__(self, inverter_count: int):
         self.inverter_count = inverter_count
@@ -1187,6 +1199,10 @@ def CreatePowermeter() -> Powermeter:
             config.get('SCRIPT', 'SCRIPT_USER'),
             config.get('SCRIPT', 'SCRIPT_PASS')
         )
+    elif config.getboolean('SELECT_POWERMETER', 'USE_AMIS_READER'):
+        return AmisReader(
+            config.get('AMIS_READER', 'AMIS_READER_IP')
+        )
     else:
         raise Exception("Error: no powermeter defined!")
 
@@ -1262,6 +1278,10 @@ def CreateIntermediatePowermeter(dtu: DTU) -> Powermeter:
             config.get('INTERMEDIATE_VZLOGGER', 'VZL_PORT_INTERMEDIATE'),
             config.get('INTERMEDIATE_VZLOGGER', 'VZL_UUID_INTERMEDIATE')
         )
+    elif config.getboolean('SELECT_INTERMEDIATE_METER', 'USE_AMIS_READER_INTERMEDIATE'):
+        return AmisReader(
+            config.get('INTERMEDIATE_AMIS_READER', 'AMIS_READER_IP_INTERMEDIATE')
+        )        
     else:
         return dtu
 
