@@ -1,4 +1,4 @@
-#!/bin/sh
+#! /bin/sh
 
 # Script to read powermeter values from a DDSU666 Monophase
 # Needs "mbpoll" (command line utility to communicate with ModBus slave) to be installed, e.g. "apt install mbpoll"
