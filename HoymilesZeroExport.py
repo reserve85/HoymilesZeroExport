@@ -15,7 +15,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 __author__ = "Tobias Kraft"
-__version__ = "1.92"
+__version__ = "1.91"
 
 import requests
 import time
@@ -1117,16 +1117,6 @@ class Script(Powermeter):
     def GetPowermeterWatts(self):
         power = subprocess.check_output([self.file, self.ip, self.user, self.password])
         return CastToInt(power)
-    
-class DDSU666(Powermeter):
-    def __init__(self, device_address: str):
-        self.file = 'GetPowerFromDDSU666.py'
-        self.device_address = device_address
-
-    def GetPowermeterWatts(self):
-        import GetPowerFromDDSU666
-        power = GetPowerFromDDSU666.GetPower(int(self.device_address))
-        return CastToInt(power)
 
 
 def CreatePowermeter() -> Powermeter:
@@ -1196,10 +1186,6 @@ def CreatePowermeter() -> Powermeter:
             config.get('SCRIPT', 'SCRIPT_IP'),
             config.get('SCRIPT', 'SCRIPT_USER'),
             config.get('SCRIPT', 'SCRIPT_PASS')
-        )
-    elif config.getboolean('SELECT_POWERMETER', 'USE_DDSU666'):
-        return DDSU666(
-            config.get('DDSU666', 'DEVICE_ADDRESS')
         )
     else:
         raise Exception("Error: no powermeter defined!")
