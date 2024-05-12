@@ -1,5 +1,12 @@
 # Changelog
 
+## V1.93
+### script
+* support script for intermediate meter (https://github.com/reserve85/HoymilesZeroExport/issues/197)
+### config
+* add `[SELECT_INTERMEDIATE_METER]`: `USE_SCRIPT_INTERMEDIATE` 
+* add section `[INTERMEDIATE_SCRIPT]`
+
 ## V1.92
 ### script
 * support "Mitterbaur AMIS Lesekopf" (https://github.com/reserve85/HoymilesZeroExport/issues/184)

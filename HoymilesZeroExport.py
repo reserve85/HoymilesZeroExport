@@ -15,7 +15,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 __author__ = "Tobias Kraft"
-__version__ = "1.92"
+__version__ = "1.93"
 
 import requests
 import time
@@ -1278,6 +1278,13 @@ def CreateIntermediatePowermeter(dtu: DTU) -> Powermeter:
             config.get('INTERMEDIATE_VZLOGGER', 'VZL_PORT_INTERMEDIATE'),
             config.get('INTERMEDIATE_VZLOGGER', 'VZL_UUID_INTERMEDIATE')
         )
+    elif config.getboolean('SELECT_INTERMEDIATE_METER', 'USE_SCRIPT_INTERMEDIATE'):
+        return Script(
+            config.get('INTERMEDIATE_SCRIPT', 'SCRIPT_FILE_INTERMEDIATE'),
+            config.get('INTERMEDIATE_SCRIPT', 'SCRIPT_IP_INTERMEDIATE'),
+            config.get('INTERMEDIATE_SCRIPT', 'SCRIPT_USER_INTERMEDIATE'),
+            config.get('INTERMEDIATE_SCRIPT', 'SCRIPT_PASS_INTERMEDIATE')
+        )    
     elif config.getboolean('SELECT_INTERMEDIATE_METER', 'USE_AMIS_READER_INTERMEDIATE'):
         return AmisReader(
             config.get('INTERMEDIATE_AMIS_READER', 'AMIS_READER_IP_INTERMEDIATE')
