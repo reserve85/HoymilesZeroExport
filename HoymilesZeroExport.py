@@ -1435,7 +1435,7 @@ logger.info("---Start Zero Export---")
 while True:
     CONFIG_PROVIDER.update()
     on_grid_usage_jump_to_limit_percent = CONFIG_PROVIDER.on_grid_usage_jump_to_limit_percent()
-    on_grid_feed_jump_to_limit_percent = CONFIG_PROVIDER.on_grid_feed_jump_to_limit_percent()    
+    on_grid_feed_fast_limit_decrease = CONFIG_PROVIDER.on_grid_feed_fast_limit_decrease()    
     powermeter_target_point = CONFIG_PROVIDER.get_powermeter_target_point()
     powermeter_max_point = CONFIG_PROVIDER.get_powermeter_max_point()
     powermeter_min_point = CONFIG_PROVIDER.get_powermeter_min_point()
@@ -1466,13 +1466,8 @@ while True:
                     if RemainingDelay > 0:
                         time.sleep(RemainingDelay)
                         break
-                elif powermeterWatts < powermeter_min_point:
-                    if on_grid_feed_jump_to_limit_percent > 0:
-                        newLimitSetpoint = CastToInt(GetMaxInverterWattFromAllInverters() * on_grid_feed_jump_to_limit_percent / 100)
-                        if (newLimitSetpoint >= PreviousLimitSetpoint) and (on_grid_feed_jump_to_limit_percent != 100):
-                            newLimitSetpoint = PreviousLimitSetpoint + powermeterWatts - powermeter_target_point
-                    else:
-                        newLimitSetpoint = PreviousLimitSetpoint + powermeterWatts - powermeter_target_point
+                elif (powermeterWatts < powermeter_min_point) and on_grid_feed_fast_limit_decrease:
+                    newLimitSetpoint = PreviousLimitSetpoint + powermeterWatts - powermeter_target_point
                     newLimitSetpoint = ApplyLimitsToSetpoint(newLimitSetpoint)
                     SetLimit(newLimitSetpoint)
                     RemainingDelay = CastToInt((LOOP_INTERVAL_IN_SECONDS / POLL_INTERVAL_IN_SECONDS - x) * POLL_INTERVAL_IN_SECONDS)
