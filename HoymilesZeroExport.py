@@ -15,7 +15,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 __author__ = "Tobias Kraft"
-__version__ = "1.93"
+__version__ = "1.94"
 
 import requests
 import time
@@ -1435,8 +1435,10 @@ logger.info("---Start Zero Export---")
 while True:
     CONFIG_PROVIDER.update()
     on_grid_usage_jump_to_limit_percent = CONFIG_PROVIDER.on_grid_usage_jump_to_limit_percent()
+    on_grid_feed_jump_to_limit_percent = CONFIG_PROVIDER.on_grid_feed_jump_to_limit_percent()    
     powermeter_target_point = CONFIG_PROVIDER.get_powermeter_target_point()
     powermeter_max_point = CONFIG_PROVIDER.get_powermeter_max_point()
+    powermeter_min_point = CONFIG_PROVIDER.get_powermeter_min_point()
     powermeter_tolerance = CONFIG_PROVIDER.get_powermeter_tolerance()
     if powermeter_max_point < (powermeter_target_point + powermeter_tolerance):
         powermeter_max_point = powermeter_target_point + powermeter_tolerance + 50
@@ -1455,6 +1457,19 @@ while True:
                     if on_grid_usage_jump_to_limit_percent > 0:
                         newLimitSetpoint = CastToInt(GetMaxInverterWattFromAllInverters() * on_grid_usage_jump_to_limit_percent / 100)
                         if (newLimitSetpoint <= PreviousLimitSetpoint) and (on_grid_usage_jump_to_limit_percent != 100):
+                            newLimitSetpoint = PreviousLimitSetpoint + powermeterWatts - powermeter_target_point
+                    else:
+                        newLimitSetpoint = PreviousLimitSetpoint + powermeterWatts - powermeter_target_point
+                    newLimitSetpoint = ApplyLimitsToSetpoint(newLimitSetpoint)
+                    SetLimit(newLimitSetpoint)
+                    RemainingDelay = CastToInt((LOOP_INTERVAL_IN_SECONDS / POLL_INTERVAL_IN_SECONDS - x) * POLL_INTERVAL_IN_SECONDS)
+                    if RemainingDelay > 0:
+                        time.sleep(RemainingDelay)
+                        break
+                elif powermeterWatts < powermeter_min_point:
+                    if on_grid_feed_jump_to_limit_percent > 0:
+                        newLimitSetpoint = CastToInt(GetMaxInverterWattFromAllInverters() * on_grid_feed_jump_to_limit_percent / 100)
+                        if (newLimitSetpoint >= PreviousLimitSetpoint) and (on_grid_feed_jump_to_limit_percent != 100):
                             newLimitSetpoint = PreviousLimitSetpoint + powermeterWatts - powermeter_target_point
                     else:
                         newLimitSetpoint = PreviousLimitSetpoint + powermeterWatts - powermeter_target_point

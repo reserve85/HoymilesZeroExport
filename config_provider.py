@@ -25,12 +25,26 @@ class ConfigProvider:
         If you defined ON_GRID_USAGE_JUMP_TO_LIMIT_PERCENT > 0, then the limit will jump to the defined percent when reaching this point.
         """
         pass
+    
+    def get_powermeter_min_point(self):
+        """
+        The minimum power of your powermeter for the normal "regulation loop".
+        if your powermeter jumps under this point, the limit will be reduced instantly. it is like a "super high priority limit change".
+        if you defined ON_GRID_FEED_JUMP_TO_LIMIT_PERCENT > 0, then the limit will jump to the defined percent when it is lower than this point.
+        """
+        pass
 
     def on_grid_usage_jump_to_limit_percent(self):
         """
         If the powermeter jumps over the max point, the limit will be increased to this percent of the powermeter value.
         """
         pass
+    
+    def on_grid_feed_jump_to_limit_percent(self):
+        """
+        If the powermeter falls below the min point, the limit will be increased to this percent of the powermeter value.
+        """
+        pass    
 
     def get_powermeter_tolerance(self):
         """
@@ -85,12 +99,18 @@ class ConfigFileConfigProvider(ConfigProvider):
 
     def get_powermeter_max_point(self):
         return self.config.getint('CONTROL', 'POWERMETER_MAX_POINT')
+    
+    def get_powermeter_min_point(self):
+        return self.config.getint('CONTROL', 'POWERMETER_MIN_POINT')
 
     def get_powermeter_tolerance(self):
         return self.config.getint('CONTROL', 'POWERMETER_TOLERANCE')
 
     def on_grid_usage_jump_to_limit_percent(self):
         return self.config.getint('COMMON', 'ON_GRID_USAGE_JUMP_TO_LIMIT_PERCENT')
+    
+    def on_grid_feed_jump_to_limit_percent(self):
+        return self.config.getint('COMMON', 'ON_GRID_FEED_JUMP_TO_LIMIT_PERCENT')    
 
     def get_min_wattage_in_percent(self, inverter_idx):
         return self.config.getint('INVERTER_' + str(inverter_idx + 1), 'HOY_MIN_WATT_IN_PERCENT')
@@ -152,7 +172,7 @@ class OverridingConfigProvider(ConfigProvider):
             else:
                 logger.error(f"Unknown inverter key {key}")
         else:
-            if key in ['powermeter_target_point', 'powermeter_max_point', 'powermeter_tolerance', 'on_grid_usage_jump_to_limit_percent']:
+            if key in ['powermeter_target_point', 'powermeter_max_point', 'powermeter_min_point', 'powermeter_tolerance', 'on_grid_usage_jump_to_limit_percent', 'on_grid_feed_jump_to_limit_percent']:
                 return int(value)
             else:
                 logger.error(f"Unknown common key {key}")
@@ -185,11 +205,17 @@ class OverridingConfigProvider(ConfigProvider):
     def get_powermeter_max_point(self):
         return self.common_config.get('powermeter_max_point')
 
+    def get_powermeter_min_point(self):
+        return self.common_config.get('powermeter_min_point')    
+
     def get_powermeter_tolerance(self):
         return self.common_config.get('powermeter_tolerance')
 
     def on_grid_usage_jump_to_limit_percent(self):
         return self.common_config.get('on_grid_usage_jump_to_limit_percent')
+    
+    def on_grid_feed_jump_to_limit_percent(self):
+        return self.common_config.get('on_grid_feed_jump_to_limit_percent')    
 
     def get_min_wattage_in_percent(self, inverter_idx):
         if inverter_idx >= len(self.inverter_config):
@@ -226,8 +252,10 @@ class MqttConfigProvider(OverridingConfigProvider):
         self.reset_topic = reset_topic
         self.target_point = None
         self.max_point = None
+        self.min_point = None
         self.tolerance = None
         self.on_grid_usage_jump_to_limit_percent = None
+        self.on_grid_feed_jump_to_limit_percent = None
         self.min_wattage_in_percent = []
         self.normal_wattage = []
         self.reduce_wattage = []

@@ -1,5 +1,12 @@
 # Changelog
 
+## V1.94
+### script
+* add script functionality for a super high priority limit change if your powermeter falls below POWERMETER_MIN_POINT (https://github.com/reserve85/HoymilesZeroExport/issues/197)
+### config
+* add `[CONTROL]`: `POWERMETER_MIN_POINT`
+* add `[COMMON]`: `ON_GRID_FEED_JUMP_TO_LIMIT_PERCENT`
+
 ## V1.93
 ### script
 * support script for intermediate meter (https://github.com/reserve85/HoymilesZeroExport/issues/197)
