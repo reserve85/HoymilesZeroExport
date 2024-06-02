@@ -1,5 +1,15 @@
 # Changelog
 
+## V1.95
+### script
+* publish an online/offline status message to MQTT
+* publish config state to MQTT
+* publish the current (inverter) limit to MQTT
+* publish logs to MQTT
+### config
+* replace `MQTT_CONFIG`:`MQTT_SET_TOPIC` and `MQTT_CONFIG`:`MQTT_RESET_TOPIC` with `MQTT_CONFIG`:`MQTT_TOPIC_PREFIX`
+* add `MQTT_CONFIG`:`MQTT_LOG_LEVEL` - if set, log messages will be published to MQTT
+
 ## V1.94
 ### script
 * add script functionality for a super high priority limit change if your powermeter falls below POWERMETER_MIN_POINT (https://github.com/reserve85/HoymilesZeroExport/issues/200)

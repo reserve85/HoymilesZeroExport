@@ -155,6 +155,39 @@ services:
     command: -c /app/config.ini
 ```
 
+## MQTT
+The script can optionally be controlled via MQTT. To enable this feature, you need to configure the `[MQTT_CONFIG]` section in the configuration file.
+Once configured, the script will listen for incoming MQTT messages on the specified topic and act accordingly.
+- `zeropower/set/powermeter_target_point`: To change the target point of the powermeter
+- `zeropower/set/powermeter_max_point`: To change the max point of the powermeter
+- `zeropower/set/powermeter_min_point`: To change the min point of the powermeter
+- `zeropower/set/powermeter_tolerance`: To change the tolerance of the powermeter
+- `zeropower/set/on_grid_usage_jump_to_limit_percent`: To change the on grid usage jump to limit percent
+- `zeropower/set/on_grid_feed_fast_limit_decrease`: To enable or disable the on grid feed fast limit decrease
+- `zeropower/set/inverter/0/min_watt_in_percent`: To change the min watt in percent of the first inverter
+- `zeropower/set/inverter/0/normal_watt`: To change the battery normal watt of the first inverter
+- `zeropower/set/inverter/0/reduce_watt`: To change the battery reduce watt of the first inverter
+- `zeropower/set/inverter/0/battery_priority`: To change the battery priority of the first inverter
+- `zeropower/set/inverter/<n>/*`: To change the settings of the (n+1)th inverter
+
+To reset a setting to its original value, you can send an empty message to the corresponding topic replacing `set` with `reset`, e.g. `zeropower/reset/powermeter_target_point`.
+
+Additionally, the script will publish the following MQTT messages:
+- `zeropower/status`: The current status of the script. Possible values are `online` and `offline`
+- `zeropower/state/powermeter_target_point`: The current target point of the powermeter
+- `zeropower/state/powermeter_max_point`: The current max point of the powermeter
+- `zeropower/state/powermeter_min_point`: The current min point of the powermeter
+- `zeropower/state/powermeter_tolerance`: The current tolerance of the powermeter
+- `zeropower/state/on_grid_usage_jump_to_limit_percent`: The current on grid usage jump to limit percent
+- `zeropower/state/on_grid_feed_fast_limit_decrease`: The current on grid feed fast limit decrease
+- `zeropower/state/inverter/0/min_watt_in_percent`: The current min watt in percent of the first inverter
+- `zeropower/state/inverter/0/normal_watt`: The current battery normal watt of the first inverter
+- `zeropower/state/inverter/0/reduce_watt`: The current battery reduce watt of the first inverter
+- `zeropower/state/inverter/0/battery_priority`: The current battery priority of the first inverter
+- `zeropower/state/inverter/<n>/*`: The current settings of the (n+1)th inverter
+
+The script can also be configured to publish log messages to MQTT. To enable this feature, you need to set `MQTT_LOG_LEVEL` to `INFO`, which will publish all log messages to the topic `zeropower/log`.
+
 ## Special thanks to:
 - https://github.com/lumapu/ahoy
 - https://github.com/tbnobody/OpenDTU
