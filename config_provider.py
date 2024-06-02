@@ -1,3 +1,4 @@
+import json
 import logging
 from configparser import ConfigParser
 
@@ -333,10 +334,23 @@ class MqttHandler(OverridingConfigProvider):
     def publish_inverter_state(self, inverter_idx, key, value):
         self.mqtt_client.publish(f"{self.topic_prefix}/state/inverter/{inverter_idx}/{key}", payload=self.cast_value_for_publish(value))
 
-    def publish_log_record(self, record):
+    def publish_log_record(self, record: logging.LogRecord):
         if self.log_level is None or record.levelno < self.log_level:
             return
-        self.mqtt_client.publish(f"{self.topic_prefix}/log", payload=record.getMessage())
+
+        # Create a dictionary with the log record details
+        log_message = {
+            'name': record.name,
+            'level': record.levelname,
+            'msg': record.getMessage(),
+            'exc_info': record.exc_info
+        }
+
+        # Convert the dictionary to a JSON-formatted string
+        json_payload = json.dumps(log_message)
+
+        # Publish the JSON-formatted log message to the MQTT topic
+        self.mqtt_client.publish(f"{self.topic_prefix}/log", payload=json_payload)
 
     def __del__(self):
         logger.info("Disconnecting MQTT client")
