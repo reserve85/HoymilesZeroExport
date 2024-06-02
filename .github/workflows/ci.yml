@@ -53,8 +53,20 @@ jobs:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Build and push
+      - name: Build
+        if: github.event_name == 'pull_request'
         id: build
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          platforms: ${{ matrix.platform }}
+          file: ./Dockerfile
+          labels: ${{ steps.meta.outputs.labels }}
+          outputs: type=docker,name=${{ env.REGISTRY }}/${{ steps.lower-repo.outputs.IMAGE_NAME }}
+          build-args: BASE=${{ matrix.base }}
+      - name: Build and push
+        if: github.event_name != 'pull_request'
+        id: build_push
         uses: docker/build-push-action@v5
         with:
           context: .
@@ -64,11 +76,13 @@ jobs:
           outputs: type=image,name=${{ env.REGISTRY }}/${{ steps.lower-repo.outputs.IMAGE_NAME }},push-by-digest=true,name-canonical=true,push=true
           build-args: BASE=${{ matrix.base }}
       - name: Export digest
+        if: github.event_name != 'pull_request'
         run: |
           mkdir -p /tmp/digests
           digest="${{ steps.build.outputs.digest }}"
           touch "/tmp/digests/${digest#sha256:}"          
       - name: Upload digest
+        if: github.event_name != 'pull_request'
         uses: actions/upload-artifact@v3
         with:
           name: digests
@@ -78,6 +92,7 @@ jobs:
 
   merge:
     runs-on: ubuntu-latest
+    if: github.event_name != 'pull_request'
     permissions:
       contents: read
       packages: write
