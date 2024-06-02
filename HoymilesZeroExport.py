@@ -17,7 +17,6 @@
 __author__ = "Tobias Kraft"
 __version__ = "1.94"
 
-import requests
 import time
 from requests.sessions import Session
 from requests.auth import HTTPBasicAuth
@@ -826,7 +825,7 @@ class AmisReader(Powermeter):
         return session.get(url, timeout=10).json()
 
     def GetPowermeterWatts(self):
-        ParsedData = self.GetJson(f'/rest')
+        ParsedData = self.GetJson('/rest')
         return CastToInt(ParsedData['saldo'])
 
 class DTU(Powermeter):
