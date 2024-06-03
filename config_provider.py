@@ -1,3 +1,4 @@
+import json
 import logging
 from configparser import ConfigParser
 
@@ -239,31 +240,24 @@ class OverridingConfigProvider(ConfigProvider):
         return self.inverter_config[inverter_idx].get('battery_priority')
 
 
-class MqttConfigProvider(OverridingConfigProvider):
+class MqttHandler(OverridingConfigProvider):
     """
     Config provider that subscribes to a MQTT topic and updates the configuration from the messages.
     """
-    def __init__(self, mqtt_broker, mqtt_port, client_id, mqtt_username, mqtt_password, set_topic, reset_topic):
+    def __init__(self, mqtt_broker, mqtt_port, client_id, mqtt_username, mqtt_password, topic_prefix, log_level):
         super().__init__()
         self.mqtt_broker = mqtt_broker
         self.mqtt_port = mqtt_port
         self.mqtt_username = mqtt_username
         self.mqtt_password = mqtt_password
-        self.set_topic = set_topic
-        self.reset_topic = reset_topic
-        self.target_point = None
-        self.max_point = None
-        self.min_point = None
-        self.tolerance = None
-        self.on_grid_usage_jump_to_limit_percent = None
-        self.on_grid_feed_fast_limit_decrease = None
-        self.min_wattage_in_percent = []
-        self.normal_wattage = []
-        self.reduce_wattage = []
-        self.battery_priority = []
+        self.topic_prefix = topic_prefix
+        self.set_topic = f"{self.topic_prefix}/set"
+        self.reset_topic = f"{self.topic_prefix}/reset"
+        self.log_level = log_level
 
         import paho.mqtt.client as mqtt
         self.mqtt_client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, client_id=client_id)
+        self.mqtt_client.will_set(f"{self.topic_prefix}/status", payload="offline", qos=1, retain=True)
         self.mqtt_client.on_connect = self.on_connect
         self.mqtt_client.on_message = self.on_message
         if self.mqtt_username is not None:
@@ -271,10 +265,19 @@ class MqttConfigProvider(OverridingConfigProvider):
         self.mqtt_client.connect(self.mqtt_broker, self.mqtt_port)
         self.mqtt_client.loop_start()
 
+    def update(self):
+        # Publish all config values to MQTT
+        for key, value in self.common_config.items():
+            self.mqtt_client.publish(f"{self.topic_prefix}/state/{key}", payload=value, qos=1, retain=True)
+        for inverter_idx, inverter_config in enumerate(self.inverter_config):
+            for key, value in inverter_config.items():
+                self.mqtt_client.publish(f"{self.topic_prefix}/state/inverter/{inverter_idx}/{key}", payload=value, qos=1, retain=True)
+
     def on_connect(self, client, userdata, flags, reason_code, properties):
         print("Connected with result code " + str(reason_code))
         client.subscribe(f"{self.set_topic}/#")
         client.subscribe(f"{self.reset_topic}/#")
+        client.publish(f"{self.topic_prefix}/status", payload="online", qos=1, retain=True)
 
     def on_message(self, client, userdata, msg):
         try:
@@ -319,6 +322,35 @@ class MqttConfigProvider(OverridingConfigProvider):
             set_inverter_value(inverter, key)
         else:
             set_common_value(topic_suffix)
+
+    def cast_value_for_publish(self, value):
+        if type(value) == bool:
+            return "true" if value else "false"
+        return value
+
+    def publish_state(self, key, value):
+        self.mqtt_client.publish(f"{self.topic_prefix}/state/{key}", payload=self.cast_value_for_publish(value))
+
+    def publish_inverter_state(self, inverter_idx, key, value):
+        self.mqtt_client.publish(f"{self.topic_prefix}/state/inverter/{inverter_idx}/{key}", payload=self.cast_value_for_publish(value))
+
+    def publish_log_record(self, record: logging.LogRecord):
+        if self.log_level is None or record.levelno < self.log_level:
+            return
+
+        # Create a dictionary with the log record details
+        log_message = {
+            'name': record.name,
+            'level': record.levelname,
+            'msg': record.getMessage(),
+            'exc_info': record.exc_info
+        }
+
+        # Convert the dictionary to a JSON-formatted string
+        json_payload = json.dumps(log_message)
+
+        # Publish the JSON-formatted log message to the MQTT topic
+        self.mqtt_client.publish(f"{self.topic_prefix}/log", payload=json_payload)
 
     def __del__(self):
         logger.info("Disconnecting MQTT client")

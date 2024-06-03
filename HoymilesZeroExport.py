@@ -32,7 +32,7 @@ import sys
 from packaging import version
 import argparse 
 import subprocess
-from config_provider import ConfigFileConfigProvider, MqttConfigProvider, ConfigProviderChain
+from config_provider import ConfigFileConfigProvider, MqttHandler, ConfigProviderChain
 
 session = Session()
 logging.basicConfig(
@@ -116,8 +116,12 @@ def SetLimitWithPriority(pLimit):
         logger.info("setting new limit to %s Watt",CastToInt(pLimit))
         SetLimitWithPriority.LastLimit = CastToInt(pLimit)
         SetLimitWithPriority.LastLimitAck = True
-        if (CastToInt(pLimit) <= GetMinWattFromAllInverters()):
+        min_watt_all_inverters = GetMinWattFromAllInverters()
+        if (CastToInt(pLimit) <= min_watt_all_inverters):
             pLimit = 0 # set only minWatt for every inv.
+            PublishGlobalState("limit", min_watt_all_inverters)
+        else:
+            PublishGlobalState("limit", CastToInt(pLimit))
         RemainingLimit = CastToInt(pLimit)
         for j in range (1,6):
             if GetMaxWattFromAllInvertersSamePrio(j) <= 0:
@@ -146,6 +150,7 @@ def SetLimitWithPriority(pLimit):
 
                 LASTLIMITACKNOWLEDGED[i] = True
 
+                PublishInverterState(i, "limit", NewLimit)
                 DTU.SetLimit(i, NewLimit)
                 if not DTU.WaitForAck(i, SET_LIMIT_TIMEOUT_SECONDS):
                     SetLimitWithPriority.LastLimitAck = False
@@ -171,8 +176,12 @@ def SetLimitMixedModeWithPriority(pLimit):
         logger.info("setting new limit to %s Watt",CastToInt(pLimit))
         SetLimitMixedModeWithPriority.LastLimit = CastToInt(pLimit)
         SetLimitMixedModeWithPriority.LastLimitAck = True
-        if (CastToInt(pLimit) <= GetMinWattFromAllInverters()):
+        min_watt_all_inverters = GetMinWattFromAllInverters()
+        if (CastToInt(pLimit) <= min_watt_all_inverters):
             pLimit = 0 # set only minWatt for every inv.
+            PublishGlobalState("limit", min_watt_all_inverters)
+        else:
+            PublishGlobalState("limit", CastToInt(pLimit))
         RemainingLimit = CastToInt(pLimit)
 
         # Handle non-battery inverters first
@@ -202,6 +211,7 @@ def SetLimitMixedModeWithPriority(pLimit):
 
             LASTLIMITACKNOWLEDGED[i] = True
 
+            PublishInverterState(i, "limit", NewLimit)
             DTU.SetLimit(i, NewLimit)
             if not DTU.WaitForAck(i, SET_LIMIT_TIMEOUT_SECONDS):
                 SetLimitMixedModeWithPriority.LastLimitAck = False
@@ -242,6 +252,7 @@ def SetLimitMixedModeWithPriority(pLimit):
 
                 LASTLIMITACKNOWLEDGED[i] = True
 
+                PublishInverterState(i, "limit", NewLimit)
                 DTU.SetLimit(i, NewLimit)
                 if not DTU.WaitForAck(i, SET_LIMIT_TIMEOUT_SECONDS):
                     SetLimitMixedModeWithPriority.LastLimitAck = False
@@ -304,8 +315,12 @@ def SetLimit(pLimit):
         logger.info("setting new limit to %s Watt",CastToInt(pLimit))
         SetLimit.LastLimit = CastToInt(pLimit)
         SetLimit.LastLimitAck = True
-        if (CastToInt(pLimit) <= GetMinWattFromAllInverters()):
+        min_watt_all_inverters = GetMinWattFromAllInverters()
+        if (CastToInt(pLimit) <= min_watt_all_inverters):
             pLimit = 0 # set only minWatt for every inv.
+            PublishGlobalState("limit", min_watt_all_inverters)
+        else:
+            PublishGlobalState("limit", CastToInt(pLimit))
         for i in range(INVERTER_COUNT):
             if (not AVAILABLE[i]) or (not HOY_BATTERY_GOOD_VOLTAGE[i]):
                 continue
@@ -322,6 +337,7 @@ def SetLimit(pLimit):
 
             LASTLIMITACKNOWLEDGED[i] = True
 
+            PublishInverterState(i, "limit", NewLimit)
             DTU.SetLimit(i, NewLimit)
             if not DTU.WaitForAck(i, SET_LIMIT_TIMEOUT_SECONDS):
                 SetLimit.LastLimitAck = False
@@ -621,6 +637,32 @@ def GetPriorityMode():
             if CONFIG_PROVIDER.get_battery_priority(i) != CONFIG_PROVIDER.get_battery_priority(j):
                 return True
     return False
+
+def PublishConfigState():
+    if MQTT is None:
+        return
+    MQTT.publish_state("on_grid_usage_jump_to_limit_percent", CONFIG_PROVIDER.on_grid_usage_jump_to_limit_percent())
+    MQTT.publish_state("on_grid_feed_fast_limit_decrease", CONFIG_PROVIDER.on_grid_feed_fast_limit_decrease())
+    MQTT.publish_state("powermeter_target_point", CONFIG_PROVIDER.get_powermeter_target_point())
+    MQTT.publish_state("powermeter_max_point", CONFIG_PROVIDER.get_powermeter_max_point())
+    MQTT.publish_state("powermeter_min_point", CONFIG_PROVIDER.get_powermeter_min_point())
+    MQTT.publish_state("powermeter_tolerance", CONFIG_PROVIDER.get_powermeter_tolerance())
+    MQTT.publish_state("inverter_count", INVERTER_COUNT)
+    for i in range(INVERTER_COUNT):
+        MQTT.publish_inverter_state(i, "min_watt_in_percent", CONFIG_PROVIDER.get_min_wattage_in_percent(i))
+        MQTT.publish_inverter_state(i, "normal_watt", CONFIG_PROVIDER.get_normal_wattage(i))
+        MQTT.publish_inverter_state(i, "reduce_watt", CONFIG_PROVIDER.get_reduce_wattage(i))
+        MQTT.publish_inverter_state(i, "battery_priority", CONFIG_PROVIDER.get_battery_priority(i))
+
+def PublishGlobalState(state_name, state_value):
+    if MQTT is None:
+        return
+    MQTT.publish_state(state_name, state_value)
+
+def PublishInverterState(inverter_idx, state_name, state_value):
+    if MQTT is None:
+        return
+    MQTT.publish_inverter_state(inverter_idx, state_name, state_value)
 
 class Powermeter:
     def GetPowermeterWatts(self) -> int:
@@ -1401,16 +1443,26 @@ for i in range(INVERTER_COUNT):
 SLOW_APPROX_LIMIT = CastToInt(GetMaxWattFromAllInverters() * config.getint('COMMON', 'SLOW_APPROX_LIMIT_IN_PERCENT') / 100)
 
 CONFIG_PROVIDER = ConfigFileConfigProvider(config)
+MQTT = None
 if config.has_section("MQTT_CONFIG"):
     broker = config.get("MQTT_CONFIG", "MQTT_BROKER")
     port = config.getint("MQTT_CONFIG", "MQTT_PORT", fallback=1883)
     client_id = config.get("MQTT_CONFIG", "MQTT_CLIENT_ID", fallback="HoymilesZeroExport")
     username = config.get("MQTT_CONFIG", "MQTT_USERNAME", fallback=None)
     password = config.get("MQTT_CONFIG", "MQTT_PASSWORD", fallback=None)
-    set_topic = config.get("MQTT_CONFIG", "MQTT_SET_TOPIC", fallback="zeropower/set")
-    reset_topic = config.get("MQTT_CONFIG", "MQTT_RESET_TOPIC", fallback="zeropower/reset")
-    mqtt_config_provider = MqttConfigProvider(broker, port, client_id, username, password, set_topic, reset_topic)
-    CONFIG_PROVIDER = ConfigProviderChain([mqtt_config_provider, CONFIG_PROVIDER])
+    topic_prefix = config.get("MQTT_CONFIG", "MQTT_SET_TOPIC", fallback="zeropower")
+    log_level_config_value = config.get("MQTT_CONFIG", "MQTT_LOG_LEVEL", fallback=None)
+    mqtt_log_level = logging.getLevelName(log_level_config_value) if log_level_config_value else None
+    MQTT = MqttHandler(broker, port, client_id, username, password, topic_prefix, mqtt_log_level)
+
+    if mqtt_log_level is not None:
+        class MqttLogHandler(logging.Handler):
+            def emit(self, record):
+                MQTT.publish_log_record(record)
+
+        logger.addHandler(MqttLogHandler())
+
+    CONFIG_PROVIDER = ConfigProviderChain([MQTT, CONFIG_PROVIDER])
 
 try:
     logger.info("---Init---")
@@ -1433,6 +1485,7 @@ logger.info("---Start Zero Export---")
 
 while True:
     CONFIG_PROVIDER.update()
+    PublishConfigState()
     on_grid_usage_jump_to_limit_percent = CONFIG_PROVIDER.on_grid_usage_jump_to_limit_percent()
     on_grid_feed_fast_limit_decrease = CONFIG_PROVIDER.on_grid_feed_fast_limit_decrease()    
     powermeter_target_point = CONFIG_PROVIDER.get_powermeter_target_point()
