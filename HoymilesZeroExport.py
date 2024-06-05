@@ -15,7 +15,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 __author__ = "Tobias Kraft"
-__version__ = "1.95"
+__version__ = "1.96"
 
 import time
 from requests.sessions import Session
@@ -397,7 +397,7 @@ def GetHoymilesPanelMinVoltage(pInverterId):
         HOY_PANEL_MIN_VOLTAGE_HISTORY_LIST[pInverterId].append(DTU.GetPanelMinVoltage(pInverterId))
         
         # calculate mean over last x values
-        if len(HOY_PANEL_MIN_VOLTAGE_HISTORY_LIST[pInverterId]) > 5:
+        if len(HOY_PANEL_MIN_VOLTAGE_HISTORY_LIST[pInverterId]) > HOY_BATTERY_AVERAGE_CNT[pInverterId]:
             HOY_PANEL_MIN_VOLTAGE_HISTORY_LIST[pInverterId].pop(0)
         from statistics import mean
         
@@ -1439,7 +1439,7 @@ for i in range(INVERTER_COUNT):
     HOY_BATTERY_IGNORE_PANELS.append(config.get('INVERTER_' + str(i + 1), 'HOY_BATTERY_IGNORE_PANELS'))
     HOY_PANEL_VOLTAGE_LIST.append([])
     HOY_PANEL_MIN_VOLTAGE_HISTORY_LIST.append([])
-    HOY_BATTERY_AVERAGE_CNT.append(config.getint('INVERTER_' + str(i + 1), 'HOY_BATTERY_AVERAGE_CNT'))
+    HOY_BATTERY_AVERAGE_CNT.append(config.getint('INVERTER_' + str(i + 1), 'HOY_BATTERY_AVERAGE_CNT', fallback=1))
 SLOW_APPROX_LIMIT = CastToInt(GetMaxWattFromAllInverters() * config.getint('COMMON', 'SLOW_APPROX_LIMIT_IN_PERCENT') / 100)
 
 CONFIG_PROVIDER = ConfigFileConfigProvider(config)

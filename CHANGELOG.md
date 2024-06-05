@@ -1,5 +1,9 @@
 # Changelog
 
+## V 1.96
+### script
+* bugfix: value of HOY_BATTERY_AVERAGE_CNT was ignored
+
 ## V1.95
 ### script
 * publish an online/offline status message to MQTT
