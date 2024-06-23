@@ -82,9 +82,9 @@ if ENABLE_LOG_TO_FILE:
 logger.info('Log write to file: %s', ENABLE_LOG_TO_FILE)
 logger.info('Python Version: ' + sys.version)
 try:
-    assert sys.version_info >= (3,6)
+    assert sys.version_info >= (3,8)
 except:
-    logger.info('Error: your Python version is too old, this script requires version 3.6 or newer. Please update your Python.')
+    logger.info('Error: your Python version is too old, this script requires version 3.8 or newer. Please update your Python.')
     sys.exit()
 
 def CastToInt(pValueToCast):
