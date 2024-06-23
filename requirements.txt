@@ -5,3 +5,4 @@ packaging==23.2
 requests==2.31.0
 urllib3==2.1.0
 paho-mqtt==2.0.0
+jsonpath_ng==1.6.1

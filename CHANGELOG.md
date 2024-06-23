@@ -1,5 +1,14 @@
 # Changelog
 
+## V 1.97
+### script
+* add support for MQTT meter and intermediate meter
+### config
+* add `[SELECT_POWERMETER]`: `USE_MQTT`
+* add `[SELECT_INTERMEDIATE_METER]`: `USE_MQTT_INTERMEDIATE`
+* add section `[MQTT_POWERMETER]`
+* add section `[MQTT_INTERMEDIATE_METER]`
+
 ## V 1.96
 ### script
 * bugfix: value of HOY_BATTERY_AVERAGE_CNT was ignored
