@@ -39,7 +39,7 @@ You can set various limits to support battery powered Hoymiles Inverters
 
 ## Linux installation
 
-Make sure you have Python 3.9.2 or greater installed:
+Make sure you have Python 3.8 or greater installed:
 ```sh
 python3 --version
 ```
