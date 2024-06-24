@@ -15,7 +15,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 __author__ = "Tobias Kraft"
-__version__ = "1.96"
+__version__ = "1.97"
 
 import time
 from requests.sessions import Session
@@ -33,6 +33,7 @@ from packaging import version
 import argparse 
 import subprocess
 from config_provider import ConfigFileConfigProvider, MqttHandler, ConfigProviderChain
+import json
 
 session = Session()
 logging.basicConfig(
@@ -1172,6 +1173,88 @@ class Script(Powermeter):
         return CastToInt(power)
 
 
+def extract_json_value(data, path):
+    from jsonpath_ng import parse
+    jsonpath_expr = parse(path)
+    match = jsonpath_expr.find(data)
+    if match:
+        return int(float(match[0].value))
+    else:
+        raise ValueError("No match found for the JSON path")
+
+
+class MqttPowermeter(Powermeter):
+    def __init__(
+        self,
+        broker: str,
+        port: int,
+        topic_incoming: str,
+        json_path_incoming: str = None,
+        topic_outgoing: str = None,
+        json_path_outgoing: str = None,
+        username: str = None,
+        password: str = None,
+    ):
+        self.broker = broker
+        self.port = port
+        self.topic_incoming = topic_incoming
+        self.json_path_incoming = json_path_incoming
+        self.topic_outgoing = topic_outgoing
+        self.json_path_outgoing = json_path_outgoing
+        self.username = username
+        self.password = password
+        self.value_incoming = None
+        self.value_outgoing = None
+
+        # Initialize MQTT client
+        import paho.mqtt.client as mqtt
+        self.client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
+        if self.username and self.password:
+            self.client.username_pw_set(self.username, self.password)
+        self.client.on_connect = self.on_connect
+        self.client.on_message = self.on_message
+
+        # Connect to the broker
+        self.client.connect(self.broker, self.port)
+        self.client.loop_start()
+
+    def on_connect(self, client, userdata, flags, reason_code, properties):
+        logger.info(f"Connected with result code {reason_code}")
+        # Subscribe to the topics
+        client.subscribe(self.topic_incoming)
+        logger.info(f"Subscribed to topic {self.topic_incoming}")
+        if self.topic_outgoing and self.topic_outgoing != self.topic_incoming:
+            client.subscribe(self.topic_outgoing)
+            logger.info(f"Subscribed to topic {self.topic_outgoing}")
+
+    def on_message(self, client, userdata, msg):
+        payload = msg.payload.decode()
+        try:
+            data = json.loads(payload)
+            if msg.topic == self.topic_incoming:
+                self.value_incoming = extract_json_value(data, self.json_path_incoming) if self.json_path_incoming else int(float(payload))
+                logger.info('MQTT: Incoming power: %s Watt', self.value_incoming)
+            elif msg.topic == self.topic_outgoing:
+                self.value_outgoing = extract_json_value(data, self.json_path_outgoing) if self.json_path_outgoing else int(float(payload))
+                logger.info('MQTT: Outgoing power: %s Watt', self.value_outgoing)
+        except json.JSONDecodeError:
+            print("Failed to decode JSON")
+
+    def GetPowermeterWatts(self):
+        if self.value_incoming is None:
+            self.wait_for_message("incoming")
+        if self.topic_outgoing and self.value_outgoing is None:
+            self.wait_for_message("outgoing")
+
+        return self.value_incoming - (self.value_outgoing if self.value_outgoing is not None else 0)
+
+    def wait_for_message(self, message_type, timeout=5):
+        start_time = time.time()
+        while (message_type == "incoming" and self.value_incoming is None) or (message_type == "outgoing" and self.value_outgoing is None):
+            if time.time() - start_time > timeout:
+                raise TimeoutError(f"Timeout waiting for MQTT {message_type} message")
+            time.sleep(1)
+
 def CreatePowermeter() -> Powermeter:
     shelly_ip = config.get('SHELLY', 'SHELLY_IP')
     shelly_user = config.get('SHELLY', 'SHELLY_USER')
@@ -1243,6 +1326,17 @@ def CreatePowermeter() -> Powermeter:
     elif config.getboolean('SELECT_POWERMETER', 'USE_AMIS_READER'):
         return AmisReader(
             config.get('AMIS_READER', 'AMIS_READER_IP')
+        )
+    elif config.getboolean('SELECT_POWERMETER', 'USE_MQTT'):
+        return MqttPowermeter(
+            config.get('MQTT_POWERMETER', 'MQTT_BROKER', fallback=config.get("MQTT_CONFIG", "MQTT_BROKER", fallback=None)),
+            config.getint('MQTT_POWERMETER', 'MQTT_PORT', fallback=config.getint("MQTT_CONFIG", "MQTT_PORT", fallback=1883)),
+            config.get('MQTT_POWERMETER', 'MQTT_TOPIC_INCOMING'),
+            config.get('MQTT_POWERMETER', 'MQTT_JSON_PATH_INCOMING', fallback=None),
+            config.get('MQTT_POWERMETER', 'MQTT_TOPIC_OUTGOING', fallback=None),
+            config.get('MQTT_POWERMETER', 'MQTT_JSON_PATH_OUTGOING', fallback=None),
+            config.get('MQTT_POWERMETER', 'MQTT_USERNAME', fallback=config.get('MQTT_CONFIG', 'MQTT_USERNAME', fallback=None)),
+            config.get('MQTT_POWERMETER', 'MQTT_PASSWORD', fallback=config.get('MQTT_CONFIG', 'MQTT_PASSWORD', fallback=None))
         )
     else:
         raise Exception("Error: no powermeter defined!")
@@ -1325,7 +1419,18 @@ def CreateIntermediatePowermeter(dtu: DTU) -> Powermeter:
             config.get('INTERMEDIATE_SCRIPT', 'SCRIPT_IP_INTERMEDIATE'),
             config.get('INTERMEDIATE_SCRIPT', 'SCRIPT_USER_INTERMEDIATE'),
             config.get('INTERMEDIATE_SCRIPT', 'SCRIPT_PASS_INTERMEDIATE')
-        )    
+        )
+    elif config.getboolean('SELECT_INTERMEDIATE_METER', 'USE_MQTT_INTERMEDIATE'):
+        return MqttPowermeter(
+            config.get('INTERMEDIATE_MQTT', 'MQTT_BROKER', fallback=config.get("MQTT_CONFIG", "MQTT_BROKER", fallback=None)),
+            config.getint('INTERMEDIATE_MQTT', 'MQTT_PORT', fallback=config.getint("MQTT_CONFIG", "MQTT_PORT", fallback=1883)),
+            config.get('INTERMEDIATE_MQTT', 'MQTT_TOPIC_INCOMING'),
+            config.get('INTERMEDIATE_MQTT', 'MQTT_JSON_PATH_INCOMING', fallback=None),
+            config.get('INTERMEDIATE_MQTT', 'MQTT_TOPIC_OUTGOING', fallback=None),
+            config.get('INTERMEDIATE_MQTT', 'MQTT_JSON_PATH_OUTGOING', fallback=None),
+            config.get('INTERMEDIATE_MQTT', 'MQTT_USERNAME', fallback=config.get("MQTT_CONFIG", "MQTT_USERNAME", fallback=None)),
+            config.get('INTERMEDIATE_MQTT', 'MQTT_PASSWORD', fallback=config.get("MQTT_CONFIG", "MQTT_PASSWORD", fallback=None))
+        )
     elif config.getboolean('SELECT_INTERMEDIATE_METER', 'USE_AMIS_READER_INTERMEDIATE'):
         return AmisReader(
             config.get('INTERMEDIATE_AMIS_READER', 'AMIS_READER_IP_INTERMEDIATE')
