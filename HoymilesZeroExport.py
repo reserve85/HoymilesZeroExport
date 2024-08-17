@@ -581,7 +581,7 @@ def CrossCheckLimit():
                 LimitMax = float(CURRENT_LIMIT[i] + HOY_INVERTER_WATT[i] * 0.05)
                 LimitMin = float(CURRENT_LIMIT[i] - HOY_INVERTER_WATT[i] * 0.05)
                 if not (min(LimitMax, LimitMin) < DTULimitInW < max(LimitMax, LimitMin)):
-                    logger.info("CrossCheckLimit: DTU ({DTULimitInW:.1f}) <> SetLimit ({CURRENT_LIMIT[i]:.1f}). Resend limit to DTU")
+                    logger.info('CrossCheckLimit: DTU ( %s ) <> SetLimit ( %s ). Resend limit to DTU', "{:.1f}".format(DTULimitInW), "{:.1f}".format(CURRENT_LIMIT[i]))
                     DTU.SetLimit(i, CURRENT_LIMIT[i])
     except:
         logger.error("Exception at CrossCheckLimit")
@@ -1606,6 +1606,7 @@ if config.has_section("MQTT_CONFIG"):
 
 try:
     logger.info("---Init---")
+    
     newLimitSetpoint = 0
     DTU.CheckMinVersion()
     if GetHoymilesAvailable():
