@@ -1,5 +1,9 @@
 # Changelog
 
+## V 1.98
+### script
+* added a limit cross-check (real DTU Limit is cross-checked vs. Set Limit +/- 5%) (https://github.com/reserve85/HoymilesZeroExport/issues/223)
+
 ## V 1.97
 ### script
 * add support for MQTT meter and intermediate meter

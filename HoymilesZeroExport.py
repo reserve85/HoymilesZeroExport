@@ -15,7 +15,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 __author__ = "Tobias Kraft"
-__version__ = "1.97"
+__version__ = "1.98"
 
 import time
 from requests.sessions import Session
@@ -110,6 +110,7 @@ def SetLimitWithPriority(pLimit):
 
         if (SetLimitWithPriority.LastLimit == CastToInt(pLimit)) and SetLimitWithPriority.LastLimitAck:
             logger.info("Inverterlimit was already accepted at %s Watt",CastToInt(pLimit))
+            CrossCheckLimit()
             return
         if (SetLimitWithPriority.LastLimit == CastToInt(pLimit)) and not SetLimitWithPriority.LastLimitAck:
             logger.info("Inverterlimit %s Watt was previously not accepted by at least one inverter, trying again...",CastToInt(pLimit))
@@ -170,6 +171,7 @@ def SetLimitMixedModeWithPriority(pLimit):
 
         if (SetLimitMixedModeWithPriority.LastLimit == CastToInt(pLimit)) and SetLimitMixedModeWithPriority.LastLimitAck:
             logger.info("Inverterlimit was already accepted at %s Watt",CastToInt(pLimit))
+            CrossCheckLimit()
             return
         if (SetLimitMixedModeWithPriority.LastLimit == CastToInt(pLimit)) and not SetLimitMixedModeWithPriority.LastLimitAck:
             logger.info("Inverterlimit %s Watt was previously not accepted by at least one inverter, trying again...",CastToInt(pLimit))
@@ -309,6 +311,7 @@ def SetLimit(pLimit):
 
         if (SetLimit.LastLimit == CastToInt(pLimit)) and SetLimit.LastLimitAck:
             logger.info("Inverterlimit was already accepted at %s Watt",CastToInt(pLimit))
+            CrossCheckLimit()
             return
         if (SetLimit.LastLimit == CastToInt(pLimit)) and not SetLimit.LastLimitAck:
             logger.info("Inverterlimit %s Watt was previously not accepted by at least one inverter, trying again...",CastToInt(pLimit))
@@ -569,6 +572,20 @@ def ApplyLimitsToMaxInverterLimits(pInverter, pSetpoint):
     if pSetpoint < GetMinWatt(pInverter):
         pSetpoint = GetMinWatt(pInverter)
     return pSetpoint
+
+def CrossCheckLimit():
+    try:
+        for i in range(INVERTER_COUNT):
+            if AVAILABLE[i]:
+                DTULimitInW = DTU.GetActualLimitInW(i)
+                LimitMax = float(CURRENT_LIMIT[i] + HOY_INVERTER_WATT[i] * 0.05)
+                LimitMin = float(CURRENT_LIMIT[i] - HOY_INVERTER_WATT[i] * 0.05)
+                if not (min(LimitMax, LimitMin) < DTULimitInW < max(LimitMax, LimitMin)):
+                    logger.info("CrossCheckLimit: DTU ({DTULimitInW:.1f}) <> SetLimit ({CURRENT_LIMIT[i]:.1f}). Resend limit to DTU")
+                    DTU.SetLimit(i, CURRENT_LIMIT[i])
+    except:
+        logger.error("Exception at CrossCheckLimit")
+        raise
 
 # Max possible Watts, can be reduced on battery mode
 def GetMaxWattFromAllInverters():
@@ -886,7 +903,10 @@ class DTU(Powermeter):
     
     def GetAvailable(self, pInverterId: int):
         raise NotImplementedError()
-    
+
+    def GetActualLimitInW(self, pInverterId: int):
+        raise NotImplementedError()
+
     def GetInfo(self, pInverterId: int):
         raise NotImplementedError()
     
@@ -921,7 +941,7 @@ class AhoyDTU(DTU):
             data = session.get(url, timeout=10).json()
             retry_count -= 1
         return data
-    
+
     def GetResponseJson(self, path, obj):
         url = f'http://{self.ip}{path}'
         return session.post(url, json = obj, timeout=10).json()
@@ -931,11 +951,14 @@ class AhoyDTU(DTU):
         ActualPower_index = ParsedData["ch0_fld_names"].index("P_AC")
         ParsedData = self.GetJson(f'/api/inverter/id/{pInverterId}')
         return CastToInt(ParsedData["ch"][0][ActualPower_index])
-    
+
     def CheckMinVersion(self):
         MinVersion = '0.8.80'
         ParsedData = self.GetJson('/api/system')
-        AhoyVersion = str((ParsedData["version"]))
+        try:
+            AhoyVersion = str((ParsedData["version"]))
+        except:
+            AhoyVersion = str((ParsedData["generic"]["version"]))
         logger.info('Ahoy: Current Version: %s',AhoyVersion)
         if version.parse(AhoyVersion) < version.parse(MinVersion):
             logger.error('Error: Your AHOY Version is too old! Please update at least to Version %s - you can find the newest dev-releases here: https://github.com/lumapu/ahoy/actions',MinVersion)
@@ -946,7 +969,13 @@ class AhoyDTU(DTU):
         Available = bool(ParsedData["inverter"][pInverterId]["is_avail"])
         logger.info('Ahoy: Inverter "%s" Available: %s',NAME[pInverterId], Available)
         return Available
-    
+
+    def GetActualLimitInW(self, pInverterId: int):
+        ParsedData = self.GetJson(f'/api/inverter/id/{pInverterId}')
+        LimitInPercent = float(ParsedData['power_limit_read'])
+        LimitInW = HOY_INVERTER_WATT[pInverterId] * LimitInPercent / 100
+        return LimitInW
+
     def GetInfo(self, pInverterId: int):
         ParsedData = self.GetJson('/api/live')
         temp_index = ParsedData["ch0_fld_names"].index("Temp")
@@ -1082,6 +1111,12 @@ class OpenDTU(DTU):
         Reachable = bool(ParsedData['inverters'][0]["reachable"])
         logger.info('OpenDTU: Inverter "%s" reachable: %s',NAME[pInverterId],Reachable)
         return Reachable
+    
+    def GetActualLimitInW(self, pInverterId: int):
+        ParsedData = self.GetJson('/api/limit/status')
+        limit_relative = float(ParsedData[SERIAL_NUMBER[pInverterId]]['limit_relative'])
+        LimitInW = HOY_INVERTER_WATT[pInverterId] * limit_relative / 100
+        return LimitInW
     
     def GetInfo(self, pInverterId: int):
         if SERIAL_NUMBER[pInverterId] == '':
