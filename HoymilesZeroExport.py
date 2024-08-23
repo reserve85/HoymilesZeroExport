@@ -15,7 +15,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 __author__ = "Tobias Kraft"
-__version__ = "1.98"
+__version__ = "1.99"
 
 import time
 from requests.sessions import Session
@@ -181,7 +181,7 @@ def SetLimitMixedModeWithPriority(pLimit):
         SetLimitMixedModeWithPriority.LastLimitAck = True
         min_watt_all_inverters = GetMinWattFromAllInverters()
         if (CastToInt(pLimit) <= min_watt_all_inverters):
-            pLimit = 0 # set only minWatt for every inv.
+            pLimit = min_watt_all_inverters # set only minWatt for every inv.
             PublishGlobalState("limit", min_watt_all_inverters)
         else:
             PublishGlobalState("limit", CastToInt(pLimit))
@@ -191,7 +191,7 @@ def SetLimitMixedModeWithPriority(pLimit):
         if RemainingLimit >= GetMaxInverterWattFromAllNonBatteryInverters():
             nonBatteryInvertersLimit = GetMaxInverterWattFromAllNonBatteryInverters()
         else:
-            nonBatteryInvertersLimit = RemainingLimit
+            nonBatteryInvertersLimit = RemainingLimit - GetMinWattFromAllBatteryInverters()
 
         for i in range(INVERTER_COUNT):
             if not AVAILABLE[i] or HOY_BATTERY_MODE[i]:
@@ -631,6 +631,14 @@ def GetMinWattFromAllInverters():
     minWatt = 0
     for i in range(INVERTER_COUNT):
         if (not AVAILABLE[i]) or (not HOY_BATTERY_GOOD_VOLTAGE[i]):
+            continue
+        minWatt = minWatt + GetMinWatt(i)
+    return minWatt
+
+def GetMinWattFromAllBatteryInverters():
+    minWatt = 0
+    for i in range(INVERTER_COUNT):
+        if (not AVAILABLE[i]) or (not HOY_BATTERY_MODE[i]) or (not HOY_BATTERY_GOOD_VOLTAGE[i]):
             continue
         minWatt = minWatt + GetMinWatt(i)
     return minWatt
