@@ -59,6 +59,11 @@ Launch installscript to create zero export service
 sudo chmod +x install.sh
 sudo ./install.sh
 ```
+if you get an error like "error: externally-managed-environment" you´ll need to install the requirements manually with the following command:
+```sh
+pip install -r requirements.txt --break-system-packages
+```
+
 #### Configuration Variant A: 
 Define your configuration:
 edit `HoymilesZeroExport_Config_Override.ini`. 
