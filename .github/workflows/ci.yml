@@ -4,12 +4,14 @@ on:
   push:
     branches:
       - "main"
+      - "dev"
   create:
     tags:
       - "*"
   pull_request:
     branches:
       - "main"
+      - "dev"
 
 env:
   REGISTRY: ghcr.io
