@@ -15,7 +15,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 __author__ = "Tobias Kraft"
-__version__ = "1.99"
+__version__ = "1.100"
 
 import time
 from requests.sessions import Session
@@ -1615,14 +1615,16 @@ if config.has_section("MQTT_CONFIG"):
 try:
     logger.info("---Init---")
     
-    newLimitSetpoint = 0
     DTU.CheckMinVersion()
     if GetHoymilesAvailable():
         for i in range(INVERTER_COUNT):
             SetHoymilesPowerStatus(i, True)
-        SetLimit(GetMinWattFromAllInverters())
+        newLimitSetpoint = GetMinWattFromAllInverters()
+        SetLimit(newLimitSetpoint)
         GetHoymilesActualPower()
         GetCheckBattery()
+    else:
+        newLimitSetpoint = 0
     GetPowermeterWatts()
 except Exception as e:
     if hasattr(e, 'message'):

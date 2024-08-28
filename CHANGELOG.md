@@ -1,5 +1,9 @@
 # Changelog
 
+## V 1.100
+### script
+* improve startup: init newLimitSetpoint
+
 ## V 1.99
 ### script
 * fix mixed mode: if setLimit < getminwatt there was an calulation error (results in setLimit = 0).
