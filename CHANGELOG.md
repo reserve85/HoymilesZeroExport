@@ -1,5 +1,13 @@
 # Changelog
 
+## V 1.100
+### script
+* improve startup: init newLimitSetpoint
+
+## V 1.99
+### script
+* fix mixed mode: if setLimit < getminwatt there was an calulation error (results in setLimit = 0).
+
 ## V 1.98
 ### script
 * added a limit cross-check (real DTU Limit is cross-checked vs. Set Limit +/- 5%) (https://github.com/reserve85/HoymilesZeroExport/issues/223)
