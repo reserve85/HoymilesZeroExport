@@ -1,5 +1,9 @@
 # Changelog
 
+## V 1.101
+### script
+* Bugfix newLimitSetpoint for OpenDTU (https://github.com/reserve85/HoymilesZeroExport/issues/235)
+
 ## V 1.100
 ### script
 * improve startup: init newLimitSetpoint

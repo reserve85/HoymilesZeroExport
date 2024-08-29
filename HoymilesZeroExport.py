@@ -15,7 +15,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 __author__ = "Tobias Kraft"
-__version__ = "1.100"
+__version__ = "1.101"
 
 import time
 from requests.sessions import Session
@@ -1109,6 +1109,8 @@ class OpenDTU(DTU):
         MinVersion = 'v24.2.12'
         ParsedData = self.GetJson('/api/system/status')
         OpenDTUVersion = str((ParsedData["git_hash"]))
+        if ("-Database" in OpenDTUVersion): #trim string "v24.5.27-Database"
+            OpenDTUVersion = OpenDTUVersion.replace("-Database", "")
         logger.info('OpenDTU: Current Version: %s',OpenDTUVersion)
         if version.parse(OpenDTUVersion) < version.parse(MinVersion):
             logger.error('Error: Your OpenDTU Version is too old! Please update at least to Version %s - you can find the newest dev-releases here: https://github.com/tbnobody/OpenDTU/actions',MinVersion)
@@ -1614,7 +1616,7 @@ if config.has_section("MQTT_CONFIG"):
 
 try:
     logger.info("---Init---")
-    
+    newLimitSetpoint = 0
     DTU.CheckMinVersion()
     if GetHoymilesAvailable():
         for i in range(INVERTER_COUNT):
@@ -1623,8 +1625,6 @@ try:
         SetLimit(newLimitSetpoint)
         GetHoymilesActualPower()
         GetCheckBattery()
-    else:
-        newLimitSetpoint = 0
     GetPowermeterWatts()
 except Exception as e:
     if hasattr(e, 'message'):
