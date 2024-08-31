@@ -18,7 +18,10 @@ This script does not use MQTT, it's based on webapi communication.
 - [Volkszaehler (VZLogger)](https://volkszaehler.org/)
 - [ESPHome](https://esphome.io/)
 - [Mitterbaur Amis IR Reader](https://www.mitterbaur.at/amis-leser.html)
-- shell script based interface
+- shell script based interface with examples for:
+  - Victron Multiplus-II (via modbus TCP)
+  - DDSU666 powermeter (via modbus TCP)
+  - MSunPV powermeter (http API)
 - easy to implement new smart meter modules supporting WebAPI / JSON
 
 ### Supported DTU and Inverters
