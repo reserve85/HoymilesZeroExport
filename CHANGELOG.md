@@ -1,5 +1,12 @@
 # Changelog
 
+## V 1.102
+### script
+* fix Priority Limit Calculation in Priority Mode and Mixed Mode (https://github.com/reserve85/HoymilesZeroExport/issues/228)
+* added a "Debug" Reader and DTU just for debugging.
+### config
+* added a "Debug" Reader and DTU just for debugging.
+
 ## V 1.101
 ### script
 * Bugfix newLimitSetpoint for OpenDTU (https://github.com/reserve85/HoymilesZeroExport/issues/235)
