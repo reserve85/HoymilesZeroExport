@@ -136,7 +136,8 @@ def SetLimitWithPriority(pLimit):
             else:
                 LimitPrio = RemainingLimit
 
-            LimitPrio -=  GetMinWattFromBatteryInvertersWithLowerPriorities(j) # reserve the sum of minWatt from all Lower Priorities Inverters
+            if (RemainingLimit - LimitPrio) <= GetMinWattFromBatteryInvertersWithLowerPriorities(j):
+                LimitPrio -= GetMinWattFromBatteryInvertersWithLowerPriorities(j) # reserve the sum of minWatt from all Lower Priorities Inverters            
 
             for i in range(INVERTER_COUNT):
                 if (not AVAILABLE[i]) or (not HOY_BATTERY_GOOD_VOLTAGE[i]):
@@ -204,7 +205,8 @@ def SetLimitMixedModeWithPriority(pLimit):
         else:
             nonBatteryInvertersLimit = RemainingLimit
 
-        nonBatteryInvertersLimit -= GetMinWattFromAllBatteryInverters() #reserve the always additional min-Watt from following battery inverters
+        if (RemainingLimit - nonBatteryInvertersLimit) <= GetMinWattFromAllBatteryInverters():
+            nonBatteryInvertersLimit -= GetMinWattFromAllBatteryInverters() #reserve the additional min-Watt from following battery inverters
 
         for i in range(INVERTER_COUNT):
             if not AVAILABLE[i] or HOY_BATTERY_MODE[i]:
@@ -247,7 +249,8 @@ def SetLimitMixedModeWithPriority(pLimit):
             else:
                 LimitPrio = RemainingLimit 
 
-            LimitPrio -= GetMinWattFromBatteryInvertersWithLowerPriorities(j) # reserve the sum of minWatt from all Lower Priorities Inverters
+            if (RemainingLimit - LimitPrio) <= GetMinWattFromBatteryInvertersWithLowerPriorities(j):
+                LimitPrio -= GetMinWattFromBatteryInvertersWithLowerPriorities(j) # reserve the sum of minWatt from all Lower Priorities Inverters
 
             for i in range(INVERTER_COUNT):
                 if (not HOY_BATTERY_MODE[i]):
