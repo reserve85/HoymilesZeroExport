@@ -370,7 +370,6 @@ def SetLimit(pLimit):
             if not DTU.WaitForAck(i, SET_LIMIT_TIMEOUT_SECONDS):
                 SetLimit.LastLimitAck = False
                 LASTLIMITACKNOWLEDGED[i] = False
-
     except:
         logger.error("Exception at SetLimit")
         SetLimit.LastLimitAck = False
@@ -1090,8 +1089,11 @@ class AhoyDTU(DTU):
             else:
                 logger.info('Ahoy: Inverter "%s": Limit timeout!', NAME[pInverterId])
             return ack
-        except:
-            logger.info('Ahoy: Inverter "%s": Limit timeout!', NAME[pInverterId])
+        except Exception as e:
+            if hasattr(e, 'message'):
+                logger.error('Ahoy: Inverter "%s" WaitForAck: "%s"', NAME[pInverterId], e.message)
+            else:
+                logger.error('Ahoy: Inverter "%s" WaitForAck: "%s"', NAME[pInverterId], e)
             return False
     
     def SetLimit(self, pInverterId: int, pLimit: int):
@@ -1227,8 +1229,11 @@ class OpenDTU(DTU):
             else:
                 logger.info('OpenDTU: Inverter "%s": Limit timeout!', NAME[pInverterId])
             return ack
-        except:
-            logger.info('OpenDTU: Inverter "%s": Limit timeout!', NAME[pInverterId])
+        except Exception as e:
+            if hasattr(e, 'message'):
+                logger.error('OpenDTU: Inverter "%s" WaitForAck: "%s"', NAME[pInverterId], e.message)
+            else:
+                logger.error('OpenDTU: Inverter "%s" WaitForAck: "%s"', NAME[pInverterId], e)
             return False
 
     def SetLimit(self, pInverterId: int, pLimit: int):

@@ -4,6 +4,7 @@
 ### script
 * fix Priority Limit Calculation in Priority Mode and Mixed Mode (https://github.com/reserve85/HoymilesZeroExport/issues/228)
 * added a "Debug" Reader and DTU just for debugging.
+* Log the real "error message" in Function WaitForAck
 ### config
 * added a "Debug" Reader and DTU just for debugging.
 
