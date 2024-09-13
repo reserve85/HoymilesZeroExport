@@ -15,7 +15,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 __author__ = "Tobias Kraft"
-__version__ = "1.102"
+__version__ = "1.103"
 
 import time
 from requests.sessions import Session
@@ -101,121 +101,48 @@ def CastToInt(pValueToCast):
         logger.error("Exception at CastToInt")
         raise
 
-def SetLimitWithPriority(pLimit):
+def SetLimit(pLimit):
     try:
-        if not hasattr(SetLimitWithPriority, "LastLimit"):
-            SetLimitWithPriority.LastLimit = CastToInt(0)
-        if not hasattr(SetLimitWithPriority, "LastLimitAck"):
-            SetLimitWithPriority.LastLimitAck = bool(False)
-
-        if (SetLimitWithPriority.LastLimit == CastToInt(pLimit)) and SetLimitWithPriority.LastLimitAck:
+        if not hasattr(SetLimit, "LastLimit"):
+            SetLimit.LastLimit = CastToInt(0)
+        if not hasattr(SetLimit, "LastLimitAck"):
+            SetLimit.LastLimitAck = bool(False)
+        if (SetLimit.LastLimit == CastToInt(pLimit)) and SetLimit.LastLimitAck:
             logger.info("Inverterlimit was already accepted at %s Watt",CastToInt(pLimit))
             CrossCheckLimit()
             return
-        if (SetLimitWithPriority.LastLimit == CastToInt(pLimit)) and not SetLimitWithPriority.LastLimitAck:
+        if (SetLimit.LastLimit == CastToInt(pLimit)) and not SetLimit.LastLimitAck:
             logger.info("Inverterlimit %s Watt was previously not accepted by at least one inverter, trying again...",CastToInt(pLimit))
 
         logger.info("setting new limit to %s Watt",CastToInt(pLimit))
-        SetLimitWithPriority.LastLimit = CastToInt(pLimit)
-        SetLimitWithPriority.LastLimitAck = True
+        SetLimit.LastLimit = CastToInt(pLimit)
+        SetLimit.LastLimitAck = True
+
         min_watt_all_inverters = GetMinWattFromAllInverters()
         if (CastToInt(pLimit) <= min_watt_all_inverters):
             pLimit = min_watt_all_inverters # set only minWatt for every inv.
             PublishGlobalState("limit", min_watt_all_inverters)
         else:
             PublishGlobalState("limit", CastToInt(pLimit))
+
         RemainingLimit = CastToInt(pLimit)
 
-    #    RemainingLimit -= GetMinWattFromAllBatteryInverters() #reserve the always additional min-Watt from active inverters
-
-        for j in range (1,6):
-            if GetMaxWattFromAllInvertersSamePrio(j) <= 0:
-                continue
-            if RemainingLimit >= GetMaxWattFromAllInvertersSamePrio(j):
-                LimitPrio = GetMaxWattFromAllInvertersSamePrio(j)
-            else:
-                LimitPrio = RemainingLimit
-
-            if (RemainingLimit - LimitPrio) <= GetMinWattFromBatteryInvertersWithLowerPriorities(j):
-                LimitPrio -= GetMinWattFromBatteryInvertersWithLowerPriorities(j) # reserve the sum of minWatt from all Lower Priorities Inverters            
-
-            for i in range(INVERTER_COUNT):
-                if (not AVAILABLE[i]) or (not HOY_BATTERY_GOOD_VOLTAGE[i]):
-                    continue
-                if CONFIG_PROVIDER.get_battery_priority(i) != j:
-                    continue
-
-                Factor = HOY_MAX_WATT[i] / GetMaxWattFromAllInvertersSamePrio(j)
-
-                NewLimit = LimitPrio - GetMinWattFromAllBatteryInvertersWithSamePriority(j) 
-
-                NewLimit = CastToInt(NewLimit*Factor) + GetMinWatt(i)
-
-                NewLimit = ApplyLimitsToSetpointInverter(i, NewLimit)
-                if HOY_COMPENSATE_WATT_FACTOR[i] != 1:
-                    logger.info('Ahoy: Inverter "%s": compensate Limit from %s Watt to %s Watt', NAME[i], CastToInt(NewLimit), CastToInt(NewLimit*HOY_COMPENSATE_WATT_FACTOR[i]))
-                    NewLimit = CastToInt(NewLimit * HOY_COMPENSATE_WATT_FACTOR[i])
-                    NewLimit = ApplyLimitsToMaxInverterLimits(i, NewLimit)
-
-                if (NewLimit == CastToInt(CURRENT_LIMIT[i])) and LASTLIMITACKNOWLEDGED[i]:
-                    continue
-
-                LASTLIMITACKNOWLEDGED[i] = True
-
-                PublishInverterState(i, "limit", NewLimit)
-                DTU.SetLimit(i, NewLimit)
-                if not DTU.WaitForAck(i, SET_LIMIT_TIMEOUT_SECONDS):
-                    SetLimitWithPriority.LastLimitAck = False
-                    LASTLIMITACKNOWLEDGED[i] = False
-
-            RemainingLimit -= LimitPrio
-    except:
-        logger.error("Exception at SetLimitWithPriority")
-        SetLimitWithPriority.LastLimitAck = False
-        raise
-
-def SetLimitMixedModeWithPriority(pLimit):
-    try:
-        if not hasattr(SetLimitMixedModeWithPriority, "LastLimit"):
-            SetLimitMixedModeWithPriority.LastLimit = CastToInt(0)
-        if not hasattr(SetLimitMixedModeWithPriority, "LastLimitAck"):
-            SetLimitMixedModeWithPriority.LastLimitAck = bool(False)
-
-        if (SetLimitMixedModeWithPriority.LastLimit == CastToInt(pLimit)) and SetLimitMixedModeWithPriority.LastLimitAck:
-            logger.info("Inverterlimit was already accepted at %s Watt",CastToInt(pLimit))
-            CrossCheckLimit()
-            return
-        if (SetLimitMixedModeWithPriority.LastLimit == CastToInt(pLimit)) and not SetLimitMixedModeWithPriority.LastLimitAck:
-            logger.info("Inverterlimit %s Watt was previously not accepted by at least one inverter, trying again...",CastToInt(pLimit))
-
-        logger.info("setting new limit to %s Watt",CastToInt(pLimit))
-        SetLimitMixedModeWithPriority.LastLimit = CastToInt(pLimit)
-        SetLimitMixedModeWithPriority.LastLimitAck = True
-        min_watt_all_inverters = GetMinWattFromAllInverters()
-        if (CastToInt(pLimit) <= min_watt_all_inverters):
-            pLimit = min_watt_all_inverters # set only minWatt for every inv.
-            PublishGlobalState("limit", min_watt_all_inverters)
-        else:
-            PublishGlobalState("limit", CastToInt(pLimit))
-        RemainingLimit = CastToInt(pLimit)
+        RemainingLimit -= GetMinWattFromAllInverters()
 
         # Handle non-battery inverters first
-        if RemainingLimit >= GetMaxInverterWattFromAllNonBatteryInverters():
-            nonBatteryInvertersLimit = GetMaxInverterWattFromAllNonBatteryInverters()
+        if RemainingLimit >= GetMaxWattFromAllNonBatteryInverters() - GetMinWattFromAllNonBatteryInverters():
+            nonBatteryInvertersLimit = GetMaxWattFromAllNonBatteryInverters() - GetMinWattFromAllNonBatteryInverters()
         else:
             nonBatteryInvertersLimit = RemainingLimit
-
-        if (RemainingLimit - nonBatteryInvertersLimit) <= GetMinWattFromAllBatteryInverters():
-            nonBatteryInvertersLimit -= GetMinWattFromAllBatteryInverters() #reserve the additional min-Watt from following battery inverters
 
         for i in range(INVERTER_COUNT):
             if not AVAILABLE[i] or HOY_BATTERY_MODE[i]:
                 continue
 
             # Calculate proportional limit for non-battery inverters
-            nonBatteryMaxWatt = sum(HOY_MAX_WATT[i] for i in range(INVERTER_COUNT) if not HOY_BATTERY_MODE[i] and AVAILABLE[i])
-            Factor = HOY_MAX_WATT[i] / nonBatteryMaxWatt
-            NewLimit = CastToInt(nonBatteryInvertersLimit * Factor)
+            NewLimit = CastToInt(nonBatteryInvertersLimit * (HOY_MAX_WATT[i] - GetMinWatt(i)) / (GetMaxWattFromAllNonBatteryInverters() - GetMinWattFromAllNonBatteryInverters()))
+
+            NewLimit += GetMinWatt(i)
 
             # Apply the calculated limit to the inverter
             NewLimit = ApplyLimitsToSetpointInverter(i, NewLimit)
@@ -225,6 +152,7 @@ def SetLimitMixedModeWithPriority(pLimit):
                 NewLimit = ApplyLimitsToMaxInverterLimits(i, NewLimit)
 
             if (NewLimit == CastToInt(CURRENT_LIMIT[i])) and LASTLIMITACKNOWLEDGED[i]:
+                logger.info('Inverter "%s": Already at %s Watt',NAME[i],CastToInt(NewLimit))
                 continue
 
             LASTLIMITACKNOWLEDGED[i] = True
@@ -232,7 +160,7 @@ def SetLimitMixedModeWithPriority(pLimit):
             PublishInverterState(i, "limit", NewLimit)
             DTU.SetLimit(i, NewLimit)
             if not DTU.WaitForAck(i, SET_LIMIT_TIMEOUT_SECONDS):
-                SetLimitMixedModeWithPriority.LastLimitAck = False
+                SetLimit.LastLimitAck = False
                 LASTLIMITACKNOWLEDGED[i] = False
 
         # Adjust RemainingLimit based on what was assigned to non-battery inverters
@@ -244,13 +172,10 @@ def SetLimitMixedModeWithPriority(pLimit):
             if batteryMaxWattSamePrio <= 0:
                 continue
 
-            if RemainingLimit >= batteryMaxWattSamePrio:
-                LimitPrio = batteryMaxWattSamePrio
+            if RemainingLimit >= batteryMaxWattSamePrio - GetMinWattFromAllBatteryInvertersWithSamePriority(j):
+                LimitPrio = batteryMaxWattSamePrio - GetMinWattFromAllBatteryInvertersWithSamePriority(j)
             else:
                 LimitPrio = RemainingLimit 
-
-            if (RemainingLimit - LimitPrio) <= GetMinWattFromBatteryInvertersWithLowerPriorities(j):
-                LimitPrio -= GetMinWattFromBatteryInvertersWithLowerPriorities(j) # reserve the sum of minWatt from all Lower Priorities Inverters
 
             for i in range(INVERTER_COUNT):
                 if (not HOY_BATTERY_MODE[i]):
@@ -260,11 +185,9 @@ def SetLimitMixedModeWithPriority(pLimit):
                 if CONFIG_PROVIDER.get_battery_priority(i) != j:
                     continue
 
-                Factor = HOY_MAX_WATT[i] / batteryMaxWattSamePrio
-
-                NewLimit = LimitPrio - GetMinWattFromAllBatteryInvertersWithSamePriority(j)
-
-                NewLimit = CastToInt(NewLimit * Factor) + GetMinWatt(i)
+                # Calculate proportional limit for battery inverters
+                NewLimit = CastToInt(LimitPrio * (HOY_MAX_WATT[i] - GetMinWatt(i)) / (GetMaxWattFromAllBatteryInvertersSamePrio(j) - GetMinWattFromAllBatteryInvertersWithSamePriority(j)))
+                NewLimit += GetMinWatt(i)
 
                 NewLimit = ApplyLimitsToSetpointInverter(i, NewLimit)
                 if HOY_COMPENSATE_WATT_FACTOR[i] != 1:
@@ -273,6 +196,7 @@ def SetLimitMixedModeWithPriority(pLimit):
                     NewLimit = ApplyLimitsToMaxInverterLimits(i, NewLimit)
 
                 if (NewLimit == CastToInt(CURRENT_LIMIT[i])) and LASTLIMITACKNOWLEDGED[i]:
+                    logger.info('Inverter "%s": Already at %s Watt',NAME[i],CastToInt(NewLimit))
                     continue
 
                 LASTLIMITACKNOWLEDGED[i] = True
@@ -280,13 +204,13 @@ def SetLimitMixedModeWithPriority(pLimit):
                 PublishInverterState(i, "limit", NewLimit)
                 DTU.SetLimit(i, NewLimit)
                 if not DTU.WaitForAck(i, SET_LIMIT_TIMEOUT_SECONDS):
-                    SetLimitMixedModeWithPriority.LastLimitAck = False
+                    SetLimit.LastLimitAck = False
                     LASTLIMITACKNOWLEDGED[i] = False
 
             RemainingLimit -= LimitPrio
     except:
-        logger.error("Exception at SetLimitMixedModeWithPriority")
-        SetLimitMixedModeWithPriority.LastLimitAck = False
+        logger.error("Exception at SetLimit")
+        SetLimit.LastLimitAck = False
         raise
 
 def ResetInverterData(pInverterId):
@@ -300,8 +224,6 @@ def ResetInverterData(pInverterId):
     ]
     target_objects = [
         SetLimit,
-        SetLimitWithPriority,
-        SetLimitMixedModeWithPriority,
         GetHoymilesPanelMinVoltage,
     ]
     for target_object in target_objects:
@@ -318,62 +240,6 @@ def ResetInverterData(pInverterId):
     CURRENT_LIMIT[pInverterId] = -1
     HOY_BATTERY_GOOD_VOLTAGE[pInverterId] = True
     TEMPERATURE[pInverterId] = str('--- degC')
-
-def SetLimit(pLimit):
-    try:
-        if GetMixedMode():
-            SetLimitMixedModeWithPriority(CastToInt(pLimit))
-            return
-        if GetBatteryMode() and GetPriorityMode():
-            SetLimitWithPriority(CastToInt(pLimit))
-            return
-
-        if not hasattr(SetLimit, "LastLimit"):
-            SetLimit.LastLimit = CastToInt(0)
-        if not hasattr(SetLimit, "LastLimitAck"):
-            SetLimit.LastLimitAck = bool(False)
-
-        if (SetLimit.LastLimit == CastToInt(pLimit)) and SetLimit.LastLimitAck:
-            logger.info("Inverterlimit was already accepted at %s Watt",CastToInt(pLimit))
-            CrossCheckLimit()
-            return
-        if (SetLimit.LastLimit == CastToInt(pLimit)) and not SetLimit.LastLimitAck:
-            logger.info("Inverterlimit %s Watt was previously not accepted by at least one inverter, trying again...",CastToInt(pLimit))
-
-        logger.info("setting new limit to %s Watt",CastToInt(pLimit))
-        SetLimit.LastLimit = CastToInt(pLimit)
-        SetLimit.LastLimitAck = True
-        min_watt_all_inverters = GetMinWattFromAllInverters()
-        if (CastToInt(pLimit) <= min_watt_all_inverters):
-            pLimit = 0 # set only minWatt for every inv.
-            PublishGlobalState("limit", min_watt_all_inverters)
-        else:
-            PublishGlobalState("limit", CastToInt(pLimit))
-        for i in range(INVERTER_COUNT):
-            if (not AVAILABLE[i]) or (not HOY_BATTERY_GOOD_VOLTAGE[i]):
-                continue
-            Factor = HOY_MAX_WATT[i] / GetMaxWattFromAllInverters()
-            NewLimit = CastToInt(pLimit*Factor)
-            NewLimit = ApplyLimitsToSetpointInverter(i, NewLimit)
-            if HOY_COMPENSATE_WATT_FACTOR[i] != 1:
-                logger.info('Ahoy: Inverter "%s": compensate Limit from %s Watt to %s Watt', NAME[i], CastToInt(NewLimit), CastToInt(NewLimit*HOY_COMPENSATE_WATT_FACTOR[i]))
-                NewLimit = CastToInt(NewLimit * HOY_COMPENSATE_WATT_FACTOR[i])
-                NewLimit = ApplyLimitsToMaxInverterLimits(i, NewLimit)
-
-            if (NewLimit == CastToInt(CURRENT_LIMIT[i])) and LASTLIMITACKNOWLEDGED[i]:
-                continue
-
-            LASTLIMITACKNOWLEDGED[i] = True
-
-            PublishInverterState(i, "limit", NewLimit)
-            DTU.SetLimit(i, NewLimit)
-            if not DTU.WaitForAck(i, SET_LIMIT_TIMEOUT_SECONDS):
-                SetLimit.LastLimitAck = False
-                LASTLIMITACKNOWLEDGED[i] = False
-    except:
-        logger.error("Exception at SetLimit")
-        SetLimit.LastLimitAck = False
-        raise
 
 def GetHoymilesAvailable():
     try:
@@ -610,23 +476,13 @@ def CrossCheckLimit():
         logger.error("Exception at CrossCheckLimit")
         raise
 
-# Max possible Watts, can be reduced on battery mode
 def GetMaxWattFromAllInverters():
+    # Max possible Watts, can be reduced on battery mode
     maxWatt = 0
     for i in range(INVERTER_COUNT):
         if (not AVAILABLE[i]) or (not HOY_BATTERY_GOOD_VOLTAGE[i]):
             continue
         maxWatt = maxWatt + HOY_MAX_WATT[i]
-    return maxWatt
-
-# Max possible Watts, can be reduced on battery mode
-def GetMaxWattFromAllInvertersSamePrio(pPriority):
-    maxWatt = 0
-    for i in range(INVERTER_COUNT):
-        if (not AVAILABLE[i]) or (not HOY_BATTERY_GOOD_VOLTAGE[i]):
-            continue
-        if CONFIG_PROVIDER.get_battery_priority(i) == pPriority:
-            maxWatt = maxWatt + HOY_MAX_WATT[i]
     return maxWatt
 
 def GetMaxWattFromAllBatteryInvertersSamePrio(pPriority):
@@ -635,8 +491,8 @@ def GetMaxWattFromAllBatteryInvertersSamePrio(pPriority):
         if AVAILABLE[i] and HOY_BATTERY_GOOD_VOLTAGE[i] and HOY_BATTERY_MODE[i] and CONFIG_PROVIDER.get_battery_priority(i) == pPriority
     )
 
-# Max possible Watts (physically) - Inverter Specification!
 def GetMaxInverterWattFromAllInverters():
+    # Max possible Watts (physically) - Inverter Specification!
     maxWatt = 0
     for i in range(INVERTER_COUNT):
         if (not AVAILABLE[i]) or (not HOY_BATTERY_GOOD_VOLTAGE[i]):
@@ -644,9 +500,9 @@ def GetMaxInverterWattFromAllInverters():
         maxWatt = maxWatt + HOY_INVERTER_WATT[i]
     return maxWatt
 
-def GetMaxInverterWattFromAllNonBatteryInverters():
+def GetMaxWattFromAllNonBatteryInverters():
     return sum(
-        HOY_INVERTER_WATT[i] for i in range(INVERTER_COUNT)
+        HOY_MAX_WATT[i] for i in range(INVERTER_COUNT)
         if AVAILABLE[i] and not HOY_BATTERY_MODE[i] and HOY_BATTERY_GOOD_VOLTAGE[i]
     )
 
@@ -654,6 +510,14 @@ def GetMinWattFromAllInverters():
     minWatt = 0
     for i in range(INVERTER_COUNT):
         if (not AVAILABLE[i]) or (not HOY_BATTERY_GOOD_VOLTAGE[i]):
+            continue
+        minWatt = minWatt + GetMinWatt(i)
+    return minWatt
+
+def GetMinWattFromAllNonBatteryInverters():
+    minWatt = 0
+    for i in range(INVERTER_COUNT):
+        if (not AVAILABLE[i]) or (HOY_BATTERY_MODE[i]) or (not HOY_BATTERY_GOOD_VOLTAGE[i]):
             continue
         minWatt = minWatt + GetMinWatt(i)
     return minWatt
@@ -666,7 +530,7 @@ def GetMinWattFromAllBatteryInverters():
         minWatt = minWatt + GetMinWatt(i)
     return minWatt  
 
-def GetMinWattFromBatteryInvertersWithLowerPriorities(pPriority):
+
     minWatt = 0
     for i in range(INVERTER_COUNT):
         if (not AVAILABLE[i]) or (not HOY_BATTERY_MODE[i]) or (not HOY_BATTERY_GOOD_VOLTAGE[i]) or (CONFIG_PROVIDER.get_battery_priority(i) <= pPriority):
@@ -681,27 +545,6 @@ def GetMinWattFromAllBatteryInvertersWithSamePriority(pPriority):
             continue
         minWatt = minWatt + GetMinWatt(i)
     return minWatt  
-
-def GetMixedMode():
-    #if battery mode and custom priority use SetLimitWithPriority
-    for i in range(INVERTER_COUNT):
-        for j in range(INVERTER_COUNT):
-            if (HOY_BATTERY_MODE[i] != HOY_BATTERY_MODE[j]):
-                return True
-    return False
-
-def GetBatteryMode():
-    for i in range(INVERTER_COUNT):
-        if HOY_BATTERY_MODE[i]:
-            return True
-    return False
-
-def GetPriorityMode():
-    for i in range(INVERTER_COUNT):
-        for j in range(INVERTER_COUNT):
-            if CONFIG_PROVIDER.get_battery_priority(i) != CONFIG_PROVIDER.get_battery_priority(j):
-                return True
-    return False
 
 def PublishConfigState():
     if MQTT is None:
@@ -1315,7 +1158,6 @@ class Script(Powermeter):
         power = subprocess.check_output([self.file, self.ip, self.user, self.password])
         return CastToInt(power)
 
-
 def extract_json_value(data, path):
     from jsonpath_ng import parse
     jsonpath_expr = parse(path)
@@ -1324,7 +1166,6 @@ def extract_json_value(data, path):
         return int(float(match[0].value))
     else:
         raise ValueError("No match found for the JSON path")
-
 
 class MqttPowermeter(Powermeter):
     def __init__(
@@ -1608,7 +1449,6 @@ def CreateDTU() -> DTU:
         raise Exception("Error: no DTU defined!")
 
 # ----- START -----
-
 logger.info("Author: %s / Script Version: %s",__author__, __version__)
 
 # read config:

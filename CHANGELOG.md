@@ -1,5 +1,10 @@
 # Changelog
 
+## V 1.103
+### script
+* removed SetLimit, SetLimitWithPriority -> only one Function for SetLimit (same routine for mixed mode, battery mode, non battery mode)
+* improved calculation
+
 ## V 1.102
 ### script
 * fix Priority Limit Calculation in Priority Mode and Mixed Mode (https://github.com/reserve85/HoymilesZeroExport/issues/228)
