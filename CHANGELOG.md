@@ -1,5 +1,9 @@
 # Changelog
 
+## V 1.104
+### script
+* OpenDTU: check for "producing" -> try to fix https://github.com/reserve85/HoymilesZeroExport/issues/242 and https://github.com/reserve85/HoymilesZeroExport/issues/211
+
 ## V 1.103
 ### script
 * removed SetLimit, SetLimitWithPriority -> only one Function for SetLimit (same routine for mixed mode, battery mode, non battery mode)
