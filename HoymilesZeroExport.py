@@ -15,7 +15,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 __author__ = "Tobias Kraft"
-__version__ = "1.104"
+__version__ = "1.103"
 
 import time
 from requests.sessions import Session
@@ -1007,7 +1007,7 @@ class OpenDTU(DTU):
 
     def GetAvailable(self, pInverterId: int):
         ParsedData = self.GetJson(f'/api/livedata/status?inv={SERIAL_NUMBER[pInverterId]}')
-        Reachable = bool(ParsedData['inverters'][0]["reachable"]) and bool(ParsedData['inverters'][0]["producing"])
+        Reachable = bool(ParsedData['inverters'][0]["reachable"])
         logger.info('OpenDTU: Inverter "%s" reachable: %s',NAME[pInverterId],Reachable)
         return Reachable
     
