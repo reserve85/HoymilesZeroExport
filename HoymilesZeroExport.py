@@ -530,14 +530,6 @@ def GetMinWattFromAllBatteryInverters():
         minWatt = minWatt + GetMinWatt(i)
     return minWatt  
 
-
-    minWatt = 0
-    for i in range(INVERTER_COUNT):
-        if (not AVAILABLE[i]) or (not HOY_BATTERY_MODE[i]) or (not HOY_BATTERY_GOOD_VOLTAGE[i]) or (CONFIG_PROVIDER.get_battery_priority(i) <= pPriority):
-            continue
-        minWatt = minWatt + GetMinWatt(i)
-    return minWatt  
-
 def GetMinWattFromAllBatteryInvertersWithSamePriority(pPriority):
     minWatt = 0
     for i in range(INVERTER_COUNT):
