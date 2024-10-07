@@ -15,7 +15,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 __author__ = "Tobias Kraft"
-__version__ = "1.103"
+__version__ = "1.104"
 
 import time
 from requests.sessions import Session
@@ -1085,7 +1085,7 @@ class OpenDTU(DTU):
             logger.info('OpenDTU: Inverter "%s": Turn on',NAME[pInverterId])
         else:
             logger.info('OpenDTU: Inverter "%s": Turn off',NAME[pInverterId])
-        mySendStr = f'''data={{"serial":"{SERIAL_NUMBER[pInverterId]}", "power":{CastToInt(pActive == True)}}}'''
+        mySendStr = f'''data={{"serial":"{SERIAL_NUMBER[pInverterId]}", "power":{pActive}}}'''
         response = self.GetResponseJson('/api/power/config', mySendStr)
         if response['type'] != 'success':
             raise Exception(f"Error: SetPowerStatus error: {response['message']}")

@@ -1,5 +1,9 @@
 # Changelog
 
+## V 1.104
+### script
+* fix JSON-Boolean Value in OpenDTU API (https://github.com/reserve85/HoymilesZeroExport/issues/247)
+
 ## V 1.103
 ### script
 * removed SetLimit, SetLimitWithPriority -> only one Function for SetLimit (same routine for mixed mode, battery mode, non battery mode)
