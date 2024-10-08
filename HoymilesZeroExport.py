@@ -1555,8 +1555,6 @@ if config.has_section("MQTT_CONFIG"):
 try:
     logger.info("---Init---")
     newLimitSetpoint = 0
-
-    DTU.SetPowerStatus(1, True)
     DTU.CheckMinVersion()
     if GetHoymilesAvailable():
         for i in range(INVERTER_COUNT):
