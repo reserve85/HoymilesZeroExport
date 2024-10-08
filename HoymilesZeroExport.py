@@ -1085,7 +1085,7 @@ class OpenDTU(DTU):
             logger.info('OpenDTU: Inverter "%s": Turn on',NAME[pInverterId])
         else:
             logger.info('OpenDTU: Inverter "%s": Turn off',NAME[pInverterId])
-        mySendStr = f'''data="serial":"{SERIAL_NUMBER[pInverterId]}", "power":{json.dumps(pActive)}'''     
+        mySendStr = f'''data={{"serial":"{SERIAL_NUMBER[pInverterId]}", "power":{json.dumps(pActive)}}}'''     
         response = self.GetResponseJson('/api/power/config', mySendStr)
         if response['type'] != 'success':
             raise Exception(f"Error: SetPowerStatus error: {response['message']}")
