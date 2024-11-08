@@ -4,7 +4,9 @@
 Hoymiles Zero Export is a Python script for managing the power of the Hoymiles inverters to reduce the amount of the generated power to the grid. Based on the current power output, the script can automatically adjust the export limit of the inverter, allowing for optimal energy management.
 
 ## Prerequisites
-Before running this script make sure you have a powermeter which outputs a negative power value in case of returning to the grid.
+Before running this script make sure you have the following met:
+1. a python installation not in status "end-of-life" according to [python.org](https://devguide.python.org/versions/) To check see section "Python prerequisite check"
+2. a powermeter which outputs a negative power value in case of returning to the grid.
 For example: the Holley DTZ541 shows -150W if the solar inverter is overproducing.
 This script does not use MQTT, it's based on webapi communication.
 
@@ -40,12 +42,15 @@ You can set various limits to support battery powered Hoymiles Inverters
 ![qkeo2J4U](https://user-images.githubusercontent.com/111107925/222456008-947bfbf1-09b3-4639-97d0-cc88c5af2a72.png)
 ![IMG_E0136](https://user-images.githubusercontent.com/111107925/217559535-1b530738-67bc-4c29-a6f2-9aa4addce41d.JPG)
 
-## Linux installation
+## Python prerequisite check 
 
-Make sure you have Python 3.8 or greater installed:
+Open a commant prompt and execute 
 ```sh
 python3 --version
 ```
+
+## Linux installation
+
 if you don´t have python installed or an older version is on your machine, then [install or upgrade](https://docs.python.org/3.11/using/unix.html#on-linux) it
 
 Get the code and unpack the archive:
