@@ -3,12 +3,18 @@
 ## Introduction
 Hoymiles Zero Export is a Python script for managing the power of the Hoymiles inverters to reduce the amount of the generated power to the grid. Based on the current power output, the script can automatically adjust the export limit of the inverter, allowing for optimal energy management.
 
+## Limits of solutions
+- no GUI planned, configuration via ini-file only
+- no integration into HomeAutomation (HA) or other similar tools
+- no recommendations for system hardware setup (look elsewhere for hardware and cabling setup recommendations)
+ 
 ## Prerequisites
 Before running this script make sure you have the following met:
 1. a python installation not in status "end-of-life" according to [python.org](https://devguide.python.org/versions/) To check see section "Python prerequisite check"
 2. a powermeter which outputs a negative power value in case of returning to the grid.
 For example: the Holley DTZ541 shows -150W if the solar inverter is overproducing.
 This script does not use MQTT, it's based on webapi communication.
+3. user needs basic understanding of running python scripts and modification of configuration
 
 ### Supported Smart-Meter Modules:
 - [Tasmota Smart Meter Interface](https://tasmota.github.io/docs/Smart-Meter-Interface/) (e.g. "[Hichi IR Lesekopf](https://www.ebay.de/sch/i.html?_ssn=hicbelm-8)" or equal)
