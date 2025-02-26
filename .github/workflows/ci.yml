@@ -91,6 +91,7 @@ jobs:
           path: /tmp/digests/*
           if-no-files-found: error
           retention-days: 1
+          overwrite: true
 
   merge:
     runs-on: ubuntu-latest
