@@ -1121,7 +1121,7 @@ class DebugDTU(DTU):
         self.Token = '12345'   
         logger.info('Debug: Authenticating successful, received Token: %s', self.Token)        
 
- Script(Powermeter):
+class Script(Powermeter):
     def __init__(self, file: str, ip: str, user: str, password: str):
         self.file = file
         self.ip = ip
@@ -1141,7 +1141,7 @@ def extract_json_value(data, path):
     else:
         raise ValueError("No match found for the JSON path")
 
- MqttPowermeter(Powermeter):
+ class MqttPowermeter(Powermeter):
     def __init__(
         self,
         broker: str,
@@ -1526,7 +1526,7 @@ if config.has_section("MQTT_CONFIG"):
     MQTT = MqttHandler(broker, port, client_id, username, password, topic_prefix, mqtt_log_level)
 
     if mqtt_log_level is not None:
-         MqttLogHandler(logging.Handler):
+         class MqttLogHandler(logging.Handler):
             def emit(self, record):
                 MQTT.publish_log_record(record)
 
