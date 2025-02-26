@@ -400,7 +400,7 @@ def GetHoymilesActualPower():
     try:
         try:
             Watts = abs(INTERMEDIATE_POWERMETER.GetPowermeterWatts())
-            logger.info(f"intermediate meter {INTERMEDIATE_POWERMETER.__class__.__name__}: {Watts} Watt")
+            logger.info(f"intermediate meter {INTERMEDIATE_POWERMETER.____.__name__}: {Watts} Watt")
             return Watts
         except Exception as e:
             logger.error("Exception at GetHoymilesActualPower")
@@ -410,7 +410,7 @@ def GetHoymilesActualPower():
                 logger.error(e)
             logger.error("try reading actual power from DTU:")
             Watts = DTU.GetPowermeterWatts()
-            logger.info(f"intermediate meter {DTU.__class__.__name__}: {Watts} Watt")
+            logger.info(f"intermediate meter {DTU.____.__name__}: {Watts} Watt")
     except:
         logger.error("Exception at GetHoymilesActualPower")
         if SET_INVERTER_TO_MIN_ON_POWERMETER_ERROR:
@@ -420,7 +420,7 @@ def GetHoymilesActualPower():
 def GetPowermeterWatts():
     try:
         Watts = POWERMETER.GetPowermeterWatts()
-        logger.info(f"powermeter {POWERMETER.__class__.__name__}: {Watts} Watt")
+        logger.info(f"powermeter {POWERMETER.____.__name__}: {Watts} Watt")
         return Watts
     except:
         logger.error("Exception at GetPowermeterWatts")
@@ -987,10 +987,10 @@ class OpenDTU(DTU):
         return CastToInt(ParsedData['inverters'][0]['AC']['0']['Power']['v'])
     
     def CheckMinVersion(self):
-        MinVersion = 'v24.2.12'
+        MinVersion = 'v25.2.3'
         ParsedData = self.GetJson('/api/system/status')
         OpenDTUVersion = str((ParsedData["git_hash"]))
-        if ("-Database" in OpenDTUVersion): #trim string "v24.5.27-Database"
+        if ("-Database" in OpenDTUVersion): #trim string "v25.2.3-Database"
             OpenDTUVersion = OpenDTUVersion.replace("-Database", "")
         logger.info('OpenDTU: Current Version: %s',OpenDTUVersion)
         if version.parse(OpenDTUVersion) < version.parse(MinVersion):
@@ -1050,26 +1050,8 @@ class OpenDTU(DTU):
         return max_value
 
     def WaitForAck(self, pInverterId: int, pTimeoutInS: int):
-        try:
-            timeout = pTimeoutInS
-            timeout_start = time.time()
-            while time.time() < timeout_start + timeout:
-                time.sleep(0.5)
-                ParsedData = self.GetJson('/api/limit/status')
-                ack = (ParsedData[SERIAL_NUMBER[pInverterId]]['limit_set_status'] == 'Ok')
-                if ack:
-                    break
-            if ack:
-                logger.info('OpenDTU: Inverter "%s": Limit acknowledged', NAME[pInverterId])
-            else:
-                logger.info('OpenDTU: Inverter "%s": Limit timeout!', NAME[pInverterId])
-            return ack
-        except Exception as e:
-            if hasattr(e, 'message'):
-                logger.error('OpenDTU: Inverter "%s" WaitForAck: "%s"', NAME[pInverterId], e.message)
-            else:
-                logger.error('OpenDTU: Inverter "%s" WaitForAck: "%s"', NAME[pInverterId], e)
-            return False
+        # no longer required since v25.2.3
+        return True
 
     def SetLimit(self, pInverterId: int, pLimit: int):
         logger.info('OpenDTU: Inverter "%s": setting new limit from %s Watt to %s Watt',NAME[pInverterId],CastToInt(CURRENT_LIMIT[pInverterId]),CastToInt(pLimit))
@@ -1139,7 +1121,7 @@ class DebugDTU(DTU):
         self.Token = '12345'   
         logger.info('Debug: Authenticating successful, received Token: %s', self.Token)        
 
-class Script(Powermeter):
+ Script(Powermeter):
     def __init__(self, file: str, ip: str, user: str, password: str):
         self.file = file
         self.ip = ip
@@ -1159,7 +1141,7 @@ def extract_json_value(data, path):
     else:
         raise ValueError("No match found for the JSON path")
 
-class MqttPowermeter(Powermeter):
+ MqttPowermeter(Powermeter):
     def __init__(
         self,
         broker: str,
@@ -1544,7 +1526,7 @@ if config.has_section("MQTT_CONFIG"):
     MQTT = MqttHandler(broker, port, client_id, username, password, topic_prefix, mqtt_log_level)
 
     if mqtt_log_level is not None:
-        class MqttLogHandler(logging.Handler):
+         MqttLogHandler(logging.Handler):
             def emit(self, record):
                 MQTT.publish_log_record(record)
 
