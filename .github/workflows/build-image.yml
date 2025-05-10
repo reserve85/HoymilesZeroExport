@@ -71,8 +71,25 @@ jobs:
           registry: ${{ inputs.registry }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Build and push by digest
+      - name: Build
+        if: github.event_name == 'pull_request'
         id: build
+        uses: docker/build-push-action@v5
+        with:
+          context: ${{ inputs.context }}
+          platforms: ${{ inputs.platform }}
+          file: ${{ inputs.dockerfile }}
+          push: false
+          labels: ${{ steps.meta.outputs.labels }}
+          outputs: type=image,name=${{ inputs.registry }}/${{ steps.lower-repo.outputs.IMAGE_NAME }}
+          build-args: |
+            ${{ inputs.build-args }}
+            BASE=${{ inputs.base }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - name: Build and push by digest
+        if: github.event_name != 'pull_request'
+        id: build-and-push
         uses: docker/build-push-action@v5
         with:
           context: ${{ inputs.context }}
@@ -87,9 +104,10 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
       - name: Export digest
+        if: github.event_name != 'pull_request'
         run: |
           mkdir -p /tmp/digests
-          digest="${{ steps.build.outputs.digest }}"
+          digest="${{ steps.build-and-push.outputs.digest }}"
           touch "/tmp/digests/${digest#sha256:}"
       - name: Set platform name
         id: platform
@@ -97,6 +115,7 @@ jobs:
           SAFE_PLATFORM=$(echo "${{ inputs.platform }}" | sed 's|/|-|g')
           echo "name=$SAFE_PLATFORM" >> $GITHUB_OUTPUT
       - name: Upload digest
+        if: github.event_name != 'pull_request'
         uses: actions/upload-artifact@v4
         with:
           name: ${{ inputs.digest-prefix }}${{ steps.platform.outputs.name }}
