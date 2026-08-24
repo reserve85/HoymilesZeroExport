@@ -13,6 +13,11 @@ on:
       - "main"
       - "dev"
 
+# Cancel in-progress runs for same branch/PR
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
 permissions:
   contents: read
   packages: write

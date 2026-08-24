@@ -1,0 +1,117 @@
+name: Cleanup Old Runs and Artifacts
+
+on:
+  schedule:
+    # Daily at 1:00 AM UTC
+    - cron: '0 1 * * *'
+  workflow_dispatch:
+
+permissions:
+  actions: write
+  contents: read
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Delete old workflow runs
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const daysToKeep = 3;
+            const maxRunsToKeep = 5;
+            const cutoffDate = new Date();
+            cutoffDate.setDate(cutoffDate.getDate() - daysToKeep);
+
+            console.log(`Deleting runs older than ${daysToKeep} days (before ${cutoffDate.toISOString()})`);
+            console.log(`Keeping at least ${maxRunsToKeep} most recent runs`);
+
+            // Get all workflow runs
+            const runs = await github.paginate(
+              github.rest.actions.listWorkflowRunsForRepo,
+              {
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                per_page: 100,
+              }
+            );
+
+            console.log(`Found ${runs.length} total runs`);
+
+            // Sort by creation date (newest first)
+            runs.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
+            // Keep the most recent N runs regardless of age
+            const runsToConsider = runs.slice(maxRunsToKeep);
+            let deletedCount = 0;
+
+            for (const run of runsToConsider) {
+              const runDate = new Date(run.created_at);
+              if (runDate < cutoffDate) {
+                try {
+                  await github.rest.actions.deleteWorkflowRun({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    run_id: run.id,
+                  });
+                  console.log(`Deleted run ${run.id} (${run.name}) created ${run.created_at}`);
+                  deletedCount++;
+                } catch (error) {
+                  console.log(`Failed to delete run ${run.id}: ${error.message}`);
+                }
+              }
+            }
+
+            console.log(`Deleted ${deletedCount} old runs`);
+
+      - name: Delete old artifacts
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const daysToKeep = 3;
+            const maxArtifactsToKeep = 3;
+            const cutoffDate = new Date();
+            cutoffDate.setDate(cutoffDate.getDate() - daysToKeep);
+
+            console.log(`Deleting artifacts older than ${daysToKeep} days (before ${cutoffDate.toISOString()})`);
+            console.log(`Keeping at least ${maxArtifactsToKeep} most recent artifacts`);
+
+            // Get all artifacts
+            const artifacts = await github.paginate(
+              github.rest.actions.listArtifactsForRepo,
+              {
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                per_page: 100,
+              }
+            );
+
+            console.log(`Found ${artifacts.length} total artifacts`);
+
+            // Sort by creation date (newest first)
+            artifacts.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
+            // Keep the most recent N artifacts regardless of age
+            const artifactsToConsider = artifacts.slice(maxArtifactsToKeep);
+            let deletedCount = 0;
+
+            for (const artifact of artifactsToConsider) {
+              const artifactDate = new Date(artifact.created_at);
+              if (artifactDate < cutoffDate) {
+                try {
+                  await github.rest.actions.deleteArtifact({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    artifact_id: artifact.id,
+                  });
+                  console.log(`Deleted artifact ${artifact.id} (${artifact.name}) created ${artifact.created_at}`);
+                  deletedCount++;
+                } catch (error) {
+                  console.log(`Failed to delete artifact ${artifact.id}: ${error.message}`);
+                }
+              }
+            }
+
+            console.log(`Deleted ${deletedCount} old artifacts`);
