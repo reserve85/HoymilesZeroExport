@@ -174,6 +174,9 @@ services:
     command: -c /app/config.ini
 ```
 
+## Home Assistant Add-on
+A community-maintained Home Assistant add-on is available at https://github.com/Markurixs/HoymilesZeroExport. It is not part of this repository; please report add-on problems there.
+
 ## MQTT
 The script can optionally be controlled via MQTT. To enable this feature, you need to configure the `[MQTT_CONFIG]` section in the configuration file.
 Once configured, the script will listen for incoming MQTT messages on the specified topic and act accordingly.
