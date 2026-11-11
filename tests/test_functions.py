@@ -336,3 +336,139 @@ def test_discovery_switch_payload_round_trip():
     assert handler.get_inverter_enabled(1) is False
     handler.update()
     assert ('zeropower/state/inverter/1/enabled', 'false', True) in handler.mqtt_client.published
+
+
+# ------------------------------------------------ inverter drops out / returns
+
+def _battery_below_off_threshold(**plant_options):
+    volt = {'v': 46.0}   # OFF threshold is 47 V
+    hze = load_script([800, 800], inverter_config={2: {'HOY_BATTERY_MODE': 'true', 'HOY_BATTERY_NORMAL_WATT': 800}})
+    plant = Plant([800, 800], load=constant(0), sun=constant(5000), duration=10 ** 6, write_seconds=0,
+                  voltage=lambda i, t: volt['v'], **plant_options)
+    attach_plant(hze, plant)
+    overrides = _with_overrides(hze)
+    # more passes than SET_POWERSTATUS_CNT, so the "already OFF" retry counter is exceeded
+    for _ in range(15):
+        hze.GetHoymilesAvailable()
+        hze.GetCheckBattery()
+    assert plant.power_on == [True, False]
+    return hze, plant, overrides
+
+
+def test_battery_inverter_is_switched_off_again_after_mqtt_disable_and_enable():
+    hze, plant, overrides = _battery_below_off_threshold()
+    overrides.set_inverter_value(1, 'enabled', b'false')
+    hze.GetHoymilesAvailable()
+    hze.GetCheckBattery()
+    overrides.set_inverter_value(1, 'enabled', b'true')
+    hze.GetHoymilesAvailable()
+    assert plant.power_on[1]            # enabling switches it on ...
+    hze.GetCheckBattery()
+    assert not plant.power_on[1]        # ... but the battery is still empty
+    assert not hze.HOY_BATTERY_GOOD_VOLTAGE[1]
+
+
+def test_battery_inverter_is_switched_off_again_after_a_restart():
+    available = {'inv1': True}
+    hze, plant, _ = _battery_below_off_threshold(available=lambda i, t: i == 0 or available['inv1'])
+    available['inv1'] = False
+    hze.GetHoymilesAvailable()
+    hze.GetCheckBattery()
+    plant.power_on[1] = True            # a restarted inverter is on again
+    available['inv1'] = True
+    hze.GetHoymilesAvailable()
+    hze.GetCheckBattery()
+    assert not plant.power_on[1]
+
+
+def test_limit_is_split_again_when_an_inverter_is_disabled():
+    hze, plant = _ready([600, 600])
+    overrides = _with_overrides(hze)
+    hze.SetLimit(600)
+    assert plant.limits == [300, 300]
+
+    overrides.set_inverter_value(1, 'enabled', b'false')
+    hze.GetHoymilesAvailable()
+    hze.SetLimit(600)                   # same total as before, but only one inverter is left
+    assert plant.limits[0] == 600
+
+
+def test_limit_is_split_again_when_an_inverter_drops_out():
+    available = {'inv1': True}
+    hze = load_script([600, 600])
+    plant = Plant([600, 600], load=constant(0), sun=constant(5000), duration=10 ** 6, write_seconds=0,
+                  available=lambda i, t: i == 0 or available['inv1'])
+    attach_plant(hze, plant)
+    hze.GetHoymilesAvailable()
+    hze.SetLimit(600)
+    available['inv1'] = False
+    hze.GetHoymilesAvailable()
+    hze.SetLimit(600)
+    assert plant.limits[0] == 600
+
+
+def test_unknown_mqtt_keys_are_not_stored():
+    from config_provider import OverridingConfigProvider
+    overrides = OverridingConfigProvider()
+    with pytest.raises(ValueError):
+        overrides.set_inverter_value(0, 'foo', b'1')
+    with pytest.raises(ValueError):
+        overrides.set_common_value('bar', b'1')
+    assert overrides.inverter_config == [{}]
+    assert overrides.common_config == {}
+
+
+def test_disabled_inverter_is_switched_off_again_after_a_restart():
+    hze, plant = _ready(FOUR)
+    overrides = _with_overrides(hze)
+    overrides.set_inverter_value(1, 'enabled', b'false')
+    hze.GetHoymilesAvailable()
+    assert not plant.power_on[1]
+    hze.GetHoymilesAvailable()
+    assert len(plant.power_status) == 1     # it is off: nothing to do
+
+    plant.power_on[1] = True                # next morning: the inverter restarted and produces again
+    hze.GetHoymilesAvailable()
+    assert plant.power_status[-1][1:] == (1, False)
+    assert not plant.power_on[1]
+    assert hze.AVAILABLE == [True, False, True, True]
+
+
+# ---------------------------------------------------------------- peak delay
+
+def test_peak_delay_starts_again_after_the_inverters_were_unreachable():
+    # a peak starts at t=300, right before the inverter drops out (t=310..600). When the inverter is back the
+    # powermeter is above POWERMETER_MAX_POINT at once (like every morning): the 60 seconds have to start again
+    result = replay(
+        inverters=[1500], load=steps((0, 300), (300, 1200)), sun=constant(5000), duration=800,
+        available=lambda i, t: not 310 <= t < 600,
+        config={'CONTROL': {'POWERMETER_PEAK_DELAY_IN_SECONDS': '60'}})
+    after_return = [w for w in result.writes if w[0] >= 600]
+    assert after_return != []
+    assert after_return[0][0] >= 660
+
+
+# ------------------------------------------------------------ MQTT handler
+
+def test_update_survives_a_key_arriving_from_the_mqtt_thread():
+    handler = _mqtt_handler()
+    handler.set_common_value('powermeter_tolerance', b'10')
+    handler.set_inverter_value(0, 'normal_watt', b'500')
+    publish = handler.mqtt_client.publish
+
+    def publish_and_receive(topic, payload=None, qos=0, retain=False):
+        # stands for on_message running in the MQTT thread while update() iterates
+        handler.common_config.setdefault('powermeter_target_point', -50)
+        handler.inverter_config[0].setdefault('reduce_watt', 100)
+        publish(topic, payload, qos, retain)
+
+    handler.mqtt_client.publish = publish_and_receive
+    handler.update()
+    assert ('zeropower/state/powermeter_tolerance', 10, True) in handler.mqtt_client.published
+
+
+def test_stop_publishes_offline_once():
+    handler = _mqtt_handler()
+    handler.stop()
+    handler.stop()
+    assert handler.mqtt_client.published == [('zeropower/status', 'offline', True)]

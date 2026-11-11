@@ -32,6 +32,7 @@ from pathlib import Path
 import sys
 from packaging import version
 import argparse 
+import atexit
 import subprocess
 from config_provider import ConfigFileConfigProvider, MqttHandler, ConfigProviderChain
 import json
@@ -267,26 +268,14 @@ def SetLimit(pLimit):
         raise
 
 def ResetInverterData(pInverterId):
-    attributes_to_delete = [
-        "LastLimit",
-        "LastLimitAck",
-    ]
-    array_attributes_to_delete = [
-        {"LastPowerStatus": False},
-        {"SamePowerStatusCnt": 0},
-    ]
-    target_objects = [
-        SetLimit,
-        GetHoymilesPanelMinVoltage,
-    ]
-    for target_object in target_objects:
-        for attribute in attributes_to_delete:
-            if hasattr(target_object, attribute):
-                delattr(target_object, attribute)
-        for array_attribute in array_attributes_to_delete:
-            for key, value in array_attribute.items():
-                if hasattr(target_object, key):
-                    target_object[key][pInverterId] = value
+    for attribute in ("LastLimit", "LastLimitAck"):
+        if hasattr(SetLimit, attribute):
+            delattr(SetLimit, attribute)
+    # forget the power status retry counter: the inverter may have restarted or been switched in the meantime
+    if hasattr(SetHoymilesPowerStatus, "LastPowerStatus"):
+        SetHoymilesPowerStatus.LastPowerStatus[pInverterId] = False
+    if hasattr(SetHoymilesPowerStatus, "SamePowerStatusCnt"):
+        SetHoymilesPowerStatus.SamePowerStatusCnt[pInverterId] = 0
 
     LASTLIMITACKNOWLEDGED[pInverterId] = False
     HOY_PANEL_MIN_VOLTAGE_HISTORY_LIST[pInverterId] = []
@@ -305,17 +294,31 @@ def ApplyInverterEnabled(pInverterId):
         logger.info('Inverter %s (%s) disabled: turn off', pInverterId, NAME[pInverterId])
     DTU.SetPowerStatus(pInverterId, enabled)
     ENABLED[pInverterId] = enabled
+    SWITCHED_OFF[pInverterId] = not enabled
     PublishInverterState(pInverterId, "enabled", enabled)
     time.sleep(SET_POWER_STATUS_DELAY_IN_SECONDS)
+
+def KeepDisabledInverterOff(pInverterId):
+    # a Hoymiles inverter forgets "power off" when it restarts (e.g. the next morning) and would then feed in
+    # unregulated. So an inverter that was switched off via ENABLED is switched off again as soon as it produces.
+    if ENABLED[pInverterId] or not SWITCHED_OFF[pInverterId]:
+        return
+    if not DTU.GetAvailable(pInverterId):
+        return
+    if DTU.GetACPower(pInverterId) <= 0:
+        return
+    logger.info('Inverter %s (%s) is disabled but produces power: turn off again', pInverterId, NAME[pInverterId])
+    DTU.SetPowerStatus(pInverterId, False)
 
 def GetHoymilesAvailable():
     try:
         GetHoymilesAvailable = False
         for i in range(INVERTER_COUNT):
+            WasAvail = AVAILABLE[i]
             try:
                 ApplyInverterEnabled(i)
-                WasAvail = AVAILABLE[i]
                 AVAILABLE[i] = ENABLED[i] and DTU.GetAvailable(i)
+                KeepDisabledInverterOff(i)
                 if AVAILABLE[i]:
                     GetHoymilesAvailable = True
                     if not WasAvail:
@@ -328,6 +331,9 @@ def GetHoymilesAvailable():
                     logger.error(e.message)
                 else:
                     logger.error(e)
+            if WasAvail and not AVAILABLE[i] and hasattr(SetLimit, "LastLimit"):
+                # an inverter dropped out: the limit has to be split again over the remaining ones, even if the total is unchanged
+                SetLimit.LastLimit = -1
         return GetHoymilesAvailable
     except:
         logger.error('Exception at GetHoymilesAvailable')
@@ -1606,6 +1612,7 @@ CURRENT_LIMIT = []
 AVAILABLE = []
 LASTLIMITACKNOWLEDGED = []
 HOY_BATTERY_GOOD_VOLTAGE = []
+SWITCHED_OFF = [] # inverters the script switched off because ENABLED changed to false at runtime
 HOY_COMPENSATE_WATT_FACTOR = []
 HOY_BATTERY_MODE = []
 HOY_BATTERY_THRESHOLD_OFF_LIMIT_IN_V = []
@@ -1632,6 +1639,7 @@ for i in range(INVERTER_COUNT):
     AVAILABLE.append(bool(False))
     LASTLIMITACKNOWLEDGED.append(bool(False))
     HOY_BATTERY_GOOD_VOLTAGE.append(bool(True))
+    SWITCHED_OFF.append(bool(False))
     HOY_BATTERY_MODE.append(config.getboolean('INVERTER_' + str(i + 1), 'HOY_BATTERY_MODE'))
     HOY_BATTERY_THRESHOLD_OFF_LIMIT_IN_V.append(config.getfloat('INVERTER_' + str(i + 1), 'HOY_BATTERY_THRESHOLD_OFF_LIMIT_IN_V'))
     HOY_BATTERY_THRESHOLD_REDUCE_LIMIT_IN_V.append(config.getfloat('INVERTER_' + str(i + 1), 'HOY_BATTERY_THRESHOLD_REDUCE_LIMIT_IN_V'))
@@ -1671,6 +1679,8 @@ if config.has_section("MQTT_CONFIG"):
         logger.addHandler(MqttLogHandler())
 
     CONFIG_PROVIDER = ConfigProviderChain([MQTT, CONFIG_PROVIDER])
+    # on a normal exit the broker does not send the last will, so "offline" is published explicitly
+    atexit.register(MQTT.stop)
 
 def main():
     try:
@@ -1695,21 +1705,21 @@ def main():
     peakStartTime = None
 
     while True:
-        CONFIG_PROVIDER.update()
-        PublishConfigState()
-        on_grid_usage_jump_to_limit_percent = CONFIG_PROVIDER.on_grid_usage_jump_to_limit_percent()
-        on_grid_feed_fast_limit_decrease = CONFIG_PROVIDER.on_grid_feed_fast_limit_decrease()    
-        powermeter_target_point = CONFIG_PROVIDER.get_powermeter_target_point()
-        powermeter_max_point = CONFIG_PROVIDER.get_powermeter_max_point()
-        powermeter_min_point = CONFIG_PROVIDER.get_powermeter_min_point()
-        powermeter_tolerance = CONFIG_PROVIDER.get_powermeter_tolerance()
-        if powermeter_max_point < (powermeter_target_point + powermeter_tolerance):
-            powermeter_max_point = powermeter_target_point + powermeter_tolerance + 50
-            logger.info(
-                'Warning: POWERMETER_MAX_POINT < POWERMETER_TARGET_POINT + POWERMETER_TOLERANCE. Setting POWERMETER_MAX_POINT to ' + str(
-                    powermeter_max_point))
-
         try:
+            CONFIG_PROVIDER.update()
+            PublishConfigState()
+            on_grid_usage_jump_to_limit_percent = CONFIG_PROVIDER.on_grid_usage_jump_to_limit_percent()
+            on_grid_feed_fast_limit_decrease = CONFIG_PROVIDER.on_grid_feed_fast_limit_decrease()    
+            powermeter_target_point = CONFIG_PROVIDER.get_powermeter_target_point()
+            powermeter_max_point = CONFIG_PROVIDER.get_powermeter_max_point()
+            powermeter_min_point = CONFIG_PROVIDER.get_powermeter_min_point()
+            powermeter_tolerance = CONFIG_PROVIDER.get_powermeter_tolerance()
+            if powermeter_max_point < (powermeter_target_point + powermeter_tolerance):
+                powermeter_max_point = powermeter_target_point + powermeter_tolerance + 50
+                logger.info(
+                    'Warning: POWERMETER_MAX_POINT < POWERMETER_TARGET_POINT + POWERMETER_TOLERANCE. Setting POWERMETER_MAX_POINT to ' + str(
+                        powermeter_max_point))
+
             PreviousLimitSetpoint = newLimitSetpoint
             if GetHoymilesAvailable() and GetCheckBattery():
                 if LOG_TEMPERATURE:
@@ -1800,6 +1810,7 @@ def main():
             else:
                 if hasattr(SetLimit, "LastLimit"):
                     SetLimit.LastLimit = -1
+                peakStartTime = None
                 time.sleep(LOOP_INTERVAL_IN_SECONDS)
 
         except Exception as e:
@@ -1807,6 +1818,8 @@ def main():
                 logger.error(e.message)
             else:
                 logger.error(e)
+            # a peak that started before the error must not count as "already waited" afterwards
+            peakStartTime = None
             time.sleep(LOOP_INTERVAL_IN_SECONDS)
 
 if __name__ == "__main__":

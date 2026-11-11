@@ -9,6 +9,13 @@
 * MQTT: Home Assistant discovery with MQTT_HOMEASSISTANT_DISCOVERY = true (https://github.com/reserve85/HoymilesZeroExport/issues/250)
 * fix MQTT: boolean payloads are parsed properly, `false` was read as true (on_grid_feed_fast_limit_decrease)
 * fix MQTT: MQTT_TOPIC_PREFIX from the config file is now used. Before, only the undocumented MQTT_SET_TOPIC was read; it still works
+* fix battery mode: an inverter that returns (restart, or disabled / enabled via MQTT) while the battery is below HOY_BATTERY_THRESHOLD_OFF_LIMIT_IN_V is switched off again. Before, the retry counter of SET_POWERSTATUS_CNT was never reset and the inverter stayed on
+* fix: when an inverter drops out or is disabled, the limit is split again over the remaining inverters, even if the total limit did not change
+* fix MQTT: unknown keys are rejected instead of being stored and published as empty values
+* fix MQTT: an inverter that was disabled with `set/inverter/<n>/enabled` is switched off again when it restarts (e.g. the next morning) and produces power. Hoymiles inverters forget "power off" on a restart
+* fix POWERMETER_PEAK_DELAY_IN_SECONDS: the delay starts again after an error or after no inverter was reachable
+* fix MQTT: a set / reset message arriving while the states are published could stop the script
+* fix MQTT: the status topic is set to `offline` on a normal exit, so Home Assistant no longer shows the entities as available
 ### config
 * added POWERMETER_PEAK_DELAY_IN_SECONDS, DISTRIBUTE_LIMIT_BY_ACTUAL_POWER, MQTT_BATTERY_VOLTAGE_MAX_AGE_SECONDS, MQTT_HOMEASSISTANT_DISCOVERY, MQTT_HOMEASSISTANT_DISCOVERY_PREFIX. All are optional, existing config files keep working
 

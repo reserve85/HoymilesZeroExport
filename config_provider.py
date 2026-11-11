@@ -212,14 +212,14 @@ class OverridingConfigProvider(ConfigProvider):
             elif key in ['battery_voltage']:
                 return float(value)
             else:
-                logger.error(f"Unknown inverter key {key}")
+                raise ValueError(f"Unknown inverter key {key}")
         else:
             if key in ['powermeter_target_point', 'powermeter_max_point', 'powermeter_min_point', 'powermeter_tolerance', 'on_grid_usage_jump_to_limit_percent']:
                 return int(value)
             elif key in ['on_grid_feed_fast_limit_decrease']:
                 return OverridingConfigProvider.parse_bool(value)
             else:
-                logger.error(f"Unknown common key {key}")
+                raise ValueError(f"Unknown common key {key}")
 
     def set_common_value(self, name, value):
         if value is None:
@@ -333,10 +333,11 @@ class MqttHandler(OverridingConfigProvider):
 
     def update(self):
         # Publish all config values to MQTT
-        for key, value in self.common_config.items():
+        # iterate over copies: the MQTT thread can add or remove a key at any time (on_message)
+        for key, value in list(self.common_config.items()):
             self.mqtt_client.publish(f"{self.topic_prefix}/state/{key}", payload=self.cast_value_for_publish(value), qos=1, retain=True)
-        for inverter_idx, inverter_config in enumerate(self.inverter_config):
-            for key, value in inverter_config.items():
+        for inverter_idx, inverter_config in enumerate(list(self.inverter_config)):
+            for key, value in list(inverter_config.items()):
                 self.mqtt_client.publish(f"{self.topic_prefix}/state/inverter/{inverter_idx}/{key}", payload=self.cast_value_for_publish(value), qos=1, retain=True)
 
     def on_connect(self, client, userdata, flags, reason_code, properties):
@@ -488,6 +489,22 @@ class MqttHandler(OverridingConfigProvider):
         # Publish the JSON-formatted log message to the MQTT topic
         self.mqtt_client.publish(f"{self.topic_prefix}/log", payload=json_payload)
 
+    def stop(self):
+        """
+        Clean shutdown. The last will is only sent by the broker when the connection is lost, so the status has to be
+        set to offline here; otherwise Home Assistant keeps showing the entities as available.
+        """
+        if getattr(self, 'stopped', False):
+            return
+        self.stopped = True
+        try:
+            logger.info("Disconnecting MQTT client")
+            info = self.mqtt_client.publish(f"{self.topic_prefix}/status", payload="offline", qos=1, retain=True)
+            if info is not None:
+                info.wait_for_publish(timeout=2)
+            self.mqtt_client.disconnect()
+        except Exception as e:
+            logger.error(f"Error on disconnecting MQTT client: {e}")
+
     def __del__(self):
-        logger.info("Disconnecting MQTT client")
-        self.mqtt_client.disconnect()
+        self.stop()
