@@ -218,3 +218,50 @@ def test_external_battery_voltage_can_be_reset():
     overrides.set_inverter_value(1, 'battery_voltage', b'46.0')
     overrides.set_inverter_value(1, 'battery_voltage', None)
     assert overrides.get_battery_voltage(1) is None
+
+
+# issue #207
+def test_distribute_by_weight_is_proportional():
+    hze = load_script()
+    shares = hze.DistributeByWeight(400, {0: 570, 1: 570, 2: 570}, {0: 250, 1: 100, 2: 50})
+    assert shares == {0: 250.0, 1: 100.0, 2: 50.0}
+
+
+def test_distribute_by_weight_passes_surplus_to_the_others():
+    hze = load_script()
+    shares = hze.DistributeByWeight(900, {0: 300, 1: 570, 2: 570}, {0: 8, 1: 1, 2: 1})
+    assert shares[0] == 300
+    assert shares[1] == shares[2] == 300
+    assert hze.DistributeByWeight(5000, {0: 300, 1: 570}, {0: 1, 1: 1}) == {0: 300, 1: 570}
+
+
+def test_distribute_by_weight_without_weights_splits_evenly():
+    hze = load_script()
+    assert hze.DistributeByWeight(200, {0: 570, 1: 570}, {0: 0, 1: 0}) == {0: 100.0, 1: 100.0}
+
+
+def test_set_limit_by_actual_power_follows_production():
+    inverters = [600, 600, 600, 600]
+    hze = load_script(inverters, config={'COMMON': {'DISTRIBUTE_LIMIT_BY_ACTUAL_POWER': 'true'}})
+    plant = Plant(inverters, load=constant(0), sun=constant([280, 280, 60, 60]), duration=10 ** 6, write_seconds=0)
+    attach_plant(hze, plant)
+    assert hze.GetHoymilesAvailable()
+    hze.SetLimit(480)
+    # the two inverters that produce most get most of the limit; rated power would give 120 W each
+    assert plant.limits[0] == plant.limits[1] > 170
+    assert plant.limits[2] == plant.limits[3] < 60
+    assert abs(sum(plant.limits) - 480) <= 4
+
+
+def test_set_limit_by_actual_power_falls_back_when_dtu_fails():
+    inverters = [600, 600]
+    hze = load_script(inverters, config={'COMMON': {'DISTRIBUTE_LIMIT_BY_ACTUAL_POWER': 'true'}})
+    plant = Plant(inverters, load=constant(0), sun=constant(5000), duration=10 ** 6, write_seconds=0)
+    attach_plant(hze, plant)
+    assert hze.GetHoymilesAvailable()
+
+    def broken(pInverterId):
+        raise RuntimeError('DTU offline')
+    hze.DTU.GetACPower = broken
+    hze.SetLimit(600)
+    assert plant.limits == [300, 300]

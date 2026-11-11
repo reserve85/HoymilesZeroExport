@@ -46,6 +46,7 @@ PINNED_CONFIG = {
         'SET_POWER_STATUS_DELAY_IN_SECONDS': '10',
         'LOG_TEMPERATURE': 'false',
         'SET_INVERTER_TO_MIN_ON_POWERMETER_ERROR': 'false',
+        'DISTRIBUTE_LIMIT_BY_ACTUAL_POWER': 'false',
     },
     'CONTROL': {
         'POWERMETER_TARGET_POINT': '-75',
@@ -132,7 +133,11 @@ class Plant:
     def production(self, i):
         if not self.power_on[i] or not self.available(i, self.t):
             return 0.0
-        share = self.sun(self.t) * self.max_watts[i] / sum(self.max_watts)
+        sun = self.sun(self.t)
+        if isinstance(sun, (list, tuple)):      # one value per inverter, e.g. east / west
+            share = sun[i]
+        else:
+            share = sun * self.max_watts[i] / sum(self.max_watts)
         return max(0.0, min(self.limits[i], share))
 
     def grid(self):

@@ -102,6 +102,51 @@ def CastToInt(pValueToCast):
         logger.error("Exception at CastToInt")
         raise
 
+def DistributeByWeight(pTotal, pCapacities, pWeights):
+    # split pTotal over the keys of pCapacities proportional to pWeights. No key gets more than its capacity,
+    # what one key cannot take goes to the others.
+    result = {key: 0.0 for key in pCapacities}
+    remaining = min(pTotal, sum(pCapacities.values()))
+    openKeys = [key for key in pCapacities if pCapacities[key] > 0]
+    while remaining > 0 and openKeys:
+        weightSum = sum(pWeights[key] for key in openKeys)
+        if weightSum <= 0:
+            shares = {key: remaining / len(openKeys) for key in openKeys}
+        else:
+            shares = {key: remaining * pWeights[key] / weightSum for key in openKeys}
+        full = [key for key in openKeys if shares[key] >= pCapacities[key]]
+        if not full:
+            for key in openKeys:
+                result[key] = shares[key]
+            break
+        for key in full:
+            result[key] = pCapacities[key]
+            remaining -= pCapacities[key]
+            openKeys.remove(key)
+    return result
+
+def GetLimitsByActualPower(pNonBatteryInvertersLimit):
+    # DISTRIBUTE_LIMIT_BY_ACTUAL_POWER: split the limit over the non-battery inverters by what each one produces
+    # right now instead of by its rated power. Returns {inverter: limit}, or None if the actual power is not readable.
+    try:
+        capacities = {}
+        weights = {}
+        for i in range(INVERTER_COUNT):
+            if not AVAILABLE[i] or HOY_BATTERY_MODE[i]:
+                continue
+            capacities[i] = HOY_MAX_WATT[i] - GetMinWatt(i)
+            # an inverter that produces (almost) nothing keeps a small share, otherwise its limit could never rise again
+            weights[i] = max(DTU.GetACPower(i) - GetMinWatt(i), capacities[i] * 0.1)
+        shares = DistributeByWeight(pNonBatteryInvertersLimit, capacities, weights)
+        return {i: CastToInt(shares[i]) + GetMinWatt(i) for i in shares}
+    except Exception as e:
+        logger.error("Exception at GetLimitsByActualPower, distributing the limit by rated power instead")
+        if hasattr(e, 'message'):
+            logger.error(e.message)
+        else:
+            logger.error(e)
+        return None
+
 def SetLimit(pLimit):
     try:
         if not hasattr(SetLimit, "LastLimit"):
@@ -136,14 +181,21 @@ def SetLimit(pLimit):
         else:
             nonBatteryInvertersLimit = RemainingLimit
 
+        limitsByActualPower = None
+        if DISTRIBUTE_LIMIT_BY_ACTUAL_POWER:
+            limitsByActualPower = GetLimitsByActualPower(nonBatteryInvertersLimit)
+
         for i in range(INVERTER_COUNT):
             if not AVAILABLE[i] or HOY_BATTERY_MODE[i]:
                 continue
 
-            # Calculate proportional limit for non-battery inverters
-            NewLimit = CastToInt(nonBatteryInvertersLimit * (HOY_MAX_WATT[i] - GetMinWatt(i)) / (GetMaxWattFromAllNonBatteryInverters() - GetMinWattFromAllNonBatteryInverters()))
+            if limitsByActualPower is not None:
+                NewLimit = limitsByActualPower[i]
+            else:
+                # Calculate proportional limit for non-battery inverters
+                NewLimit = CastToInt(nonBatteryInvertersLimit * (HOY_MAX_WATT[i] - GetMinWatt(i)) / (GetMaxWattFromAllNonBatteryInverters() - GetMinWattFromAllNonBatteryInverters()))
 
-            NewLimit += GetMinWatt(i)
+                NewLimit += GetMinWatt(i)
 
             # Apply the calculated limit to the inverter
             NewLimit = ApplyLimitsToSetpointInverter(i, NewLimit)
@@ -1541,6 +1593,7 @@ SET_POWERSTATUS_CNT = config.getint('COMMON', 'SET_POWERSTATUS_CNT')
 SLOW_APPROX_FACTOR_IN_PERCENT = config.getint('COMMON', 'SLOW_APPROX_FACTOR_IN_PERCENT')
 LOG_TEMPERATURE = config.getboolean('COMMON', 'LOG_TEMPERATURE')
 SET_INVERTER_TO_MIN_ON_POWERMETER_ERROR = config.getboolean('COMMON', 'SET_INVERTER_TO_MIN_ON_POWERMETER_ERROR', fallback=False)
+DISTRIBUTE_LIMIT_BY_ACTUAL_POWER = config.getboolean('COMMON', 'DISTRIBUTE_LIMIT_BY_ACTUAL_POWER', fallback=False)
 powermeter_target_point = config.getint('CONTROL', 'POWERMETER_TARGET_POINT')
 POWERMETER_PEAK_DELAY_IN_SECONDS = config.getint('CONTROL', 'POWERMETER_PEAK_DELAY_IN_SECONDS', fallback=0)
 SERIAL_NUMBER = []

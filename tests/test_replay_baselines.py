@@ -52,7 +52,20 @@ def _fridge(t):
 
 PEAK_DELAY = {'CONTROL': {'POWERMETER_PEAK_DELAY_IN_SECONDS': '5'}}
 
+BY_ACTUAL_POWER = {'COMMON': {'DISTRIBUTE_LIMIT_BY_ACTUAL_POWER': 'true'}}
+EAST_WEST = dict(
+    inverters=[600, 600, 600, 600], load=steps((0, 700), (200, 350), (600, 550)),
+    sun=constant([280, 280, 60, 60]), duration=1200)
+SUN_MOVES = dict(
+    inverters=[600, 600, 600, 600], load=steps((0, 500), (300, 300), (900, 450)),
+    sun=lambda t: [280, 280, 60, 60] if t < 600 else [60, 60, 280, 280], duration=1500)
+
 SCENARIOS = {
+    # issue #207: inverters with different orientation
+    'east_west': dict(**EAST_WEST),
+    'east_west_by_actual_power': dict(config=BY_ACTUAL_POWER, **EAST_WEST),
+    'sun_moves_east_to_west': dict(**SUN_MOVES),
+    'sun_moves_east_to_west_by_actual_power': dict(config=BY_ACTUAL_POWER, **SUN_MOVES),
     # issue #225: short load peaks
     'short_peaks': dict(inverters=ONE, load=_fridge, sun=constant(1500), duration=1800),
     'short_peaks_peak_delay': dict(inverters=ONE, load=_fridge, sun=constant(1500), duration=1800, config=PEAK_DELAY),
