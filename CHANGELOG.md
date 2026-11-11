@@ -1,5 +1,14 @@
 # Changelog
 
+## V 1.106
+### script
+* fix SLOW_APPROX_LIMIT: it was always 0, so the slow approximation was used on every limit reduction. Reductions below SLOW_APPROX_LIMIT_IN_PERCENT are now done in one step. Set SLOW_APPROX_LIMIT_IN_PERCENT = 0 to keep the previous behaviour (https://github.com/reserve85/HoymilesZeroExport/issues/279)
+* ON_GRID_FEED_FAST_LIMIT_DECREASE: cut the limit from the actual inverter output when the limit is far above it (https://github.com/reserve85/HoymilesZeroExport/issues/280)
+* fix GetHoymilesActualPower: return the DTU value when the intermediate meter fails
+* the main loop now runs inside main(), so the script can be imported for testing
+### tests
+* added a replay test harness (simulated DTU, powermeter and clock) with baseline scenarios, run in CI
+
 ## V 1.105
 ### script
 * prepare Shelly Pro 3EM for Firmware V2.x.x (new Endpoints)
