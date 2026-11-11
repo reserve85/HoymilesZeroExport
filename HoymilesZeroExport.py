@@ -15,7 +15,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 __author__ = "Tobias Kraft"
-__version__ = "1.106"
+__version__ = "1.107"
 
 import time
 from requests.sessions import Session

@@ -1,5 +1,17 @@
 # Changelog
 
+## V 1.107
+### script
+* MQTT: enable / disable an inverter at runtime with `set/inverter/<n>/enabled`. A disabled inverter is switched off and removed from the regulation (https://github.com/reserve85/HoymilesZeroExport/issues/224)
+* new setting POWERMETER_PEAK_DELAY_IN_SECONDS: ignore short load peaks (e.g. a fridge starting), the limit is only increased if the powermeter stays above POWERMETER_MAX_POINT for this time. Default 0 = disabled (https://github.com/reserve85/HoymilesZeroExport/issues/225)
+* MQTT, battery mode: battery voltage from an external source with `set/inverter/<n>/battery_voltage`. Values older than MQTT_BATTERY_VOLTAGE_MAX_AGE_SECONDS are ignored (https://github.com/reserve85/HoymilesZeroExport/issues/262)
+* new setting DISTRIBUTE_LIMIT_BY_ACTUAL_POWER: split the limit over the inverters by their current output instead of their rated power, for inverters with different orientation. Default false (https://github.com/reserve85/HoymilesZeroExport/issues/207)
+* MQTT: Home Assistant discovery with MQTT_HOMEASSISTANT_DISCOVERY = true (https://github.com/reserve85/HoymilesZeroExport/issues/250)
+* fix MQTT: boolean payloads are parsed properly, `false` was read as true (on_grid_feed_fast_limit_decrease)
+* fix MQTT: MQTT_TOPIC_PREFIX from the config file is now used. Before, only the undocumented MQTT_SET_TOPIC was read; it still works
+### config
+* added POWERMETER_PEAK_DELAY_IN_SECONDS, DISTRIBUTE_LIMIT_BY_ACTUAL_POWER, MQTT_BATTERY_VOLTAGE_MAX_AGE_SECONDS, MQTT_HOMEASSISTANT_DISCOVERY, MQTT_HOMEASSISTANT_DISCOVERY_PREFIX. All are optional, existing config files keep working
+
 ## V 1.106
 ### script
 * fix SLOW_APPROX_LIMIT: it was always 0, so the slow approximation was used on every limit reduction. Reductions below SLOW_APPROX_LIMIT_IN_PERCENT are now done in one step. Set SLOW_APPROX_LIMIT_IN_PERCENT = 0 to keep the previous behaviour (https://github.com/reserve85/HoymilesZeroExport/issues/279)
