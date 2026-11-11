@@ -1565,7 +1565,7 @@ for i in range(INVERTER_COUNT):
     HOY_PANEL_VOLTAGE_LIST.append([])
     HOY_PANEL_MIN_VOLTAGE_HISTORY_LIST.append([])
     HOY_BATTERY_AVERAGE_CNT.append(config.getint('INVERTER_' + str(i + 1), 'HOY_BATTERY_AVERAGE_CNT', fallback=1))
-SLOW_APPROX_LIMIT = CastToInt(GetMaxWattFromAllInverters() * config.getint('COMMON', 'SLOW_APPROX_LIMIT_IN_PERCENT') / 100)
+SLOW_APPROX_LIMIT_IN_PERCENT = config.getint('COMMON', 'SLOW_APPROX_LIMIT_IN_PERCENT')
 
 CONFIG_PROVIDER = ConfigFileConfigProvider(config)
 MQTT = None
@@ -1671,7 +1671,7 @@ def main():
                         hoymilesActualPower = GetHoymilesActualPower()
                         newLimitSetpoint = hoymilesActualPower + powermeterWatts - powermeter_target_point
                         LimitDifference = abs(hoymilesActualPower - newLimitSetpoint)
-                        if LimitDifference > SLOW_APPROX_LIMIT:
+                        if LimitDifference > GetMaxWattFromAllInverters() * SLOW_APPROX_LIMIT_IN_PERCENT / 100:
                             newLimitSetpoint = newLimitSetpoint + (LimitDifference * SLOW_APPROX_FACTOR_IN_PERCENT / 100)
                         if newLimitSetpoint > hoymilesActualPower:
                             newLimitSetpoint = hoymilesActualPower
@@ -1680,7 +1680,7 @@ def main():
                         newLimitSetpoint = PreviousLimitSetpoint + powermeterWatts - powermeter_target_point
                         # check if it is necessary to approximate to the setpoint with some more passes. this reduce overshoot
                         LimitDifference = abs(PreviousLimitSetpoint - newLimitSetpoint)
-                        if LimitDifference > SLOW_APPROX_LIMIT:
+                        if LimitDifference > GetMaxWattFromAllInverters() * SLOW_APPROX_LIMIT_IN_PERCENT / 100:
                             logger.info("overproducing: reduce limit based on previous limit setpoint by approximation")
                             newLimitSetpoint = newLimitSetpoint + (LimitDifference * SLOW_APPROX_FACTOR_IN_PERCENT / 100)
                         else:

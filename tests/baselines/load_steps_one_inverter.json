@@ -1,9 +1,9 @@
 {
  "metrics": {
-  "feed_in_wh": 43.88,
-  "import_wh": 0.95,
-  "seconds_below_150W": 113.0,
-  "limit_writes": 9,
+  "feed_in_wh": 41.53,
+  "import_wh": 0.96,
+  "seconds_below_150W": 110.0,
+  "limit_writes": 7,
   "power_status_writes": 1
  },
  "writes": [
@@ -25,12 +25,7 @@
   [
    79.0,
    0,
-   416
-  ],
-  [
-   102.0,
-   0,
-   383
+   375
   ],
   [
    120.0,
@@ -38,19 +33,14 @@
    1500
   ],
   [
-   428.0,
+   425.0,
    0,
    580
   ],
   [
-   451.0,
+   448.0,
    0,
-   416
-  ],
-  [
-   474.0,
-   0,
-   383
+   375
   ]
  ],
  "power_status": [

@@ -85,7 +85,7 @@ def test_cut_limit_to_production():
 # These describe the correct behaviour and are expected to fail today.
 # strict=True makes them fail loudly once the bug is fixed: remove the marker then.
 
-@pytest.mark.xfail(strict=True, reason='issue #279: SLOW_APPROX_LIMIT is computed as 0 at startup')
+# issue #279
 def test_small_reduction_does_not_use_slow_approximation(caplog):
     # 150 W step on a 1500 W inverter is below SLOW_APPROX_LIMIT_IN_PERCENT = 20 % (300 W)
     with caplog.at_level(logging.INFO):

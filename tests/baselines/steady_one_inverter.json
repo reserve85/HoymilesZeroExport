@@ -1,9 +1,9 @@
 {
  "metrics": {
-  "feed_in_wh": 25.51,
+  "feed_in_wh": 24.64,
   "import_wh": 0.27,
   "seconds_below_150W": 79.0,
-  "limit_writes": 5,
+  "limit_writes": 4,
   "power_status_writes": 1
  },
  "writes": [
@@ -25,12 +25,7 @@
   [
    79.0,
    0,
-   504
-  ],
-  [
-   102.0,
-   0,
-   480
+   475
   ]
  ],
  "power_status": [

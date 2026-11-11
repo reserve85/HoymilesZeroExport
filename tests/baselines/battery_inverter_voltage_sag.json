@@ -1,6 +1,6 @@
 {
  "metrics": {
-  "feed_in_wh": 37.15,
+  "feed_in_wh": 34.45,
   "import_wh": 17.94,
   "seconds_below_150W": 195.0,
   "limit_writes": 10,
@@ -35,7 +35,7 @@
   [
    135.0,
    1,
-   296
+   275
   ],
   [
    628.0,
@@ -55,7 +55,7 @@
   [
    717.0,
    1,
-   296
+   275
   ]
  ],
  "power_status": [
