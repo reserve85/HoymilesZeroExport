@@ -121,3 +121,59 @@ def test_fast_decrease_cuts_from_actual_output_when_limit_is_far_above_it():
     # one write pass (4 inverters, 3 s each) after the load switched off the limit is below production
     after = [total for t, total in total_at.items() if t <= 245 + 20][-1]
     assert after < 830
+
+
+# ------------------------------------------------- runtime settings (MQTT)
+
+def _with_overrides(hze):
+    """Put an override provider in front of the config file, as the MQTT handler does."""
+    from config_provider import ConfigProviderChain, OverridingConfigProvider
+    overrides = OverridingConfigProvider()
+    hze.CONFIG_PROVIDER = ConfigProviderChain([overrides, hze.CONFIG_PROVIDER])
+    return overrides
+
+
+def test_parse_bool_understands_mqtt_payloads():
+    from config_provider import OverridingConfigProvider
+    for payload in (b'true', b'1', 'on', 'YES', True):
+        assert OverridingConfigProvider.parse_bool(payload) is True
+    for payload in (b'false', b'0', 'off', 'No', False):
+        assert OverridingConfigProvider.parse_bool(payload) is False
+    with pytest.raises(ValueError):
+        OverridingConfigProvider.parse_bool(b'maybe')
+
+
+def test_fast_limit_decrease_can_be_switched_off_via_mqtt():
+    from config_provider import OverridingConfigProvider
+    overrides = OverridingConfigProvider()
+    overrides.set_common_value('on_grid_feed_fast_limit_decrease', b'false')
+    assert overrides.on_grid_feed_fast_limit_decrease() is False
+
+
+# issue #224
+def test_inverter_can_be_disabled_and_enabled_at_runtime():
+    hze, plant = _ready(FOUR)
+    overrides = _with_overrides(hze)
+
+    overrides.set_inverter_value(1, 'enabled', b'false')
+    assert hze.GetHoymilesAvailable()
+    assert plant.power_status[-1][1:] == (1, False)
+    assert hze.AVAILABLE == [True, False, True, True]
+    assert hze.GetMaxWattFromAllInverters() == 2700
+    hze.SetLimit(2700)
+    assert 1 not in [w[1] for w in plant.writes]
+
+    overrides.set_inverter_value(1, 'enabled', b'true')
+    assert hze.GetHoymilesAvailable()
+    assert plant.power_status[-1][1:] == (1, True)
+    assert hze.AVAILABLE == [True, True, True, True]
+    assert hze.GetMaxWattFromAllInverters() == 3300
+
+
+def test_inverter_disabled_in_config_file_is_not_switched_off():
+    hze = load_script(FOUR, inverter_config={2: {'ENABLED': 'false'}})
+    plant = Plant(FOUR, load=constant(0), sun=constant(5000), duration=10 ** 6, write_seconds=0)
+    attach_plant(hze, plant)
+    assert hze.GetHoymilesAvailable()
+    assert plant.power_status == []
+    assert hze.AVAILABLE == [True, False, True, True]

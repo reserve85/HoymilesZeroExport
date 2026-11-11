@@ -190,6 +190,7 @@ Once configured, the script will listen for incoming MQTT messages on the specif
 - `zeropower/set/inverter/0/normal_watt`: To change the battery normal watt of the first inverter
 - `zeropower/set/inverter/0/reduce_watt`: To change the battery reduce watt of the first inverter
 - `zeropower/set/inverter/0/battery_priority`: To change the battery priority of the first inverter
+- `zeropower/set/inverter/0/enabled`: `true` / `false` (also `on` / `off`, `1` / `0`). `false` switches the first inverter off and removes it from the regulation, `true` switches it on again
 - `zeropower/set/inverter/<n>/*`: To change the settings of the (n+1)th inverter
 
 To reset a setting to its original value, you can send an empty message to the corresponding topic replacing `set` with `reset`, e.g. `zeropower/reset/powermeter_target_point`.
@@ -206,6 +207,7 @@ Additionally, the script will publish the following MQTT messages:
 - `zeropower/state/inverter/0/normal_watt`: The current battery normal watt of the first inverter
 - `zeropower/state/inverter/0/reduce_watt`: The current battery reduce watt of the first inverter
 - `zeropower/state/inverter/0/battery_priority`: The current battery priority of the first inverter
+- `zeropower/state/inverter/0/enabled`: Whether the first inverter is enabled
 - `zeropower/state/inverter/<n>/*`: The current settings of the (n+1)th inverter
 
 The script can also be configured to publish log messages to MQTT. To enable this feature, you need to set `MQTT_LOG_LEVEL` to `INFO`, which will publish all log messages to the topic `zeropower/log`.

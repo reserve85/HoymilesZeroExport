@@ -242,11 +242,26 @@ def ResetInverterData(pInverterId):
     HOY_BATTERY_GOOD_VOLTAGE[pInverterId] = True
     TEMPERATURE[pInverterId] = str('--- degC')
 
+def ApplyInverterEnabled(pInverterId):
+    # ENABLED can be changed at runtime (MQTT: set/inverter/<n>/enabled). Switch the inverter off / on when it changes.
+    enabled = CONFIG_PROVIDER.get_inverter_enabled(pInverterId)
+    if enabled is None or enabled == ENABLED[pInverterId]:
+        return
+    if enabled:
+        logger.info('Inverter %s (%s) enabled: turn on', pInverterId, NAME[pInverterId])
+    else:
+        logger.info('Inverter %s (%s) disabled: turn off', pInverterId, NAME[pInverterId])
+    DTU.SetPowerStatus(pInverterId, enabled)
+    ENABLED[pInverterId] = enabled
+    PublishInverterState(pInverterId, "enabled", enabled)
+    time.sleep(SET_POWER_STATUS_DELAY_IN_SECONDS)
+
 def GetHoymilesAvailable():
     try:
         GetHoymilesAvailable = False
         for i in range(INVERTER_COUNT):
             try:
+                ApplyInverterEnabled(i)
                 WasAvail = AVAILABLE[i]
                 AVAILABLE[i] = ENABLED[i] and DTU.GetAvailable(i)
                 if AVAILABLE[i]:
@@ -555,6 +570,7 @@ def PublishConfigState():
         MQTT.publish_inverter_state(i, "normal_watt", CONFIG_PROVIDER.get_normal_wattage(i))
         MQTT.publish_inverter_state(i, "reduce_watt", CONFIG_PROVIDER.get_reduce_wattage(i))
         MQTT.publish_inverter_state(i, "battery_priority", CONFIG_PROVIDER.get_battery_priority(i))
+        MQTT.publish_inverter_state(i, "enabled", ENABLED[i])
 
 def PublishGlobalState(state_name, state_value):
     if MQTT is None:

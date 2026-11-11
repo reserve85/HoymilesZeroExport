@@ -86,6 +86,13 @@ class ConfigProvider:
         """
         pass
 
+    def get_inverter_enabled(self, inverter_idx):
+        """
+        Whether the inverter takes part in the regulation. If this changes to False while the script is running,
+        the inverter is switched off; if it changes back to True, it is switched on again.
+        """
+        pass
+
 
 class ConfigFileConfigProvider(ConfigProvider):
     """
@@ -123,6 +130,9 @@ class ConfigFileConfigProvider(ConfigProvider):
 
     def get_battery_priority(self, inverter_idx):
         return self.config.getint('INVERTER_' + str(inverter_idx + 1), 'HOY_BATTERY_PRIORITY')
+
+    def get_inverter_enabled(self, inverter_idx):
+        return self.config.getboolean('INVERTER_' + str(inverter_idx + 1), 'ENABLED', fallback=True)
 
 
 class ConfigProviderChain(ConfigProvider):
@@ -165,17 +175,32 @@ class OverridingConfigProvider(ConfigProvider):
         self.inverter_config = []
 
     @staticmethod
+    def parse_bool(value):
+        if isinstance(value, (bytes, bytearray)):
+            value = value.decode()
+        if isinstance(value, str):
+            text = value.strip().lower()
+            if text in ('true', '1', 'on', 'yes'):
+                return True
+            if text in ('false', '0', 'off', 'no'):
+                return False
+            raise ValueError(f"not a boolean: {value}")
+        return bool(value)
+
+    @staticmethod
     def cast_value(is_inverter_value, key, value):
         if is_inverter_value:
             if key in ['min_watt_in_percent', 'normal_watt', 'reduce_watt', 'battery_priority']:
                 return int(value)
+            elif key in ['enabled']:
+                return OverridingConfigProvider.parse_bool(value)
             else:
                 logger.error(f"Unknown inverter key {key}")
         else:
             if key in ['powermeter_target_point', 'powermeter_max_point', 'powermeter_min_point', 'powermeter_tolerance', 'on_grid_usage_jump_to_limit_percent']:
                 return int(value)
             elif key in ['on_grid_feed_fast_limit_decrease']:
-                return bool(value)
+                return OverridingConfigProvider.parse_bool(value)
             else:
                 logger.error(f"Unknown common key {key}")
 
@@ -238,6 +263,11 @@ class OverridingConfigProvider(ConfigProvider):
         if inverter_idx >= len(self.inverter_config):
             return None
         return self.inverter_config[inverter_idx].get('battery_priority')
+
+    def get_inverter_enabled(self, inverter_idx):
+        if inverter_idx >= len(self.inverter_config):
+            return None
+        return self.inverter_config[inverter_idx].get('enabled')
 
 
 class MqttHandler(OverridingConfigProvider):
