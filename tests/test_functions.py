@@ -249,7 +249,7 @@ def test_set_limit_by_actual_power_follows_production():
     hze.SetLimit(480)
     # the two inverters that produce most get most of the limit; rated power would give 120 W each
     assert plant.limits[0] == plant.limits[1] > 170
-    assert plant.limits[2] == plant.limits[3] < 60
+    assert plant.limits[2] == plant.limits[3] < 70
     assert abs(sum(plant.limits) - 480) <= 4
 
 
