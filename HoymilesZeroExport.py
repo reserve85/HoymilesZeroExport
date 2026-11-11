@@ -1647,6 +1647,10 @@ def main():
                             time.sleep(RemainingDelay)
                             break
                     elif (powermeterWatts < powermeter_min_point) and on_grid_feed_fast_limit_decrease:
+                        # the limit can be far above what the inverters produce (sun-limited): cut from the actual output
+                        hoymilesActualPower = GetHoymilesActualPower()
+                        if hoymilesActualPower < PreviousLimitSetpoint:
+                            PreviousLimitSetpoint = hoymilesActualPower
                         newLimitSetpoint = PreviousLimitSetpoint + powermeterWatts - powermeter_target_point
                         newLimitSetpoint = ApplyLimitsToSetpoint(newLimitSetpoint)
                         SetLimit(newLimitSetpoint)

@@ -102,3 +102,22 @@ def test_actual_power_falls_back_to_dtu_when_intermediate_meter_fails():
 
     hze.INTERMEDIATE_POWERMETER = Broken()
     assert hze.GetHoymilesActualPower() == hze.DTU.GetPowermeterWatts()
+
+
+# issue #280
+def test_fast_decrease_cuts_from_actual_output_when_limit_is_far_above_it():
+    # 830 W of sun; a short 1600 W load pushes the limit to about 2500 W, then switches off at t=245
+    result = replay(
+        inverters=FOUR, load=steps((0, 500), (200, 1600), (245, 500)), sun=constant(830), duration=400,
+        config={'COMMON': {'ON_GRID_USAGE_JUMP_TO_LIMIT_PERCENT': '0', 'ON_GRID_FEED_FAST_LIMIT_DECREASE': 'true'},
+                'CONTROL': {'POWERMETER_MIN_POINT': '-200'}})
+    limits = list(FOUR)
+    total_at = {}
+    for t, inverter, limit in result.writes:
+        limits[inverter] = limit
+        total_at[t] = sum(limits)
+    before = [total for t, total in total_at.items() if t < 245][-1]
+    assert before > 2000
+    # one write pass (4 inverters, 3 s each) after the load switched off the limit is below production
+    after = [total for t, total in total_at.items() if t <= 245 + 20][-1]
+    assert after < 830
