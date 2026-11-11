@@ -412,6 +412,7 @@ def GetHoymilesActualPower():
             logger.error("try reading actual power from DTU:")
             Watts = DTU.GetPowermeterWatts()
             logger.info(f"intermediate meter {DTU.__class__.__name__}: {Watts} Watt")
+            return Watts
     except:
         logger.error("Exception at GetHoymilesActualPower")
         if SET_INVERTER_TO_MIN_ON_POWERMETER_ERROR:

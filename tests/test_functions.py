@@ -81,9 +81,7 @@ def test_cut_limit_to_production():
     assert hze.CutLimitToProduction(1000) == 1000
 
 
-# ------------------------------------------------------------ known bugs
-# These describe the correct behaviour and are expected to fail today.
-# strict=True makes them fail loudly once the bug is fixed: remove the marker then.
+# ------------------------------------------------------- regression tests
 
 # issue #279
 def test_small_reduction_does_not_use_slow_approximation(caplog):
@@ -95,7 +93,6 @@ def test_small_reduction_does_not_use_slow_approximation(caplog):
     assert not any('by approximation' in m for m in messages)
 
 
-@pytest.mark.xfail(strict=True, reason='fallback path in GetHoymilesActualPower does not return the DTU value')
 def test_actual_power_falls_back_to_dtu_when_intermediate_meter_fails():
     hze, _ = _ready(FOUR, sun=830)
 
