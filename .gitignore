@@ -1,1 +1,4 @@
 HoymilesZeroExport_Config_Override.ini
+__pycache__/
+.pytest_cache/
+*_logs.txt

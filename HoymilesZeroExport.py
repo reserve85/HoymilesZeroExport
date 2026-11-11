@@ -1589,122 +1589,126 @@ if config.has_section("MQTT_CONFIG"):
 
     CONFIG_PROVIDER = ConfigProviderChain([MQTT, CONFIG_PROVIDER])
 
-try:
-    logger.info("---Init---")
-    newLimitSetpoint = 0
-    DTU.CheckMinVersion()
-    if GetHoymilesAvailable():
-        for i in range(INVERTER_COUNT):
-            SetHoymilesPowerStatus(i, True)
-        newLimitSetpoint = GetMinWattFromAllInverters()
-        SetLimit(newLimitSetpoint)
-        GetHoymilesActualPower()
-        GetCheckBattery()
-    GetPowermeterWatts()
-except Exception as e:
-    if hasattr(e, 'message'):
-        logger.error(e.message)
-    else:
-        logger.error(e)
-    time.sleep(LOOP_INTERVAL_IN_SECONDS)
-logger.info("---Start Zero Export---")
-
-while True:
-    CONFIG_PROVIDER.update()
-    PublishConfigState()
-    on_grid_usage_jump_to_limit_percent = CONFIG_PROVIDER.on_grid_usage_jump_to_limit_percent()
-    on_grid_feed_fast_limit_decrease = CONFIG_PROVIDER.on_grid_feed_fast_limit_decrease()    
-    powermeter_target_point = CONFIG_PROVIDER.get_powermeter_target_point()
-    powermeter_max_point = CONFIG_PROVIDER.get_powermeter_max_point()
-    powermeter_min_point = CONFIG_PROVIDER.get_powermeter_min_point()
-    powermeter_tolerance = CONFIG_PROVIDER.get_powermeter_tolerance()
-    if powermeter_max_point < (powermeter_target_point + powermeter_tolerance):
-        powermeter_max_point = powermeter_target_point + powermeter_tolerance + 50
-        logger.info(
-            'Warning: POWERMETER_MAX_POINT < POWERMETER_TARGET_POINT + POWERMETER_TOLERANCE. Setting POWERMETER_MAX_POINT to ' + str(
-                powermeter_max_point))
-
+def main():
     try:
-        PreviousLimitSetpoint = newLimitSetpoint
-        if GetHoymilesAvailable() and GetCheckBattery():
-            if LOG_TEMPERATURE:
-                GetHoymilesTemperature()
-            for x in range(CastToInt(LOOP_INTERVAL_IN_SECONDS / POLL_INTERVAL_IN_SECONDS)):
-                powermeterWatts = GetPowermeterWatts()
-                if powermeterWatts > powermeter_max_point:
-                    if on_grid_usage_jump_to_limit_percent > 0:
-                        newLimitSetpoint = CastToInt(GetMaxInverterWattFromAllInverters() * on_grid_usage_jump_to_limit_percent / 100)
-                        if (newLimitSetpoint <= PreviousLimitSetpoint) and (on_grid_usage_jump_to_limit_percent != 100):
-                            newLimitSetpoint = PreviousLimitSetpoint + powermeterWatts - powermeter_target_point
-                    else:
-                        newLimitSetpoint = PreviousLimitSetpoint + powermeterWatts - powermeter_target_point
-                    newLimitSetpoint = ApplyLimitsToSetpoint(newLimitSetpoint)
-                    SetLimit(newLimitSetpoint)
-                    RemainingDelay = CastToInt((LOOP_INTERVAL_IN_SECONDS / POLL_INTERVAL_IN_SECONDS - x) * POLL_INTERVAL_IN_SECONDS)
-                    if RemainingDelay > 0:
-                        time.sleep(RemainingDelay)
-                        break
-                elif (powermeterWatts < powermeter_min_point) and on_grid_feed_fast_limit_decrease:
-                    newLimitSetpoint = PreviousLimitSetpoint + powermeterWatts - powermeter_target_point
-                    newLimitSetpoint = ApplyLimitsToSetpoint(newLimitSetpoint)
-                    SetLimit(newLimitSetpoint)
-                    RemainingDelay = CastToInt((LOOP_INTERVAL_IN_SECONDS / POLL_INTERVAL_IN_SECONDS - x) * POLL_INTERVAL_IN_SECONDS)
-                    if RemainingDelay > 0:
-                        time.sleep(RemainingDelay)
-                        break
-                else:
-                    time.sleep(POLL_INTERVAL_IN_SECONDS)
-
-            if MAX_DIFFERENCE_BETWEEN_LIMIT_AND_OUTPUTPOWER != 100:
-                CutLimit = CutLimitToProduction(newLimitSetpoint)
-                if CutLimit != newLimitSetpoint:
-                    newLimitSetpoint = CutLimit
-                    PreviousLimitSetpoint = newLimitSetpoint
-
-            if powermeterWatts > powermeter_max_point:
-                continue
-
-            # producing too much power: reduce limit
-            if powermeterWatts < (powermeter_target_point - powermeter_tolerance):
-                if PreviousLimitSetpoint >= GetMaxWattFromAllInverters():
-                    hoymilesActualPower = GetHoymilesActualPower()
-                    newLimitSetpoint = hoymilesActualPower + powermeterWatts - powermeter_target_point
-                    LimitDifference = abs(hoymilesActualPower - newLimitSetpoint)
-                    if LimitDifference > SLOW_APPROX_LIMIT:
-                        newLimitSetpoint = newLimitSetpoint + (LimitDifference * SLOW_APPROX_FACTOR_IN_PERCENT / 100)
-                    if newLimitSetpoint > hoymilesActualPower:
-                        newLimitSetpoint = hoymilesActualPower
-                    logger.info("overproducing: reduce limit based on actual power")
-                else:
-                    newLimitSetpoint = PreviousLimitSetpoint + powermeterWatts - powermeter_target_point
-                    # check if it is necessary to approximate to the setpoint with some more passes. this reduce overshoot
-                    LimitDifference = abs(PreviousLimitSetpoint - newLimitSetpoint)
-                    if LimitDifference > SLOW_APPROX_LIMIT:
-                        logger.info("overproducing: reduce limit based on previous limit setpoint by approximation")
-                        newLimitSetpoint = newLimitSetpoint + (LimitDifference * SLOW_APPROX_FACTOR_IN_PERCENT / 100)
-                    else:
-                        logger.info("overproducing: reduce limit based on previous limit setpoint")
-
-            # producing too little power: increase limit
-            elif powermeterWatts > (powermeter_target_point + powermeter_tolerance):
-                if PreviousLimitSetpoint < GetMaxWattFromAllInverters():
-                    newLimitSetpoint = PreviousLimitSetpoint + powermeterWatts - powermeter_target_point
-                    logger.info("Not enough energy producing: increasing limit")
-                else:
-                    logger.info("Not enough energy producing: limit already at maximum")
-
-            # check for upper and lower limits
-            newLimitSetpoint = ApplyLimitsToSetpoint(newLimitSetpoint)
-            # set new limit to inverter
+        logger.info("---Init---")
+        newLimitSetpoint = 0
+        DTU.CheckMinVersion()
+        if GetHoymilesAvailable():
+            for i in range(INVERTER_COUNT):
+                SetHoymilesPowerStatus(i, True)
+            newLimitSetpoint = GetMinWattFromAllInverters()
             SetLimit(newLimitSetpoint)
-        else:
-            if hasattr(SetLimit, "LastLimit"):
-                SetLimit.LastLimit = -1
-            time.sleep(LOOP_INTERVAL_IN_SECONDS)
-
+            GetHoymilesActualPower()
+            GetCheckBattery()
+        GetPowermeterWatts()
     except Exception as e:
         if hasattr(e, 'message'):
             logger.error(e.message)
         else:
             logger.error(e)
         time.sleep(LOOP_INTERVAL_IN_SECONDS)
+    logger.info("---Start Zero Export---")
+
+    while True:
+        CONFIG_PROVIDER.update()
+        PublishConfigState()
+        on_grid_usage_jump_to_limit_percent = CONFIG_PROVIDER.on_grid_usage_jump_to_limit_percent()
+        on_grid_feed_fast_limit_decrease = CONFIG_PROVIDER.on_grid_feed_fast_limit_decrease()    
+        powermeter_target_point = CONFIG_PROVIDER.get_powermeter_target_point()
+        powermeter_max_point = CONFIG_PROVIDER.get_powermeter_max_point()
+        powermeter_min_point = CONFIG_PROVIDER.get_powermeter_min_point()
+        powermeter_tolerance = CONFIG_PROVIDER.get_powermeter_tolerance()
+        if powermeter_max_point < (powermeter_target_point + powermeter_tolerance):
+            powermeter_max_point = powermeter_target_point + powermeter_tolerance + 50
+            logger.info(
+                'Warning: POWERMETER_MAX_POINT < POWERMETER_TARGET_POINT + POWERMETER_TOLERANCE. Setting POWERMETER_MAX_POINT to ' + str(
+                    powermeter_max_point))
+
+        try:
+            PreviousLimitSetpoint = newLimitSetpoint
+            if GetHoymilesAvailable() and GetCheckBattery():
+                if LOG_TEMPERATURE:
+                    GetHoymilesTemperature()
+                for x in range(CastToInt(LOOP_INTERVAL_IN_SECONDS / POLL_INTERVAL_IN_SECONDS)):
+                    powermeterWatts = GetPowermeterWatts()
+                    if powermeterWatts > powermeter_max_point:
+                        if on_grid_usage_jump_to_limit_percent > 0:
+                            newLimitSetpoint = CastToInt(GetMaxInverterWattFromAllInverters() * on_grid_usage_jump_to_limit_percent / 100)
+                            if (newLimitSetpoint <= PreviousLimitSetpoint) and (on_grid_usage_jump_to_limit_percent != 100):
+                                newLimitSetpoint = PreviousLimitSetpoint + powermeterWatts - powermeter_target_point
+                        else:
+                            newLimitSetpoint = PreviousLimitSetpoint + powermeterWatts - powermeter_target_point
+                        newLimitSetpoint = ApplyLimitsToSetpoint(newLimitSetpoint)
+                        SetLimit(newLimitSetpoint)
+                        RemainingDelay = CastToInt((LOOP_INTERVAL_IN_SECONDS / POLL_INTERVAL_IN_SECONDS - x) * POLL_INTERVAL_IN_SECONDS)
+                        if RemainingDelay > 0:
+                            time.sleep(RemainingDelay)
+                            break
+                    elif (powermeterWatts < powermeter_min_point) and on_grid_feed_fast_limit_decrease:
+                        newLimitSetpoint = PreviousLimitSetpoint + powermeterWatts - powermeter_target_point
+                        newLimitSetpoint = ApplyLimitsToSetpoint(newLimitSetpoint)
+                        SetLimit(newLimitSetpoint)
+                        RemainingDelay = CastToInt((LOOP_INTERVAL_IN_SECONDS / POLL_INTERVAL_IN_SECONDS - x) * POLL_INTERVAL_IN_SECONDS)
+                        if RemainingDelay > 0:
+                            time.sleep(RemainingDelay)
+                            break
+                    else:
+                        time.sleep(POLL_INTERVAL_IN_SECONDS)
+
+                if MAX_DIFFERENCE_BETWEEN_LIMIT_AND_OUTPUTPOWER != 100:
+                    CutLimit = CutLimitToProduction(newLimitSetpoint)
+                    if CutLimit != newLimitSetpoint:
+                        newLimitSetpoint = CutLimit
+                        PreviousLimitSetpoint = newLimitSetpoint
+
+                if powermeterWatts > powermeter_max_point:
+                    continue
+
+                # producing too much power: reduce limit
+                if powermeterWatts < (powermeter_target_point - powermeter_tolerance):
+                    if PreviousLimitSetpoint >= GetMaxWattFromAllInverters():
+                        hoymilesActualPower = GetHoymilesActualPower()
+                        newLimitSetpoint = hoymilesActualPower + powermeterWatts - powermeter_target_point
+                        LimitDifference = abs(hoymilesActualPower - newLimitSetpoint)
+                        if LimitDifference > SLOW_APPROX_LIMIT:
+                            newLimitSetpoint = newLimitSetpoint + (LimitDifference * SLOW_APPROX_FACTOR_IN_PERCENT / 100)
+                        if newLimitSetpoint > hoymilesActualPower:
+                            newLimitSetpoint = hoymilesActualPower
+                        logger.info("overproducing: reduce limit based on actual power")
+                    else:
+                        newLimitSetpoint = PreviousLimitSetpoint + powermeterWatts - powermeter_target_point
+                        # check if it is necessary to approximate to the setpoint with some more passes. this reduce overshoot
+                        LimitDifference = abs(PreviousLimitSetpoint - newLimitSetpoint)
+                        if LimitDifference > SLOW_APPROX_LIMIT:
+                            logger.info("overproducing: reduce limit based on previous limit setpoint by approximation")
+                            newLimitSetpoint = newLimitSetpoint + (LimitDifference * SLOW_APPROX_FACTOR_IN_PERCENT / 100)
+                        else:
+                            logger.info("overproducing: reduce limit based on previous limit setpoint")
+
+                # producing too little power: increase limit
+                elif powermeterWatts > (powermeter_target_point + powermeter_tolerance):
+                    if PreviousLimitSetpoint < GetMaxWattFromAllInverters():
+                        newLimitSetpoint = PreviousLimitSetpoint + powermeterWatts - powermeter_target_point
+                        logger.info("Not enough energy producing: increasing limit")
+                    else:
+                        logger.info("Not enough energy producing: limit already at maximum")
+
+                # check for upper and lower limits
+                newLimitSetpoint = ApplyLimitsToSetpoint(newLimitSetpoint)
+                # set new limit to inverter
+                SetLimit(newLimitSetpoint)
+            else:
+                if hasattr(SetLimit, "LastLimit"):
+                    SetLimit.LastLimit = -1
+                time.sleep(LOOP_INTERVAL_IN_SECONDS)
+
+        except Exception as e:
+            if hasattr(e, 'message'):
+                logger.error(e.message)
+            else:
+                logger.error(e)
+            time.sleep(LOOP_INTERVAL_IN_SECONDS)
+
+if __name__ == "__main__":
+    main()
