@@ -1,5 +1,6 @@
 import json
 import logging
+import time
 from configparser import ConfigParser
 
 logger = logging.getLogger()
@@ -93,6 +94,13 @@ class ConfigProvider:
         """
         pass
 
+    def get_battery_voltage(self, inverter_idx):
+        """
+        Battery voltage from an external source (e.g. a sensor directly at the battery) for battery mode.
+        None means: use the panel voltage reported by the inverter.
+        """
+        pass
+
 
 class ConfigFileConfigProvider(ConfigProvider):
     """
@@ -134,6 +142,9 @@ class ConfigFileConfigProvider(ConfigProvider):
     def get_inverter_enabled(self, inverter_idx):
         return self.config.getboolean('INVERTER_' + str(inverter_idx + 1), 'ENABLED', fallback=True)
 
+    def get_battery_voltage(self, inverter_idx):
+        return None
+
 
 class ConfigProviderChain(ConfigProvider):
     """
@@ -170,9 +181,13 @@ class OverridingConfigProvider(ConfigProvider):
     This can be used as a base class for config providers that allow to change the configuration
     using a push mechanism, e.g. MQTT or a REST API.
     """
+    # an external battery voltage older than this is ignored (the source may be offline)
+    battery_voltage_max_age_seconds = 300
+
     def __init__(self):
         self.common_config = {}
         self.inverter_config = []
+        self.battery_voltage_time = {}
 
     @staticmethod
     def parse_bool(value):
@@ -194,6 +209,8 @@ class OverridingConfigProvider(ConfigProvider):
                 return int(value)
             elif key in ['enabled']:
                 return OverridingConfigProvider.parse_bool(value)
+            elif key in ['battery_voltage']:
+                return float(value)
             else:
                 logger.error(f"Unknown inverter key {key}")
         else:
@@ -224,6 +241,8 @@ class OverridingConfigProvider(ConfigProvider):
                 self.inverter_config.append({})
             cast_value = self.cast_value(True, name, value)
             self.inverter_config[inverter_idx][name] = cast_value
+            if name == 'battery_voltage':
+                self.battery_voltage_time[inverter_idx] = time.time()
             logger.info(f"Set inverter {inverter_idx} config value {name} to {cast_value}")
 
     def get_powermeter_target_point(self):
@@ -268,6 +287,18 @@ class OverridingConfigProvider(ConfigProvider):
         if inverter_idx >= len(self.inverter_config):
             return None
         return self.inverter_config[inverter_idx].get('enabled')
+
+    def get_battery_voltage(self, inverter_idx):
+        if inverter_idx >= len(self.inverter_config):
+            return None
+        voltage = self.inverter_config[inverter_idx].get('battery_voltage')
+        if voltage is None:
+            return None
+        age = time.time() - self.battery_voltage_time.get(inverter_idx, 0)
+        if age > self.battery_voltage_max_age_seconds:
+            logger.warning(f"External battery voltage of inverter {inverter_idx} is {int(age)} seconds old, using the panel voltage of the inverter instead")
+            return None
+        return voltage
 
 
 class MqttHandler(OverridingConfigProvider):

@@ -303,7 +303,13 @@ def GetHoymilesPanelMinVoltage(pInverterId):
         if not AVAILABLE[pInverterId]:
             return 0
         
-        HOY_PANEL_MIN_VOLTAGE_HISTORY_LIST[pInverterId].append(DTU.GetPanelMinVoltage(pInverterId))
+        # an external battery voltage (MQTT: set/inverter/<n>/battery_voltage) replaces the panel voltage of the inverter
+        externalVoltage = CONFIG_PROVIDER.get_battery_voltage(pInverterId)
+        if externalVoltage is not None:
+            logger.info('External battery voltage, inverter "%s": %s Volt', NAME[pInverterId], externalVoltage)
+            HOY_PANEL_MIN_VOLTAGE_HISTORY_LIST[pInverterId].append(externalVoltage)
+        else:
+            HOY_PANEL_MIN_VOLTAGE_HISTORY_LIST[pInverterId].append(DTU.GetPanelMinVoltage(pInverterId))
         
         # calculate mean over last x values
         if len(HOY_PANEL_MIN_VOLTAGE_HISTORY_LIST[pInverterId]) > HOY_BATTERY_AVERAGE_CNT[pInverterId]:
@@ -1597,6 +1603,7 @@ if config.has_section("MQTT_CONFIG"):
     log_level_config_value = config.get("MQTT_CONFIG", "MQTT_LOG_LEVEL", fallback=None)
     mqtt_log_level = logging.getLevelName(log_level_config_value) if log_level_config_value else None
     MQTT = MqttHandler(broker, port, client_id, username, password, topic_prefix, mqtt_log_level)
+    MQTT.battery_voltage_max_age_seconds = config.getint("MQTT_CONFIG", "MQTT_BATTERY_VOLTAGE_MAX_AGE_SECONDS", fallback=300)
 
     if mqtt_log_level is not None:
         class MqttLogHandler(logging.Handler):

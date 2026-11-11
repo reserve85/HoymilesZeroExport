@@ -191,6 +191,7 @@ Once configured, the script will listen for incoming MQTT messages on the specif
 - `zeropower/set/inverter/0/reduce_watt`: To change the battery reduce watt of the first inverter
 - `zeropower/set/inverter/0/battery_priority`: To change the battery priority of the first inverter
 - `zeropower/set/inverter/0/enabled`: `true` / `false` (also `on` / `off`, `1` / `0`). `false` switches the first inverter off and removes it from the regulation, `true` switches it on again
+- `zeropower/set/inverter/0/battery_voltage`: Battery mode only: battery voltage of the first inverter from an external source (e.g. a sensor directly at the battery). It replaces the panel voltage reported by the inverter. Send it regularly: a value older than `MQTT_BATTERY_VOLTAGE_MAX_AGE_SECONDS` (default 300) is ignored and the panel voltage is used again
 - `zeropower/set/inverter/<n>/*`: To change the settings of the (n+1)th inverter
 
 To reset a setting to its original value, you can send an empty message to the corresponding topic replacing `set` with `reset`, e.g. `zeropower/reset/powermeter_target_point`.

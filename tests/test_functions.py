@@ -177,3 +177,44 @@ def test_inverter_disabled_in_config_file_is_not_switched_off():
     assert hze.GetHoymilesAvailable()
     assert plant.power_status == []
     assert hze.AVAILABLE == [True, False, True, True]
+
+
+# issue #262
+def _battery_setup():
+    hze = load_script([800, 800], inverter_config={2: {'HOY_BATTERY_MODE': 'true', 'HOY_BATTERY_NORMAL_WATT': 800}})
+    plant = Plant([800, 800], load=constant(0), sun=constant(5000), duration=10 ** 6, write_seconds=0)
+    attach_plant(hze, plant)   # the simulated inverter reports 52 V
+    overrides = _with_overrides(hze)
+    assert hze.GetHoymilesAvailable()
+    return hze, plant, overrides
+
+
+def test_external_battery_voltage_replaces_panel_voltage():
+    hze, plant, overrides = _battery_setup()
+    assert hze.GetCheckBattery()
+    assert hze.HOY_BATTERY_GOOD_VOLTAGE[1]
+
+    overrides.set_inverter_value(1, 'battery_voltage', b'46.0')   # below the OFF threshold of 47 V
+    hze.GetCheckBattery()
+    assert not hze.HOY_BATTERY_GOOD_VOLTAGE[1]
+    assert plant.power_status[-1][1:] == (1, False)
+
+
+def test_stale_external_battery_voltage_falls_back_to_panel_voltage(monkeypatch):
+    import config_provider
+    hze, plant, overrides = _battery_setup()
+    overrides.set_inverter_value(1, 'battery_voltage', b'46.0')
+    assert overrides.get_battery_voltage(1) == 46.0
+
+    now = config_provider.time.time()
+    monkeypatch.setattr(config_provider.time, 'time', lambda: now + 301)
+    assert overrides.get_battery_voltage(1) is None
+    hze.GetCheckBattery()
+    assert hze.HOY_BATTERY_GOOD_VOLTAGE[1]      # 52 V from the inverter
+
+
+def test_external_battery_voltage_can_be_reset():
+    hze, plant, overrides = _battery_setup()
+    overrides.set_inverter_value(1, 'battery_voltage', b'46.0')
+    overrides.set_inverter_value(1, 'battery_voltage', None)
+    assert overrides.get_battery_voltage(1) is None
