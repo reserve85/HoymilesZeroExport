@@ -45,7 +45,20 @@ def _battery_voltage(i, t):
     return steps((0, 52.0), (200, 47.5), (400, 46.0), (600, 52.0))(t)
 
 
+def _fridge(t):
+    # 200 W base load, a 3 s start-up peak of 450 W every two minutes
+    return 200 + (450 if t > 60 and (t % 120) < 3 else 0)
+
+
+PEAK_DELAY = {'CONTROL': {'POWERMETER_PEAK_DELAY_IN_SECONDS': '5'}}
+
 SCENARIOS = {
+    # issue #225: short load peaks
+    'short_peaks': dict(inverters=ONE, load=_fridge, sun=constant(1500), duration=1800),
+    'short_peaks_peak_delay': dict(inverters=ONE, load=_fridge, sun=constant(1500), duration=1800, config=PEAK_DELAY),
+    'load_steps_one_inverter_peak_delay': dict(
+        inverters=ONE, load=steps((0, 300), (120, 1300), (420, 300)), sun=constant(1400), duration=900,
+        config=PEAK_DELAY),
     'steady_one_inverter': dict(
         inverters=ONE, load=constant(400), sun=constant(1200), duration=600),
     'load_steps_one_inverter': dict(

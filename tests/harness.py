@@ -52,6 +52,7 @@ PINNED_CONFIG = {
         'POWERMETER_TOLERANCE': '25',
         'POWERMETER_MAX_POINT': '0',
         'POWERMETER_MIN_POINT': '-600',
+        'POWERMETER_PEAK_DELAY_IN_SECONDS': '0',
     },
 }
 

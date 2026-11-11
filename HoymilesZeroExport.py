@@ -1536,6 +1536,7 @@ SLOW_APPROX_FACTOR_IN_PERCENT = config.getint('COMMON', 'SLOW_APPROX_FACTOR_IN_P
 LOG_TEMPERATURE = config.getboolean('COMMON', 'LOG_TEMPERATURE')
 SET_INVERTER_TO_MIN_ON_POWERMETER_ERROR = config.getboolean('COMMON', 'SET_INVERTER_TO_MIN_ON_POWERMETER_ERROR', fallback=False)
 powermeter_target_point = config.getint('CONTROL', 'POWERMETER_TARGET_POINT')
+POWERMETER_PEAK_DELAY_IN_SECONDS = config.getint('CONTROL', 'POWERMETER_PEAK_DELAY_IN_SECONDS', fallback=0)
 SERIAL_NUMBER = []
 ENABLED = []
 NAME = []
@@ -1626,6 +1627,7 @@ def main():
             logger.error(e)
         time.sleep(LOOP_INTERVAL_IN_SECONDS)
     logger.info("---Start Zero Export---")
+    peakStartTime = None
 
     while True:
         CONFIG_PROVIDER.update()
@@ -1649,6 +1651,17 @@ def main():
                     GetHoymilesTemperature()
                 for x in range(CastToInt(LOOP_INTERVAL_IN_SECONDS / POLL_INTERVAL_IN_SECONDS)):
                     powermeterWatts = GetPowermeterWatts()
+                    # peak delay: ignore short load peaks (e.g. a fridge starting), react only if the load stays
+                    if powermeterWatts <= powermeter_max_point:
+                        peakStartTime = None
+                    elif POWERMETER_PEAK_DELAY_IN_SECONDS > 0:
+                        if peakStartTime is None:
+                            peakStartTime = time.time()
+                        if time.time() - peakStartTime < POWERMETER_PEAK_DELAY_IN_SECONDS:
+                            logger.info("powermeter above POWERMETER_MAX_POINT: waiting, peak delay is %s seconds", POWERMETER_PEAK_DELAY_IN_SECONDS)
+                            time.sleep(POLL_INTERVAL_IN_SECONDS)
+                            continue
+                        peakStartTime = None
                     if powermeterWatts > powermeter_max_point:
                         if on_grid_usage_jump_to_limit_percent > 0:
                             newLimitSetpoint = CastToInt(GetMaxInverterWattFromAllInverters() * on_grid_usage_jump_to_limit_percent / 100)

@@ -1,0 +1,38 @@
+{
+ "metrics": {
+  "feed_in_wh": 55.38,
+  "import_wh": 4.65,
+  "seconds_below_150W": 74.0,
+  "limit_writes": 4,
+  "power_status_writes": 1
+ },
+ "writes": [
+  [
+   10.0,
+   0,
+   75
+  ],
+  [
+   18.0,
+   0,
+   1500
+  ],
+  [
+   56.0,
+   0,
+   520
+  ],
+  [
+   79.0,
+   0,
+   275
+  ]
+ ],
+ "power_status": [
+  [
+   0.0,
+   0,
+   true
+  ]
+ ]
+}
