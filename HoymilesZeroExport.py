@@ -1652,10 +1652,15 @@ if config.has_section("MQTT_CONFIG"):
     client_id = config.get("MQTT_CONFIG", "MQTT_CLIENT_ID", fallback="HoymilesZeroExport")
     username = config.get("MQTT_CONFIG", "MQTT_USERNAME", fallback=None)
     password = config.get("MQTT_CONFIG", "MQTT_PASSWORD", fallback=None)
-    topic_prefix = config.get("MQTT_CONFIG", "MQTT_SET_TOPIC", fallback="zeropower")
+    # MQTT_TOPIC_PREFIX is the documented name, MQTT_SET_TOPIC was read by older versions
+    topic_prefix = config.get("MQTT_CONFIG", "MQTT_TOPIC_PREFIX", fallback=config.get("MQTT_CONFIG", "MQTT_SET_TOPIC", fallback="zeropower"))
+    discovery_prefix = None
+    if config.getboolean("MQTT_CONFIG", "MQTT_HOMEASSISTANT_DISCOVERY", fallback=False):
+        discovery_prefix = config.get("MQTT_CONFIG", "MQTT_HOMEASSISTANT_DISCOVERY_PREFIX", fallback="homeassistant")
     log_level_config_value = config.get("MQTT_CONFIG", "MQTT_LOG_LEVEL", fallback=None)
     mqtt_log_level = logging.getLevelName(log_level_config_value) if log_level_config_value else None
-    MQTT = MqttHandler(broker, port, client_id, username, password, topic_prefix, mqtt_log_level)
+    MQTT = MqttHandler(broker, port, client_id, username, password, topic_prefix, mqtt_log_level,
+                       discovery_prefix=discovery_prefix, inverter_count=INVERTER_COUNT, sw_version=__version__)
     MQTT.battery_voltage_max_age_seconds = config.getint("MQTT_CONFIG", "MQTT_BATTERY_VOLTAGE_MAX_AGE_SECONDS", fallback=300)
 
     if mqtt_log_level is not None:

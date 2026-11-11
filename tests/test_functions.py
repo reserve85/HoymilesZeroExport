@@ -265,3 +265,74 @@ def test_set_limit_by_actual_power_falls_back_when_dtu_fails():
     hze.DTU.GetACPower = broken
     hze.SetLimit(600)
     assert plant.limits == [300, 300]
+
+
+# issue #250
+class _FakeMqttClient:
+    def __init__(self):
+        self.published = []
+
+    def publish(self, topic, payload=None, qos=0, retain=False):
+        self.published.append((topic, payload, retain))
+
+    def subscribe(self, topic):
+        pass
+
+    def disconnect(self):
+        pass
+
+
+def _mqtt_handler(discovery_prefix='homeassistant', inverter_count=2):
+    from config_provider import MqttHandler, OverridingConfigProvider
+    handler = MqttHandler.__new__(MqttHandler)      # no broker connection
+    OverridingConfigProvider.__init__(handler)
+    handler.topic_prefix = 'zeropower'
+    handler.set_topic = 'zeropower/set'
+    handler.reset_topic = 'zeropower/reset'
+    handler.log_level = None
+    handler.discovery_prefix = discovery_prefix
+    handler.inverter_count = inverter_count
+    handler.sw_version = '1.107'
+    handler.mqtt_client = _FakeMqttClient()
+    return handler
+
+
+def test_discovery_is_published_on_connect():
+    import json
+    handler = _mqtt_handler()
+    handler.on_connect(handler.mqtt_client, None, None, 0, None)
+    discovery = {t: json.loads(p) for t, p, retain in handler.mqtt_client.published if t.startswith('homeassistant/')}
+    assert all(retain for t, p, retain in handler.mqtt_client.published if t.startswith('homeassistant/'))
+    assert len(discovery) == 7 + 2 * 6
+
+    target = discovery['homeassistant/number/hoymileszeroexport_zeropower/powermeter_target_point/config']
+    assert target['command_topic'] == 'zeropower/set/powermeter_target_point'
+    assert target['state_topic'] == 'zeropower/state/powermeter_target_point'
+    assert target['availability_topic'] == 'zeropower/status'
+    assert target['device']['sw_version'] == '1.107'
+
+    enabled = discovery['homeassistant/switch/hoymileszeroexport_zeropower/inverter_1_enabled/config']
+    assert enabled['command_topic'] == 'zeropower/set/inverter/1/enabled'
+    assert enabled['payload_off'] == 'false'
+
+    limit = discovery['homeassistant/sensor/hoymileszeroexport_zeropower/limit/config']
+    assert 'command_topic' not in limit
+    assert len({config['unique_id'] for config in discovery.values()}) == len(discovery)
+
+
+def test_no_discovery_when_disabled():
+    handler = _mqtt_handler(discovery_prefix=None)
+    handler.on_connect(handler.mqtt_client, None, None, 0, None)
+    assert [t for t, p, r in handler.mqtt_client.published] == ['zeropower/status']
+
+
+def test_discovery_switch_payload_round_trip():
+    handler = _mqtt_handler()
+
+    class Message:
+        topic = 'zeropower/set/inverter/1/enabled'
+        payload = b'false'
+    handler.on_message(None, None, Message())
+    assert handler.get_inverter_enabled(1) is False
+    handler.update()
+    assert ('zeropower/state/inverter/1/enabled', 'false', True) in handler.mqtt_client.published

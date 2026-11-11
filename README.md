@@ -211,6 +211,9 @@ Additionally, the script will publish the following MQTT messages:
 - `zeropower/state/inverter/0/enabled`: Whether the first inverter is enabled
 - `zeropower/state/inverter/<n>/*`: The current settings of the (n+1)th inverter
 
+### Home Assistant MQTT discovery
+With `MQTT_HOMEASSISTANT_DISCOVERY = true` in the `[MQTT_CONFIG]` section the script publishes Home Assistant MQTT discovery messages. Home Assistant then creates a device "HoymilesZeroExport" with entities for the settings above, the current limit, and an on/off switch per inverter. The discovery prefix can be changed with `MQTT_HOMEASSISTANT_DISCOVERY_PREFIX` (default `homeassistant`).
+
 The script can also be configured to publish log messages to MQTT. To enable this feature, you need to set `MQTT_LOG_LEVEL` to `INFO`, which will publish all log messages to the topic `zeropower/log`.
 
 ## Special thanks to:

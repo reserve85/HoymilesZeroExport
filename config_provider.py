@@ -305,8 +305,13 @@ class MqttHandler(OverridingConfigProvider):
     """
     Config provider that subscribes to a MQTT topic and updates the configuration from the messages.
     """
-    def __init__(self, mqtt_broker, mqtt_port, client_id, mqtt_username, mqtt_password, topic_prefix, log_level):
+    def __init__(self, mqtt_broker, mqtt_port, client_id, mqtt_username, mqtt_password, topic_prefix, log_level,
+                 discovery_prefix=None, inverter_count=0, sw_version=None):
         super().__init__()
+        # Home Assistant MQTT discovery: None disables it
+        self.discovery_prefix = discovery_prefix
+        self.inverter_count = inverter_count
+        self.sw_version = sw_version
         self.mqtt_broker = mqtt_broker
         self.mqtt_port = mqtt_port
         self.mqtt_username = mqtt_username
@@ -329,16 +334,86 @@ class MqttHandler(OverridingConfigProvider):
     def update(self):
         # Publish all config values to MQTT
         for key, value in self.common_config.items():
-            self.mqtt_client.publish(f"{self.topic_prefix}/state/{key}", payload=value, qos=1, retain=True)
+            self.mqtt_client.publish(f"{self.topic_prefix}/state/{key}", payload=self.cast_value_for_publish(value), qos=1, retain=True)
         for inverter_idx, inverter_config in enumerate(self.inverter_config):
             for key, value in inverter_config.items():
-                self.mqtt_client.publish(f"{self.topic_prefix}/state/inverter/{inverter_idx}/{key}", payload=value, qos=1, retain=True)
+                self.mqtt_client.publish(f"{self.topic_prefix}/state/inverter/{inverter_idx}/{key}", payload=self.cast_value_for_publish(value), qos=1, retain=True)
 
     def on_connect(self, client, userdata, flags, reason_code, properties):
         print("Connected with result code " + str(reason_code))
         client.subscribe(f"{self.set_topic}/#")
         client.subscribe(f"{self.reset_topic}/#")
         client.publish(f"{self.topic_prefix}/status", payload="online", qos=1, retain=True)
+        if self.discovery_prefix:
+            self.publish_discovery()
+
+    def discovery_messages(self):
+        """
+        Home Assistant MQTT discovery: one (topic, config) pair per entity. Home Assistant creates the entities
+        from these messages, so nothing has to be configured by hand.
+        """
+        node_id = "hoymileszeroexport_" + "".join(c if c.isalnum() else "_" for c in self.topic_prefix)
+        device = {
+            "identifiers": [node_id],
+            "name": "HoymilesZeroExport",
+            "manufacturer": "reserve85",
+            "model": "HoymilesZeroExport",
+        }
+        if self.sw_version:
+            device["sw_version"] = str(self.sw_version)
+
+        def entity(component, key, name, extra, settable=True):
+            object_id = key.replace("/", "_")
+            config = {
+                "name": name,
+                "unique_id": f"{node_id}_{object_id}",
+                "state_topic": f"{self.topic_prefix}/state/{key}",
+                "availability_topic": f"{self.topic_prefix}/status",
+                "payload_available": "online",
+                "payload_not_available": "offline",
+                "device": device,
+            }
+            if settable:
+                config["command_topic"] = f"{self.topic_prefix}/set/{key}"
+            config.update(extra)
+            return f"{self.discovery_prefix}/{component}/{node_id}/{object_id}/config", config
+
+        def number(key, name, minimum, maximum, unit):
+            return entity("number", key, name, {"min": minimum, "max": maximum, "step": 1, "mode": "box", "unit_of_measurement": unit})
+
+        def switch(key, name):
+            return entity("switch", key, name, {"payload_on": "true", "payload_off": "false", "state_on": "true", "state_off": "false"})
+
+        def power_sensor(key, name):
+            return entity("sensor", key, name, {"unit_of_measurement": "W", "device_class": "power", "state_class": "measurement"}, settable=False)
+
+        messages = [
+            number("powermeter_target_point", "Powermeter target point", -10000, 10000, "W"),
+            number("powermeter_max_point", "Powermeter max point", -10000, 10000, "W"),
+            number("powermeter_min_point", "Powermeter min point", -10000, 10000, "W"),
+            number("powermeter_tolerance", "Powermeter tolerance", 0, 1000, "W"),
+            number("on_grid_usage_jump_to_limit_percent", "On grid usage jump to limit", 0, 100, "%"),
+            switch("on_grid_feed_fast_limit_decrease", "On grid feed fast limit decrease"),
+            power_sensor("limit", "Limit"),
+        ]
+        for i in range(self.inverter_count):
+            prefix = f"inverter/{i}"
+            label = f"Inverter {i + 1}"
+            messages += [
+                switch(f"{prefix}/enabled", f"{label} enabled"),
+                power_sensor(f"{prefix}/limit", f"{label} limit"),
+                number(f"{prefix}/min_watt_in_percent", f"{label} min watt", 0, 100, "%"),
+                number(f"{prefix}/normal_watt", f"{label} battery normal watt", 0, 10000, "W"),
+                number(f"{prefix}/reduce_watt", f"{label} battery reduce watt", 0, 10000, "W"),
+                number(f"{prefix}/battery_priority", f"{label} battery priority", 1, 5, None),
+            ]
+        return messages
+
+    def publish_discovery(self):
+        for topic, config in self.discovery_messages():
+            config = {key: value for key, value in config.items() if value is not None}
+            self.mqtt_client.publish(topic, payload=json.dumps(config), qos=1, retain=True)
+        logger.info(f"Published Home Assistant MQTT discovery to {self.discovery_prefix}")
 
     def on_message(self, client, userdata, msg):
         try:
