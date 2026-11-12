@@ -1,4 +1,3 @@
-
 #!/bin/sh
 
 # GetPowerFromDDSU666.sh
@@ -7,28 +6,31 @@
 # using Modbus RTU over a serial USB connection.
 #
 # Requirements:
-#   - mbpoll
-#   - bc
+#   - mbpoll (e.g. "apt install mbpoll")
 #
-# Usage:
+# Usage (SCRIPT_IP in the [SCRIPT] section is passed as <Device_Number>):
 #   GetPowerFromDDSU666.sh <Device_Number>
 #
 # Modbus configuration:
 #   Baud rate : 9600
 #   Parity    : None
-#   Register  : 8196 (Float, 32-bit)
+#   Register  : 8196 (Float, 32-bit, kW)
 #
 # Hoymiles specific:
-#   Positive meter values are converted to negative values.
-#   Negative meter values are converted to positive values.
+#   The DDSU666 reports feed-in as positive and grid usage as negative.
+#   The sign is inverted, so the script prints grid usage as positive watts.
 #
-# Additional protections:
-#   - Three Modbus read attempts
-#   - Numeric validation
-#   - Last valid measurement backup
-#   - Maximum backup age of 30 seconds
-#   - Asymmetric filtering of sudden power variations
-
+# Output:
+#   One integer value in watts, exit code 0.
+#   On a read error "0" is printed and the exit code is 1, so HoymilesZeroExport
+#   treats it as a powermeter error (see SET_INVERTER_TO_MIN_ON_POWERMETER_ERROR).
+#
+# Optional filter (disabled by default):
+#   With FILTER_THRESHOLD > 0, a drop of more than FILTER_THRESHOLD watts compared
+#   to the previous reading is smoothed: only a quarter of the drop is reported per
+#   reading. This reduces sudden limit cuts on noisy readings (e.g. at low production),
+#   but feed-in after a load switches off lasts longer and ON_GRID_FEED_FAST_LIMIT_DECREASE
+#   triggers later.
 
 # --------------------------------------------------
 # Configuration
@@ -37,11 +39,15 @@
 DEVICE="/dev/ttyUSB0"
 ADDRESS="$1"
 
-LAST_FILE="/tmp/last_grid.txt"
-TIME_FILE="/tmp/last_grid.timestamp"
+# 0 = filter disabled. Example: FILTER_THRESHOLD=300
+FILTER_THRESHOLD=0
 
+# the previous reading is only used for filtering if it is not older than this
 MAX_AGE=30
-FILTER_THRESHOLD=300
+
+# decimal point in mbpoll output and awk, independent of the system language
+LC_ALL=C
+export LC_ALL
 
 # --------------------------------------------------
 # Check required parameters and dependencies
@@ -59,159 +65,64 @@ if ! command -v mbpoll >/dev/null 2>&1; then
     exit 1
 fi
 
-if ! command -v bc >/dev/null 2>&1; then
-    echo "$0: bc must be installed!" >&2
+# one state file per device address, so several meters do not mix their values
+STATE_FILE="${TMPDIR:-/tmp}/GetPowerFromDDSU666_${ADDRESS}.last"
+
+# --------------------------------------------------
+# Read power from DDSU666 (kW), three attempts
+# --------------------------------------------------
+
+get_power() {
+    for i in 1 2 3; do
+        RAW_VALUE=$(
+            mbpoll -a "$ADDRESS" -b 9600 -P none -B \
+                -t 4:float -0 -r 8196 -c 1 -1 "$DEVICE" 2>/dev/null |
+            sed -n -e 's/.*\[8196\]:[[:space:]]*\([^[:space:]]*\).*/\1/p' |
+            head -n 1
+        )
+
+        # accept plain and exponent notation, e.g. 0.123, -1, 1.5e-03
+        if echo "$RAW_VALUE" | grep -qE '^-?[0-9]+([.][0-9]+)?([eE][-+]?[0-9]+)?$'; then
+            echo "$RAW_VALUE"
+            return 0
+        fi
+
+        [ "$i" -lt 3 ] && sleep 1
+    done
+    return 1
+}
+
+if ! RAW=$(get_power); then
+    echo "$0: no valid reading from DDSU666 at address $ADDRESS on $DEVICE" >&2
     echo 0
     exit 1
 fi
 
-# --------------------------------------------------
-# Function: Read power from DDSU666
-# --------------------------------------------------
-
-get_power() {
-
-    for i in 1 2 3; do
-
-        # Read Modbus register 8196
-        VE_SYSTEM=$(
-            mbpoll -a "$ADDRESS" -b 9600 -P none -B \
-                -t 4:float -0 -r 8196 -c 1 -1 "$DEVICE" 2>&1 |
-            grep -E '\[8196\]:'
-        )
-
-        if [ $? -eq 0 ]; then
-
-            # Extract register value
-            RAW_VALUE=$(
-                echo "$VE_SYSTEM" |
-                awk -F':' '{
-                    gsub(/^[ \t]+|[ \t]+$/, "", $2)
-                    print $2
-                    exit
-                }'
-            )
-
-            # Validate numeric value
-            if echo "$RAW_VALUE" |
-                grep -qE '^-?[0-9]+([.][0-9]+)?$'; then
-
-                echo "$RAW_VALUE"
-                return 0
-            fi
-        fi
-
-        # Short delay before retry
-        sleep 0.4
-
-    done
-
-    # All Modbus attempts failed
-    return 1
-}
+# kW -> W, rounded, sign inverted for Hoymiles
+AC_GRID=$(awk -v kw="$RAW" 'BEGIN { w = -kw * 1000; printf "%d\n", (w < 0) ? w - 0.5 : w + 0.5 }')
 
 # --------------------------------------------------
-# Read current power
+# Optional filter for sudden drops
 # --------------------------------------------------
 
-RAW=$(get_power)
-READ_STATUS=$?
+NOW=$(date +%s)
 
-if [ "$READ_STATUS" -eq 0 ]; then
-
-    # Convert kW into W
-    AC_GRID=$(echo "$RAW * 1000" | bc)
-
-    # Keep integer power value
-    AC_GRID=$(printf "%.0f" "$AC_GRID")
-
-    # Hoymiles specific sign conversion
-    AC_GRID=$(( -1 * AC_GRID ))
-
-    FRESH_DATA=1
-
-else
-
-    # Modbus communication failed
-    FRESH_DATA=0
-
-    # Check whether a previous measurement exists
-    if [ -f "$LAST_FILE" ] && [ -f "$TIME_FILE" ]; then
-
-        LAST=$(cat "$LAST_FILE")
-        LAST_TIME=$(cat "$TIME_FILE")
-        NOW=$(date +%s)
-
-        # Validate previous measurement and timestamp
-        if echo "$LAST" | grep -qE '^-?[0-9]+$' &&
-           echo "$LAST_TIME" | grep -qE '^[0-9]+$'; then
-
-            AGE=$(( NOW - LAST_TIME ))
-
-            # Reuse previous value only if still recent
-            if [ "$AGE" -ge 0 ] && [ "$AGE" -le "$MAX_AGE" ]; then
-                AC_GRID="$LAST"
-            else
-                AC_GRID=0
-            fi
-        else
-            AC_GRID=0
-        fi
-
-    else
-        AC_GRID=0
-    fi
-
-fi
-
-# --------------------------------------------------
-# Filter sudden power variations
-# --------------------------------------------------
-
-# Apply filtering only to fresh measurements
-if [ "$FRESH_DATA" -eq 1 ] && [ -f "$LAST_FILE" ]; then
-
-    LAST=$(cat "$LAST_FILE")
-
-    # Validate previous value before arithmetic
-    if echo "$LAST" | grep -qE '^-?[0-9]+$'; then
-
+if [ "$FILTER_THRESHOLD" -gt 0 ] && [ -f "$STATE_FILE" ]; then
+    read -r LAST LAST_TIME < "$STATE_FILE"
+    if echo "$LAST" | grep -qE '^-?[0-9]+$' &&
+       echo "$LAST_TIME" | grep -qE '^[0-9]+$'; then
+        AGE=$(( NOW - LAST_TIME ))
         DIFF=$(( AC_GRID - LAST ))
-
-        # Asymmetric filtering:
-        # Large negative variations are smoothed.
-        # Positive variations are kept immediately.
-        if [ "$DIFF" -lt "-$FILTER_THRESHOLD" ]; then
-
+        if [ "$AGE" -ge 0 ] && [ "$AGE" -le "$MAX_AGE" ] &&
+           [ "$DIFF" -lt "-$FILTER_THRESHOLD" ]; then
             AC_GRID=$(( (AC_GRID + LAST * 3) / 4 ))
-
         fi
     fi
 fi
 
-# --------------------------------------------------
-# Save fresh valid measurement
-# --------------------------------------------------
-
-if [ "$FRESH_DATA" -eq 1 ]; then
-
-    echo "$AC_GRID" > "$LAST_FILE"
-
-    # Store timestamp of last successful Modbus reading
-    date +%s > "$TIME_FILE"
-
+if [ "$FILTER_THRESHOLD" -gt 0 ]; then
+    echo "$AC_GRID $NOW" > "$STATE_FILE"
 fi
-
-# --------------------------------------------------
-# Return power value and communication status
-# --------------------------------------------------
 
 echo "$AC_GRID"
-
-# Return 0 if Modbus reading was successful
-# Return 1 if previous value was reused or zero was returned
-if [ "$FRESH_DATA" -eq 1 ]; then
-    exit 0
-else
-    exit 1
-fi
+exit 0
